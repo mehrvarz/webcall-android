@@ -7,7 +7,7 @@ android {
 		minSdkVersion 21
 		targetSdkVersion 31
 		versionCode 1
-		versionName "0.7.9"
+		versionName "0.7.10"
 	}
 
 	signingConfigs {
@@ -35,9 +35,8 @@ android {
 		}
 		applicationVariants.all { variant ->
 			variant.outputs.all {
-				def flavor = variant.name
 				def versionName = variant.versionName
-				outputFileName = "WebCall_${flavor}_${versionName}.apk"
+				outputFileName = "WebCall-${versionName}.apk"
 				//def formattedDate = new Date().format('dd-MM-YYYY')
 				//outputFileName = "AppName_${variantName}_D_${formattedDate}_V_${versionName}.apk"
 			}

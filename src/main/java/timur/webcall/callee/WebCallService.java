@@ -286,8 +286,10 @@ public class WebCallService extends Service {
 							dozeIdle = false;
 							Log.d(TAG,"dozeStateReceiver awake --------------");
 
-// TODO if we are supposed to be connected, this would be good opportunity to start AlarmReceiver
-// to make sure we are still receiving pings
+							// if we are disconnected now but supposed to be connected, 
+							// this is a good chance to start reconnecter
+							// this may be a lot quicker than waiting for the next alarm
+							checkLastPing();
 						}
 					}
 				};
@@ -1312,46 +1314,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			Log.d(TAG,"onWebsocketPing "+pingCounter+" "+
 				new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(currentDate));
 			lastPingDate = currentDate;
-/*
-			Runnable runnable2 = new Runnable() {
-				public void run() {
-					Date newDate = new Date();
-					//long diffInMillies = Math.abs(newDate.getTime() - currentDate.getTime());
-					//Log.d(TAG, "onWebsocketPing "+pingCounter+" diff="+diffInMillies);
 
-					boolean wakeUpWakeLockHeld = false;
-					if(wakeUpWakeLock!=null && wakeUpWakeLock.isHeld()) {
-						wakeUpWakeLockHeld = true;
-					}
-
-					Log.d(TAG, "onWebsocketPing!"+pingCounter+" "+
-						new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(newDate)+" "+
-						wakeUpWakeLockHeld);
-				}
-			};
-			scheduler.schedule(runnable2, 90, TimeUnit.SECONDS);
-*/
-/*
-			Thread t = new Thread(() -> {
-				BiConsumer<Date,Long> oneShot = (olddate,oldPingCounter) -> {
-					try {
-						Thread.sleep(19500); // = 90s WTF?!
-					} catch(Exception ex) {
-						Log.d(TAG, "onWebsocketPing ex="+ex);
-					}
-					Date newDate = new Date();
-					long diffInMillies = Math.abs(newDate.getTime() - currentDate.getTime());
-					// diffInMillies shd be <=40000ms
-					if(diffInMillies>40000) {
-						Log.d(TAG, "onWebsocketPing "+oldPingCounter+" diff="+diffInMillies+" problem"); 
-					} else {
-						Log.d(TAG, "onWebsocketPing "+oldPingCounter+" diff="+diffInMillies+" ok"); 
-					}
-				};
-				oneShot.accept(currentDate,new Long(pingCounter));
-			});
-			t.start();
-*/
 			super.onWebsocketPing(conn,f); // will send a pong
 		}
 	}
@@ -1365,72 +1328,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			pendingAlarm = null;
 			alarmPendingDate = null;
 			Log.d(TAG,"alarmStateReceiver onReceive ----------------");
-			boolean needKeepAwake = false;
-			boolean needReconnecter = false;
-			if(lastPingDate!=null) {
-				// if lastPingDate is too old, then there was a network disconnect 
-				// and the server has given up on us: we need to start reconnecter
-				Date newDate = new Date();
-				long diffInMillies = Math.abs(newDate.getTime() - lastPingDate.getTime());
-				if(diffInMillies>serverPingPeriodPlus*1000 && !reconnectBusy) {
-					// lastPingDate is too old 
-					Log.d(TAG,"alarmStateReceiver diff="+diffInMillies+" TOO BIG ----------------");
-					needKeepAwake = true;
-					// we only need to start a reconnecter if we are supposed to be connected
-					// but wsClose() will cancel alarms, so we won't get called if we shd be disconnected
-					needReconnecter = true;
-				} else {
-					Log.d(TAG,"alarmStateReceiver diff="+diffInMillies+
-						" < "+(serverPingPeriodPlus*1000)+" ----------------");
-				}
-			}
-			if(reconnectBusy) {
-				// if we are in a reconnect already (after a detected disconnect)
-				// get a KeepAwake wakelock (it will be released automatically)
-				Log.d(TAG,"alarmStateReceiver reconnectBusy ----------------");
-				needKeepAwake = true;
-			}
-
-			if(needKeepAwake) {
-				if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
-					Log.d(TAG,"alarmStateReceiver keepAwakeWakeLock.acquire ----------------");
-					keepAwakeWakeLock.acquire(15 * 60 * 1000);
-				} else if(keepAwakeWakeLock!=null) {
-					Log.d(TAG,"alarmStateReceiver keepAwakeWakeLock.isHeld ----------------");
-				} else {
-					Log.d(TAG,"alarmStateReceiver cannot keepAwakeWakeLock.acquire ----------------");
-				}
-			}
-			if(needReconnecter) {
-				Log.d(TAG,"alarmStateReceiver schedule reconnecter ----------------");
-				if(beepOnLostNetworkMode>0) {
-					playSoundAlarm();
-				}
-				if(wsClient!=null) {
-					WebSocketClient tmpWsClient = wsClient;
-					wsClient = null;
-					// closeBlocking() makes no sense here bc server has stopped sending pings (TODO?)
-					tmpWsClient.close();
-					statusMessage("Disconnected from WebCall server..",true,false);
-				}
-
-				if(loginUrl==null) {
-					// if this service was NOT started by system boot
-					// and there was NO prev reconnect caused by 1006
-					// then we will need to construct loginUrl before we call reconnecter
-					String webcalldomain;
-					String username;
-					webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-					username = prefs.getString("username", "");
-					loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
-				}
-
-				if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-					reconnectSchedFuture.cancel(false);	
-					reconnectSchedFuture = null;
-				}
-				reconnectSchedFuture = scheduler.schedule(reconnecter,1,TimeUnit.SECONDS);
-			}
+			checkLastPing();
 
 			// always request a followup alarm
 			Intent i = new Intent("timur.webcall.callee.START_ALARM");
@@ -1450,9 +1348,78 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 	}
 
 
-	// section 5: private utility methods
+	// section 5: private methods
 
-	private void storeByteArrayToFile(byte[] blobAsBytes, String filename) { //throws IOException {
+	private void checkLastPing() {
+		boolean needKeepAwake = false;
+		boolean needReconnecter = false;
+		if(lastPingDate!=null) {
+			// if lastPingDate is too old, then there was a network disconnect
+			// and the server has given up on us: we need to start reconnecter
+			Date newDate = new Date();
+			long diffInMillies = Math.abs(newDate.getTime() - lastPingDate.getTime());
+			if(diffInMillies>serverPingPeriodPlus*1000 && !reconnectBusy) {
+				// lastPingDate is too old
+				Log.d(TAG,"checkLastPing diff="+diffInMillies+" TOO OLD ----------------");
+				needKeepAwake = true;
+				// we only need to start a reconnecter if we are supposed to be connected
+				// but wsClose() will cancel alarms, so we won't get called if we shd be disconnected
+				needReconnecter = true;
+			} else {
+				Log.d(TAG,"checkLastPing diff="+diffInMillies+
+					" < "+(serverPingPeriodPlus*1000)+" ----------------");
+			}
+		}
+		if(reconnectBusy) {
+			// if we are in a reconnect already (after a detected disconnect)
+			// get a KeepAwake wakelock (it will be released automatically)
+			Log.d(TAG,"checkLastPing reconnectBusy ----------------");
+			needKeepAwake = true;
+		}
+
+		if(needKeepAwake) {
+			if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
+				Log.d(TAG,"checkLastPing keepAwakeWakeLock.acquire ----------------");
+				keepAwakeWakeLock.acquire(15 * 60 * 1000);
+			} else if(keepAwakeWakeLock!=null) {
+				Log.d(TAG,"checkLastPing keepAwakeWakeLock.isHeld ----------------");
+			} else {
+				Log.d(TAG,"checkLastPing cannot keepAwakeWakeLock.acquire ----------------");
+			}
+		}
+		if(needReconnecter) {
+			Log.d(TAG,"checkLastPing schedule reconnecter ----------------");
+			if(beepOnLostNetworkMode>0) {
+				playSoundAlarm();
+			}
+			if(wsClient!=null) {
+				WebSocketClient tmpWsClient = wsClient;
+				wsClient = null;
+				// closeBlocking() makes no sense here bc server has stopped sending pings (TODO?)
+				tmpWsClient.close();
+				statusMessage("Disconnected from WebCall server..",true,false);
+			}
+
+			if(loginUrl==null) {
+				// if this service was NOT started by system boot
+				// and there was NO prev reconnect caused by 1006
+				// then we will need to construct loginUrl before we call reconnecter
+				String webcalldomain;
+				String username;
+				webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+				username = prefs.getString("username", "");
+				loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
+			}
+
+			if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+				reconnectSchedFuture.cancel(false);
+				reconnectSchedFuture = null;
+			}
+			reconnectSchedFuture = scheduler.schedule(reconnecter,1,TimeUnit.SECONDS);
+		}
+	}
+
+	private void storeByteArrayToFile(byte[] blobAsBytes, String filename) {
 		String androidFolder = Environment.DIRECTORY_DOWNLOADS; // DIRECTORY_DCIM
 		String mimeType = URLConnection.guessContentTypeFromName(filename);
 		String filenameLowerCase = filename.toLowerCase(Locale.getDefault());
