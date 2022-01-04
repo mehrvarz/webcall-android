@@ -322,14 +322,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		//PackageInfo packageInfo = WebViewCompat.getCurrentWebViewPackage();
 		PackageInfo packageInfo = getCurrentWebViewPackageInfo();
 		if(packageInfo == null) {
-			if(Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT) {
-				Log.d(TAG, "onCreate No System WebView installed");
+			if(Build.VERSION.SDK_INT > 22) { //Build.VERSION_CODES.LOLLIPOP +1
+				Log.d(TAG, "onCreate No System WebView installed "+
+					Build.VERSION.SDK_INT+" "+Build.VERSION_CODES.LOLLIPOP);
 				startupFail = true;
 				Toast.makeText(context, "WebCall cannot start. No System WebView installed.",
 					Toast.LENGTH_LONG).show();
 				return;
 			} else {
-				// on Kitkat and below we risk a crash (if no webview is installed) in the next line
+				// on LOLLIPOP and below getCurrentWebViewPackageInfo() doesn't work
+				// so instead we risk a crash (to find out if no webview is installed) in the next line
 			}
 		} else {
 		    Log.d(TAG, "onCreate WEBVIEW VERSION "+packageInfo.packageName+", "+packageInfo.versionName);
