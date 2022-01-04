@@ -30,11 +30,13 @@ android {
 		debug {
 			debuggable true
 		}
+/*
 		release {
 			minifyEnabled false
 			proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-//			signingConfig signingConfigs.release
+			signingConfig signingConfigs.release
 		}
+*/
 		applicationVariants.all { variant ->
 			variant.outputs.all {
 				def flavor = variant.name
