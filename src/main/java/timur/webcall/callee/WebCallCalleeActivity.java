@@ -597,7 +597,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			} else if(permCamNeeed) {
 				msg = "A permission is needed for WebView to use the camera.";
 			}
-			msg += "\nOpen 'Permissions' and flip the switch.";
+			msg += "\nOpen 'Permissions' and allow these devices to be used.";
+			msg += "\n\nOn some devices you may also need to enable 'Keep running while screen off'.";
 			alertbox.setMessage(msg);
 			alertbox.setPositiveButton("Continue", new DialogInterface.OnClickListener() {
 				@Override
