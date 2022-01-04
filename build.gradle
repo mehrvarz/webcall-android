@@ -1,6 +1,5 @@
 apply plugin: 'com.android.application'
 
-
 android {
 	compileSdkVersion 31
 	defaultConfig {
@@ -42,8 +41,8 @@ android {
 				def flavor = variant.name
 				def versionName = variant.versionName
 				outputFileName = "WebCall_${flavor}_${versionName}.apk"
-//				def formattedDate = new Date().format('dd-MM-YYYY')
-//				outputFileName = "AppName_${variantName}_D_${formattedDate}_V_${versionName}.apk"
+				//def formattedDate = new Date().format('dd-MM-YYYY')
+				//outputFileName = "AppName_${variantName}_D_${formattedDate}_V_${versionName}.apk"
 			}
 		}
 	}
@@ -64,17 +63,9 @@ buildscript {
         }
 	}
 	dependencies {
-//		classpath fileTree(include: ['*.jar'], dir: 'libs')
+		//classpath fileTree(include: ['*.jar'], dir: 'libs')
 		classpath 'com.android.tools.build:gradle:4.1.3'
-//		classpath 'com.android.tools.build:gradle:7.3.3'
-//		classpath 'com.android.tools.build:gradle:6.8.3'
-//	    compile 'com.android.support:support-v4:+'
-//		implementation 'com.android.support:appcompat-v7:27.0.0'
-//		implementation 'com.android.support:design:27.0.0'
-//		implementation 'com.android.support:support-v4:27.1.1'
-//		classpath 'com.android.support:support-v4:27.1.1'
-//		implementation 'androidx.appcompat:appcompat:1.4.0'
-//		classpath 'androidx.appcompat:appcompat:1.0.0'
+		//classpath 'com.android.tools.build:gradle:7.3.3'
 	}
 }
 repositories { 
@@ -86,16 +77,16 @@ repositories {
 dependencies {
 	implementation fileTree(dir: 'libs', include: ['*.jar'])
 	implementation 'androidx.appcompat:appcompat:1.4.0'
-// TODO switch to 1.5.3 when possible
+
+	// TODO switch to 1.5.3 when possible
+	// see: https://search.maven.org/artifact/org.java-websocket/Java-WebSocket
 	implementation 'org.java-websocket:Java-WebSocket:1.5.2'
-	// https://search.maven.org/artifact/org.java-websocket/Java-WebSocket
-//	implementation 'org.slf4j:slf4j-log4j1:1.7.25'
-//	compile group: 'org.slf4j', name:'slf4j-api', version: '1.7.2'
-//	implementation 'com.android.volley:volley:1.1.1'
-//	implementation 'com.google.android.material:material:1.1.0'
+
+	//implementation 'com.android.volley:volley:1.1.1'
+	//implementation 'com.google.android.material:material:1.1.0'
 }
 tasks.withType(JavaCompile) {
-//	options.compilerArgs << '-Xlint:unchecked'
-//	options.deprecation = true
+	//options.compilerArgs << '-Xlint:unchecked'
+	//options.deprecation = true
 }
 
