@@ -6,4 +6,5 @@ readme-tm.txt
 releasekey.keystore
 src/main/old*
 src/main/xcf
+build.gradle
 
