@@ -1,3 +1,6 @@
 .gradle
 build
+keystore.properties
+readme-tm.txt
+releasekey.keystore
 
