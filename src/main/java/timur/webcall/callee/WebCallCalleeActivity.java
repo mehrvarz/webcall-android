@@ -322,7 +322,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		//PackageInfo packageInfo = WebViewCompat.getCurrentWebViewPackage();
 		PackageInfo packageInfo = getCurrentWebViewPackageInfo();
 		if(packageInfo == null) {
-			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+			if(Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
 				Log.d(TAG, "onCreate No System WebView installed "+
 					Build.VERSION.SDK_INT+" "+Build.VERSION_CODES.LOLLIPOP);
 				startupFail = true;
@@ -1044,18 +1044,32 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		PackageInfo pInfo = null;
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 			//starting with Android O (API 26) they added a new method specific for this
+		    Log.d(TAG, "getCurrentWebViewPackageInfo for O+");
 			pInfo = WebView.getCurrentWebViewPackage();
-		} else if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+		} else if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 			//with Android Lollipop (API 21) they started to update the WebView 
 			//as a separate APK with the PlayStore and they added the
 			//getLoadedPackageInfo() method to the WebViewFactory class and this
 			//should handle the Android 7.0 behaviour changes too
 			try {
+			    Log.d(TAG, "getCurrentWebViewPackageInfo for L+");
 				Class webViewFactory = Class.forName("android.webkit.WebViewFactory");
 				Method method = webViewFactory.getMethod("getLoadedPackageInfo");
 				pInfo = (PackageInfo) method.invoke(null);
 			} catch (Exception e) {
-				e.printStackTrace();
+				//e.printStackTrace();
+			    Log.d(TAG, "getCurrentWebViewPackageInfo for L+ ex="+e);
+			}
+			if(pInfo==null) {
+				try {
+				    Log.d(TAG, "getCurrentWebViewPackageInfo for L+ (2)");
+					Class webViewFactory = Class.forName("com.google.android.webview.WebViewFactory");
+					Method method = webViewFactory.getMethod("getLoadedPackageInfo");
+					pInfo = (PackageInfo) method.invoke(null);
+				} catch (Exception e2) {
+					//e.printStackTrace();
+				    Log.d(TAG, "getCurrentWebViewPackageInfo for L+ (2) ex="+e2);
+				}
 			}
 		} else {
 			//before Lollipop we get no info
