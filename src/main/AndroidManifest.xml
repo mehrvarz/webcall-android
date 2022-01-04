@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+		xmlns:tools="http://schemas.android.com/tools"
+    package="timur.webcall.callee"
+    android:versionCode="1"
+    android:versionName="1.0.0" >
+
+	<!--uses-sdk android:minSdkVersion="21" android:targetSdkVersion="31" /-->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+	<uses-permission android:name="android.permission.RECORD_AUDIO" />
+	<uses-permission android:name="android.permission.CAMERA" />
+	<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+	<!--ProtectedPermissions uses-permission android:name="android.permission.MODIFY_AUDIO_ROUTING" /-->
+	<uses-permission android:name="android.permission.WAKE_LOCK" />
+	<uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+	<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+	<uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+	<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+	<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+		android:maxSdkVersion="28" tools:ignore="ScopedStorage" />
+	<!--uses-permission android:name="android.permission-group.STORAGE"/>
+	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:required="true" /-->
+	<uses-permission android:name="android.hardware.sensor.proximity"/>
+	<uses-permission android:name="android.permission.NFC"/>
+	<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+	<!--uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" /-->
+	<uses-permission-sdk-23 android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+
+	<uses-feature android:name="android.hardware.audio.low_latency" />
+	<uses-feature android:name="android.hardware.audio.pro" />
+	<uses-feature android:name="android.hardware.microphone" android:required="true"/>
+	<uses-feature android:name="android.hardware.camera.autofocus" />
+	<uses-feature android:name="android.hardware.camera" android:required="true" />
+	<uses-feature android:name="android.hardware.camera.front" android:required="true" />
+
+    <application android:label="@string/app_name" 
+                 android:allowBackup="true"
+				 android:fullBackupContent="true"
+				 android:requestLegacyExternalStorage="true"
+		         android:icon="@mipmap/ic_launcher"
+		         android:roundIcon="@mipmap/ic_launcher_round">
+        <activity
+            android:name=".WebCallCalleeActivity"
+            android:label="@string/app_name"
+			android:configChanges="orientation|keyboardHidden|screenSize"
+			android:theme="@android:style/Theme.Material.NoActionBar"
+            android:launchMode="singleInstance">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+<!--
+			android:theme="@android:style/Theme.Black.NoTitleBar"
+-->
+		<service android:name=".WebCallService"
+			android:foregroundServiceType="microphone|camera" />
+		<receiver android:name=".WebCallServiceReceiver">
+			<intent-filter>
+				<action android:name="android.intent.action.BOOT_COMPLETED" />
+			</intent-filter>
+		</receiver>
+<!--
+		<receiver android:name=".WebCallService.AlarmReceiver" android:exported="true">
+			<intent-filter>
+				<action android:name="timur.webcall.callee.START_ALARM" />
+			</intent-filter>
+		</receiver>
+-->
+		<provider
+			android:name="androidx.core.content.FileProvider"
+			android:authorities="${applicationId}.provider"
+			android:exported="false"
+			android:grantUriPermissions="true">
+			<meta-data
+				android:name="android.support.FILE_PROVIDER_PATHS"
+				android:resource="@xml/provider_paths"/>
+		</provider>
+
+		<meta-data android:name="android.nfc.disable_beam_default" android:value="true" />
+    </application>
+</manifest>
+
