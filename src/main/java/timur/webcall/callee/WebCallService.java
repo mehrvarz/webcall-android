@@ -472,6 +472,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						// file will be stored in getBase64FromBlobData()
 					} else {
 						DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+// TODO userAgent???
 						String cookies = CookieManager.getInstance().getCookie(userAgent);
 						request.addRequestHeader("cookie",cookies);
 						request.addRequestHeader("User-Agent",userAgent);
@@ -1970,6 +1971,20 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					Log.d(TAG,"connectHost hostVerify Success net="+haveNetworkInt+" ----------------");
 					connectTypeInt = 1;
 					audioToSpeakerSet(audioToSpeakerMode>0,false);
+
+// TODO evtl muss ich jetzt die webviewCookies übernehmen
+// setAddr = wss://
+// wir brauchen aber currentUrl: https://timur.mobi/callee/Gisela?auto=1
+					Log.d(TAG,"connectHost get cookies from "+currentUrl);
+					if(!currentUrl.equals("")) {
+						webviewCookies = CookieManager.getInstance().getCookie(currentUrl);
+						Log.d(TAG,"connectHost webviewCookies="+webviewCookies);
+						if(!webviewCookies.equals("")) {
+							SharedPreferences.Editor prefed = prefs.edit();
+							prefed.putString("cookies", webviewCookies);
+							prefed.apply();
+						}
+					}
 
 					if(haveNetworkInt==2) {
 						// we are connected over wifi
