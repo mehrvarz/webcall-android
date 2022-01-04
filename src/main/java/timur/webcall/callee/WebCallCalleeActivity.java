@@ -322,7 +322,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		//PackageInfo packageInfo = WebViewCompat.getCurrentWebViewPackage();
 		PackageInfo packageInfo = getCurrentWebViewPackageInfo();
 		if(packageInfo == null) {
-			if(Build.VERSION.SDK_INT > 22) { //Build.VERSION_CODES.LOLLIPOP +1
+			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 				Log.d(TAG, "onCreate No System WebView installed "+
 					Build.VERSION.SDK_INT+" "+Build.VERSION_CODES.LOLLIPOP);
 				startupFail = true;
