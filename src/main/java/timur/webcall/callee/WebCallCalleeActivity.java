@@ -587,13 +587,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(permMicNeeed || permCamNeeed) {
 			AlertDialog.Builder alertbox = new AlertDialog.Builder(context);
 			alertbox.setTitle("Permission needed");
+			String msg = "";
 			if(permMicNeeed && permCamNeeed) {
-				alertbox.setMessage("Permission needed for microphone and camera.");
+				msg = "Permissions needed for WebView to use microphone and camera.";
 			} else if(permMicNeeed) {
-				alertbox.setMessage("Permission needed for microphone.");
+				msg = "A permission is needed for WebView to use the microphone.";
 			} else if(permCamNeeed) {
-				alertbox.setMessage("Permission needed for camera.");
+				msg = "A permission is needed for WebView to use the camera.";
 			}
+			msg += "\nOpen 'Permissions' and flip the switch.";
+			alertbox.setMessage(msg);
 			alertbox.setPositiveButton("Continue", new DialogInterface.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
@@ -789,7 +792,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			String webviewUrl = webCallServiceBinder.getCurrentUrl();
 		    Log.d(TAG, "onBackPressed webviewUrl="+webviewUrl);
 			// we may need to do historyBack()
-			if(webviewUrl.indexOf("#")>=0) {
+			if(webviewUrl.indexOf("#")>=0 /*|| webviewUrl.indexOf("/callee/register")>=0*/) {
 			    Log.d(TAG, "onBackPressed -> historyBack()");
 				webCallServiceBinder.runJScode("historyBack()");
 				return;

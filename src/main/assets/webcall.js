@@ -131,12 +131,12 @@ function submitFormDone(theForm) {
 	}
 
 	if(valueUsername=="") {
-		if(confirm('Do you want to register a new WebCall user ID?')) {
+		if(confirm('Do you want to register a new WebCall user ID?\n\nIf so, please enter a password in the form and click the generated link to continue.')) {
 			Android.storePreference("username", "");
 			Android.wsClearCookies();
 
 			let url = "https://"+valueDomain+"/callee/register";
-			console.log('load register page'+url);
+			console.log('load register page='+url);
 			window.location.replace(url);
 		}
 		return;
