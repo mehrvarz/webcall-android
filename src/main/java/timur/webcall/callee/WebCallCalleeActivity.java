@@ -77,6 +77,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
 
+import timur.webcall.callee.BuildConfig;
+
 public class WebCallCalleeActivity extends Activity implements CreateNdefMessageCallback {
 	private static final String TAG = "WebCallActivity";
 
@@ -316,7 +318,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		Log.d(TAG, "onCreate");
+		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
 		context = this;
 
 		//PackageInfo packageInfo = WebViewCompat.getCurrentWebViewPackage();
@@ -558,7 +560,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
 		// onServiceConnected -> webCallServiceBinder.startWebView()
 
-		Log.d(TAG, "onCreate() registerForContextMenu");
+		Log.d(TAG, "onCreate registerForContextMenu");
 		registerForContextMenu(mainView);
 		Log.d(TAG, "onCreate done");
     }

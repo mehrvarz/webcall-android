@@ -143,6 +143,8 @@ import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLParameters;
 
+import timur.webcall.callee.BuildConfig;
+
 public class WebCallService extends Service {
 	private final static String TAG = "WebCallService";
 	private final static int NOTIF_ID = 1;
@@ -152,8 +154,10 @@ public class WebCallService extends Service {
 	private final static int serverPingPeriodPlus = 60+20;
 
 	// we do up to ReconnectCounterMax loops when we try to reconnect
-	// loops are separated by 30s; so 40 loops will take up to about 20min
-	private final static int ReconnectCounterMax = 40;
+	// loops are done in ca. 30s intervals; so 40 loops will take up close to 20min
+	private final static int ReconnectCounterBeep = 6;    // make a beep after x reconnect loops
+	private final static int ReconnectCounterScreen = 20; // turn the screen on after x reconnect loops
+	private final static int ReconnectCounterMax = 40;    // max number of reconnect loops
 
 	private Context context = null;
 	private SharedPreferences preferences = null;
@@ -203,6 +207,7 @@ public class WebCallService extends Service {
 	private volatile boolean dozeIdle = false;
 	private volatile Date alarmPendingDate = null;
 	private volatile PendingIntent pendingAlarm = null;
+	private volatile boolean soundNotificationPlayed = false;
 
 	// section 1: android service methods
 	@Override
@@ -215,7 +220,7 @@ public class WebCallService extends Service {
 
 	@Override
 	public void onCreate() {
-		Log.d(TAG, "onCreate");
+		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
 
 		alarmReceiver = new AlarmReceiver();
 		registerReceiver(alarmReceiver, new IntentFilter("timur.webcall.callee.START_ALARM"));
@@ -1156,9 +1161,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						keepAwakeWakeLock.acquire(15 * 60 * 1000);
 					}
 
-					if(inDozeMode(context)) {
-						wakeUpFromDoze(); // step 1a + 1b
-					}
+					wakeUpIfNeeded(context);
 
 					// close prev connection
 					if(wsClient!=null) {
@@ -1170,9 +1173,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						Log.d(TAG,"onClose wsClient.close() done");
 					}
 
-					if(beepOnLostNetworkMode>0) {
-						playSoundNotification();
-					}
 					statusMessage("Disconnected from WebCall server...",true,true);
 
 					// reconnect to server
@@ -1190,6 +1190,12 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
 						// schedule reconnect loop in 8s giving server some time to detect the disconnect
 						Log.d(TAG,"onClose re-login in 8s url="+loginUrl);
+
+// TODO tmtmtm: I saw this happen
+// server pings have stopped
+// after a while checkLastPing() from dozeStateReceiver is the 1st to find out
+// checkLastPing() schedules a reconnecter in 1s
+// before 1s is over, this code=1006 strikes, cancels the reconnecter and schedules a new one in 8s
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							reconnectSchedFuture.cancel(false);	
 							reconnectSchedFuture = null;
@@ -1203,9 +1209,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					if(myWebView!=null && webviewMainPageLoaded) {
 						// offlineAction(): disable offline-button and enable online-button
 						runJS("offlineAction();",null);
-					}
-					if(beepOnLostNetworkMode>0) {
-						playSoundNotification();
 					}
 					statusMessage("Connection error "+code+". Not reconnecting.",true,true);
 					reconnectBusy=false;
@@ -1311,7 +1314,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 			pingCounter++;
 			Date currentDate = new Date();
-			Log.d(TAG,"onWebsocketPing "+pingCounter+" "+
+			Log.d(TAG,"onWebsocketPing "+pingCounter+" "+BuildConfig.VERSION_NAME+" "+
 				new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(currentDate));
 			lastPingDate = currentDate;
 
@@ -1389,9 +1392,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		}
 		if(needReconnecter) {
 			Log.d(TAG,"checkLastPing schedule reconnecter ----------------");
-			if(beepOnLostNetworkMode>0) {
-				playSoundAlarm();
-			}
 			if(wsClient!=null) {
 				WebSocketClient tmpWsClient = wsClient;
 				wsClient = null;
@@ -1574,13 +1574,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				Log.d(TAG,"reconnecter start "+reconnectCounter+" "+
 					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date()));
 				reconnectBusy = true;
-
 				wakeupTypeInt = -1;
-				if(inDozeMode(context)) {
-					// try to wake screen to wake device from doze (after 20 reconnect loops)
-					wakeUpFromDoze();
-				}
-
+				wakeUpIfNeeded(context);
 				reconnectCounter++;
 
 				if(haveNetworkInt<1) {
@@ -1806,7 +1801,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
 						statusMessage("Online. Waiting for calls.",false,false);
 						if(beepOnLostNetworkMode>0) {
-// TODO we should only play sound here if we were connected before and then lost network (not on boot)
 							playSoundConfirm();
 						}
 
@@ -2183,35 +2177,62 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		}
 	}
 
-// TODO should probably renamed to 'isWakeUpFromDozeNeeded()'
-	private boolean inDozeMode(Context context) {
+	private boolean wakeUpIfNeeded(Context context) {
 		// we consider to be in DozeMode if we have done 20 unsuccessful reconnect loops and now one of
 		// these is true: no network, powerManager.isDeviceIdleMode, screen is off, running on battery
 		// in this case we want to call wakeUpFromDoze( to turn the screen on with the hope, that this
 		// will allow us to reconnect to server
-		Log.d(TAG,"inDozeMode...");
-		if(haveNetworkInt<=0 && reconnectCounter==20) {
-			Log.d(TAG,"inDozeMode true (no network + reconnectCounter==20)");
-			return true;
-		}
-		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >= 23
-			Log.d(TAG,"inDozeMode api "+Build.VERSION.SDK_INT+" >=23");
-			if(powerManager.isDeviceIdleMode() && reconnectCounter==20) {
-				Log.d(TAG,"inDozeMode true powerManager.isDeviceIdleMode==true reconnectCounter==20");
+		Log.d(TAG,"wakeUpIfNeeded...");
+		if(haveNetworkInt<=0) {
+			if(reconnectCounter==ReconnectCounterBeep) {
+				if(beepOnLostNetworkMode>0) {
+					playSoundNotification();
+				}
+			} else if(reconnectCounter==ReconnectCounterScreen) {
+				Log.d(TAG,"wakeUpIfNeeded true (no network + reconnectCounter==ReconnectCounterScreen)");
+				wakeUpFromDoze();
 				return true;
 			}
 		}
-		Log.d(TAG,"inDozeMode check screen on");
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >= 23
+			Log.d(TAG,"wakeUpIfNeeded api "+Build.VERSION.SDK_INT+" >=23");
+			if(powerManager.isDeviceIdleMode()) {
+				if(reconnectCounter==ReconnectCounterBeep) {
+					if(beepOnLostNetworkMode>0) {
+						playSoundNotification();
+					}
+				} else if(reconnectCounter==ReconnectCounterScreen) {
+					Log.d(TAG,"wakeUpIfNeeded api>=23 deviceIdle 	reconnectCounter==ReconScreen");
+					wakeUpFromDoze();
+					return true;
+				}
+			}
+		}
+		Log.d(TAG,"wakeUpIfNeeded check screen on");
 		// if we return false, the device will not be woken up for reconnect attempts
-		if(!isScreenOn(context) && reconnectCounter==20) {
-			Log.d(TAG,"inDozeMode true (screen==off reconnectCounter==20)");
-			return true;
+		if(!isScreenOn(context)) {
+			if(reconnectCounter==ReconnectCounterBeep) {
+				if(beepOnLostNetworkMode>0) {
+					playSoundNotification();
+				}
+			} else if(reconnectCounter==ReconnectCounterScreen) {
+				Log.d(TAG,"wakeUpIfNeeded true (screen==off reconnectCounter==ReconnectCounterScreen)");
+				wakeUpFromDoze();
+				return true;
+			}
 		}
-		if(!isPowerConnected(context) && reconnectCounter==20) {
-			Log.d(TAG,"inDozeMode true (power connected + reconnectCounter==20)");
-			return true;
+		if(!isPowerConnected(context)) {
+			if(reconnectCounter==ReconnectCounterBeep) {
+				if(beepOnLostNetworkMode>0) {
+					playSoundNotification();
+				}
+			} else if(reconnectCounter==ReconnectCounterScreen) {
+				Log.d(TAG,"wakeUpIfNeeded true (power connected + reconnectCounter==ReconCounterScreen)");
+				wakeUpFromDoze();
+				return true;
+			}
 		}
-		Log.d(TAG,"inDozeMode false");
+		Log.d(TAG,"wakeUpIfNeeded false");
 		return false;
 	}
 
@@ -2378,13 +2399,17 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		ToneGenerator toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC, 90); // volume
 		//toneGen1.startTone(ToneGenerator.TONE_CDMA_PIP,120); // duration
 		toneGen1.startTone(ToneGenerator.TONE_SUP_INTERCEPT_ABBREV,200); // duration
+		soundNotificationPlayed = true;
 	}
 
 	private void playSoundConfirm() {
 		// very simple short beep to indicate a network problem (maybe just temporary)
-		Log.d(TAG,"playSoundConfirm");
-		ToneGenerator toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC, 90); // volume
-		toneGen1.startTone(ToneGenerator.TONE_SUP_CONFIRM,120); // duration
+		if(soundNotificationPlayed) {
+			Log.d(TAG,"playSoundConfirm");
+			ToneGenerator toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC, 90); // volume
+			toneGen1.startTone(ToneGenerator.TONE_SUP_CONFIRM,120); // duration
+			soundNotificationPlayed = false;
+		}
 	}
 
 	private void playSoundAlarm() {
