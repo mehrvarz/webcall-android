@@ -103,6 +103,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private NfcAdapter nfcAdapter;
 	//private Date lastUserInteraction = new Date();
 	private boolean startupFail = false;
+	private volatile int touchX, touchY;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -151,20 +152,21 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private int menuStartOnBootOn = 7;
 	private int menuStartOnBootOff = 8;
 	private int menuCaptureLogs = 20;
+	private int menuExtendedLogs = 30;
 	private volatile boolean nearbyMode = false;
 
 	@Override
-	public void onCreateContextMenu(ContextMenu menu, View v,
+	public void onCreateContextMenu(ContextMenu menu, View view,
 						ContextMenu.ContextMenuInfo menuInfo) {
 		final int none = ContextMenu.NONE;
 		// for the context menu to be shown, our service must be connected to webcall server
 		// and our webview url must contain "/callee/"
 		String webviewUrl = webCallServiceBinder.getCurrentUrl();
-		Log.d(TAG, "onCreateContextMenu connected "+webviewUrl);
+		Log.d(TAG,"onCreateContextMenu url="+webviewUrl+" touchY="+touchY);
 		if(webviewUrl.indexOf("/callee/")<0) {
-			Log.d(TAG, "onCreateContextMenu user is not on mainpage");
+			Log.d(TAG,"onCreateContextMenu user is not on mainpage");
 		} else {
-			Log.d(TAG, "onCreateContextMenu user is on mainpage");
+			Log.d(TAG,"onCreateContextMenu user is on mainpage");
 			menu.setHeaderTitle("WebCall Android");
 			if(!nearbyMode) {
 				if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // <=9 <=api28
@@ -205,14 +207,19 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 
 			menu.add(none,menuCaptureLogs,none,R.string.msg_capture_logs);
+
+			if(touchY<80) {
+				// extended functionality
+				menu.add(none,menuExtendedLogs,none,"# Extended logs");
+			}
 		}
-		super.onCreateContextMenu(menu, v, menuInfo);
+		super.onCreateContextMenu(menu, view, menuInfo);
 	}
 
 	@Override
 	public boolean onContextItemSelected(MenuItem item) {
 		Log.d(TAG, "onContextItemSelected");
-		AdapterContextMenuInfo info = (AdapterContextMenuInfo) item.getMenuInfo();
+		AdapterContextMenuInfo info = (AdapterContextMenuInfo)item.getMenuInfo();
 		int selectedItem = item.getItemId();
 		if(selectedItem==menuNearbyOn) {
 			Log.d(TAG, "onContextItemSelected menuNearbyOn");
@@ -312,6 +319,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			//Toast.makeText(context, "Logs were captured", Toast.LENGTH_LONG).show();
 			return true;
 		}
+		if(selectedItem==menuExtendedLogs) {
+			Log.d(TAG, "onContextItemSelected extended logs");
+			if(webCallServiceBinder.extendedLogs()) {
+				Toast.makeText(context, "Extended logs are on", Toast.LENGTH_LONG).show();
+			} else {
+				Toast.makeText(context, "Extended logs are off", Toast.LENGTH_LONG).show();
+			}
+			return true;
+		}
+
 		return super.onContextItemSelected(item);
 	}
 
@@ -363,9 +380,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(mainView!=null) {
 			mainView.setOnTouchListener(new View.OnTouchListener() {
 				@Override
-				public boolean onTouch(View view, MotionEvent event) {
+				public boolean onTouch(View view, MotionEvent ev) {
 					//Log.d(TAG, "onCreate onTouch");
 					//lastUserInteraction = new Date();
+
+					final int pointerCount = ev.getPointerCount();
+					for(int p = 0; p < pointerCount; p++) {
+						//Log.d(TAG, "onCreate onTouch x="+ev.getX(p)+" y="+ev.getY(p));
+						touchX = (int)ev.getX(p);
+						touchY = (int)ev.getY(p);
+					}
 
 					// undim screen
 					mParams.screenBrightness = -1f;

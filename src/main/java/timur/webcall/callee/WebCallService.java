@@ -178,6 +178,7 @@ public class WebCallService extends Service {
 	private String loginUrl = null;
 	private AlarmManager alarmManager = null;
 	private WakeLock keepAwakeWakeLock = null; // PARTIAL_WAKE_LOCK (screen off)
+	private ConnectivityManager connectivitymanager = null;
 
 	private volatile String webviewCookies = null;
 	private volatile WakeLock wakeUpWakeLock = null; // for wakeup from doze, released by activity
@@ -194,7 +195,7 @@ public class WebCallService extends Service {
 	private volatile boolean peerConnectFlag;
 	private volatile boolean sendRtcMessagesAfterInit;
 	private volatile int haveNetworkInt = -1; // 0=noNet, 2=wifi, 1=other
-	private volatile boolean reconnectBusy;
+	private volatile boolean reconnectBusy = false;
 	private volatile int reconnectCounter = 0;
 	//private boolean ringOnSpeaker = false;
 	//private AudioManager audioManager = null;
@@ -208,6 +209,7 @@ public class WebCallService extends Service {
 	private volatile Date alarmPendingDate = null;
 	private volatile PendingIntent pendingAlarm = null;
 	private volatile boolean soundNotificationPlayed = false;
+	private volatile boolean extendedLogsFlag = false;
 
 	// section 1: android service methods
 	@Override
@@ -231,8 +233,20 @@ public class WebCallService extends Service {
 		Log.d(TAG, "onStartCommand");
 		context = this;
 
+		if(scheduler==null) {
+			scheduler = Executors.newScheduledThreadPool(20);
+		}
+		if(scheduler==null) {
+			Log.d(TAG,"fatal: cannot create scheduledThreadPool");
+			return 0;
+		}
+
 		if(powerManager==null) {
 			powerManager = (PowerManager)context.getSystemService(Context.POWER_SERVICE);
+		}
+		if(powerManager==null) {
+			Log.d(TAG,"fatal: no access to powerManager");
+			return 0;
 		}
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
 			// check with isIgnoringBatteryOptimizations()
@@ -240,31 +254,63 @@ public class WebCallService extends Service {
 			boolean isIgnoringBatteryOpti = powerManager.isIgnoringBatteryOptimizations(packageName);
 			Log.d(TAG, "onStartCommand ignoringBattOpt="+isIgnoringBatteryOpti);
 		}
+
 		if(keepAwakeWakeLock==null) {
 			// apps that are (partially) exempt from Doze and App Standby optimizations
 			// can hold partial wake locks to ensure that the CPU is running and for 
 			// the screen and keyboard backlight to be allowed to go off
 			keepAwakeWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
-//				"WebCall:keepAwakeWakeLock");
+				//"WebCall:keepAwakeWakeLock");
 				"LocationManagerService:keepAwakeWakeLock"); // to avoid being killed on Huawei (it works!)
 		}
+		if(keepAwakeWakeLock==null) {
+			Log.d(TAG,"fatal: no access to keepAwakeWakeLock");
+			return 0;
+		}
+
 		if(wm==null) {
 			wm = (WifiManager)context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
 		}
+		if(wm==null) {
+			Log.d(TAG,"fatal: no access to wifiManager");
+			return 0;
+		}
+
 		if(wifiLock==null) {
 			wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL , "WebCall:wifiLock");
 			//wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF , "WebCall:wifiLockHigh");
 		}
+		if(wifiLock==null) {
+			Log.d(TAG,"fatal: no access to wifiLock");
+			return 0;
+		}
+
 		if(alarmManager==null) {
 			alarmManager = (AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
 		}
+		if(alarmManager==null) {
+			Log.d(TAG,"fatal: no access to alarmManager");
+			return 0;
+		}
+
 		if(reconnecter==null) {
 			reconnecter = newReconnecter();
 		}
+		if(reconnecter==null) {
+			Log.d(TAG,"fatal: cannot create reconnecter");
+			return 0;
+		}
+
+		if(connectivitymanager==null) {
+			connectivitymanager = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+		}
+		if(connectivitymanager==null) {
+			Log.d(TAG,"fatal: cannot get connectivitymanager");
+			return 0;
+		}
+
 		if(networkStateReceiver==null) {
 			checkNetworkState(false);
-			final ConnectivityManager connectivitymanager =
-					(ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
 			networkStateReceiver = new BroadcastReceiver() {
 				@Override
 				public void onReceive(Context context, Intent intent) {
@@ -274,6 +320,10 @@ public class WebCallService extends Service {
 			};
 			registerReceiver(networkStateReceiver,
 				new IntentFilter(android.net.ConnectivityManager.CONNECTIVITY_ACTION));
+		}
+		if(networkStateReceiver==null) {
+			Log.d(TAG,"fatal: cannot create networkStateReceiver");
+			return 0;
 		}
 
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -301,13 +351,6 @@ public class WebCallService extends Service {
 				registerReceiver(dozeStateReceiver,
 					new IntentFilter(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED));
 			}
-		}
-
-		if(scheduler==null) {
-			scheduler = Executors.newScheduledThreadPool(20);
-		}
-		if(scheduler==null) {
-// TODO must abort service
 		}
 
 		prefs = PreferenceManager.getDefaultSharedPreferences(context);
@@ -359,8 +402,8 @@ public class WebCallService extends Service {
 	@Override
 	public void onDestroy() {
 		Log.d(TAG, "onDestroy ----------------------");
-// TODO this is odd: I see this in the logs and shortly after "reconnecter start"
-// apparently this was an android misfunctioning. doesn't happen anymore.
+		// TODO this is odd: I see this in the logs and shortly after "reconnecter start"
+		// apparently this was an android misfunctioning. doesn't happen anymore.
 
 		if(alarmReceiver!=null) {
 			unregisterReceiver(alarmReceiver);
@@ -631,10 +674,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 								// checkServerMode(), getStream()
 								scheduler.schedule(runnable2, 1, TimeUnit.SECONDS);
 							} else {
-								webviewMainPageLoaded = true;	// TODO should be webviewMainPageLoaded
+								webviewMainPageLoaded = true;
 							}
 */
-							webviewMainPageLoaded = true;	// TODO should be webviewMainPageLoaded
+							webviewMainPageLoaded = true;
 						} else {
 							// we are already connected to server (probably from before activity start)
 							// we have to bring the just loaded callee.js online, too
@@ -845,6 +888,14 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			saveSystemLogs();
 		}
 
+		public boolean extendedLogs() {
+			if(!extendedLogsFlag)
+				extendedLogsFlag = true;
+			else
+				extendedLogsFlag = false;
+			return(extendedLogsFlag);
+		}
+
 		public String getCurrentUrl() {
 			return currentUrl;
 		}
@@ -874,6 +925,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 		@android.webkit.JavascriptInterface
 		public WebSocketClient wsOpen(String setWsAddr) {
+// TODO maybe if reconnectBusy is set, we should return something to make callee.js just wait?
+// or maybe we should just wait here for wsClient!=null?
 			if(reconnectBusy && wsClient!=null) {
 				Log.e(TAG,"wsOpen reconnectBusy return existing wsClient");
 				return wsClient;
@@ -924,8 +977,12 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				reconnectSchedFuture = null;
 				statusMessage("Stopped reconnecting",true,false);
 			}
+			if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+				reconnectSchedFuture.cancel(false);
+				reconnectSchedFuture = null;
+			}
 			// this is needed for wakelock and wifilock to be released
-			reconnectBusy=false;
+			reconnectBusy = false;
 			// wsClient.closeBlocking() + wsClient=null
 			disconnectHost(true);
 		}
@@ -1012,6 +1069,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		@android.webkit.JavascriptInterface
 		public void wsExit() {
 			// called by Exit button
+			if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+				reconnectSchedFuture.cancel(false);
+				reconnectSchedFuture = null;
+			}
 			reconnectBusy = false;
 
 			// hangup peercon, clear callPickedUpFlag, reset webview
@@ -1143,6 +1204,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// code 1006: connection was closed abnormally (locally)
 			// code 1000: indicates a normal closure (when we click goOffline)
 			if(reconnectBusy) {
+// TODO tmtmtm this happens with no reconnecter active
 				Log.d(TAG,"onClose skip busy (code="+code+" "+reason+")");
 			} else if(code==1000) { // TODO hack!
 				Log.d(TAG,"onClose skip code=1000");
@@ -1201,7 +1263,12 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						runJS("offlineAction();",null);
 					}
 					statusMessage("Connection error "+code+". Not reconnecting.",true,true);
-					reconnectBusy=false;
+
+					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+						reconnectSchedFuture.cancel(false);
+						reconnectSchedFuture = null;
+					}
+					reconnectBusy = false;
 					if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState keepAwakeWakeLock.release ----------------");
 						keepAwakeWakeLock.release();
@@ -1284,8 +1351,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// a pong from the server in response to our ping
 			// note: if doze mode is active, many of our ws-pings (by Timer) do not execute
 			// and then we also don't receive the acompaning server-pongs
-			Log.d(TAG,"onWebsocketPong "+
-				new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date()));
+			if(extendedLogsFlag) {
+				Log.d(TAG,"onWebsocketPong "+
+					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date()));
+			}
 			super.onWebsocketPong(conn,f); // without calling this we crash (at least on P9)
 		}
 
@@ -1304,8 +1373,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 			pingCounter++;
 			Date currentDate = new Date();
-			Log.d(TAG,"onWebsocketPing "+pingCounter+" "+BuildConfig.VERSION_NAME+" "+
-				new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(currentDate));
+			if(extendedLogsFlag) {
+				Log.d(TAG,"onWebsocketPing "+pingCounter+" "+BuildConfig.VERSION_NAME+" "+
+					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(currentDate));
+			}
 			lastPingDate = currentDate;
 
 			super.onWebsocketPing(conn,f); // will send a pong
@@ -1320,19 +1391,25 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 // TODO if pendingAlarm==null already we should abort right now
 			pendingAlarm = null;
 			alarmPendingDate = null;
-			Log.d(TAG,"alarmStateReceiver onReceive ----------------");
+			if(extendedLogsFlag) {
+				Log.d(TAG,"alarmStateReceiver onReceive ----------------");
+			}
 			checkLastPing();
 
 			// always request a followup alarm
 			Intent i = new Intent("timur.webcall.callee.START_ALARM");
 			pendingAlarm = PendingIntent.getBroadcast(context, 0, i, 0);
 			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-				Log.d(TAG,"alarmStateReceiver alarm setAndAllowWhileIdle ----------------");
+				if(extendedLogsFlag) {
+					Log.d(TAG,"alarmStateReceiver alarm setAndAllowWhileIdle ----------------");
+				}
 				alarmManager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
 					SystemClock.elapsedRealtime() + 10*60*1000, pendingAlarm);
 			} else {
 				// for Android 5 and below:
-				Log.d(TAG,"alarmStateReceiver alarm set ----------------");
+				if(extendedLogsFlag) {
+					Log.d(TAG,"alarmStateReceiver alarm set ----------------");
+				}
 				alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
 					SystemClock.elapsedRealtime() + 10*60*1000, pendingAlarm);
 			}
@@ -1351,7 +1428,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// and the server has given up on us: we need to start reconnecter
 			Date newDate = new Date();
 			long diffInMillies = Math.abs(newDate.getTime() - lastPingDate.getTime());
-			if(diffInMillies>serverPingPeriodPlus*1000 && !reconnectBusy) {
+			if(diffInMillies > serverPingPeriodPlus*1000 && !reconnectBusy) {
+// TODO tmtmtm we don't branch in here bc reconnectBusy is wrongly set
 				// lastPingDate is too old
 				Log.d(TAG,"checkLastPing diff="+diffInMillies+" TOO OLD ----------------");
 				needKeepAwake = true;
@@ -1359,8 +1437,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				// but wsClose() will cancel alarms, so we won't get called if we shd be disconnected
 				needReconnecter = true;
 			} else {
-				Log.d(TAG,"checkLastPing diff="+diffInMillies+
-					" < "+(serverPingPeriodPlus*1000)+" ----------------");
+				if(extendedLogsFlag) {
+					Log.d(TAG,"checkLastPing diff="+diffInMillies+
+						" < "+(serverPingPeriodPlus*1000)+" ----------------");
+				}
 			}
 		}
 		if(reconnectBusy) {
@@ -1560,6 +1640,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				if(wsClient!=null) {
 					Log.d(TAG,"reconnecter already connected");
 					reconnectCounter = 0;
+					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+						reconnectSchedFuture.cancel(false);
+						reconnectSchedFuture = null;
+					}
+					reconnectBusy = false;
 					return;
 				}
 				Log.d(TAG,"reconnecter start "+reconnectCounter+" "+
@@ -1582,9 +1667,13 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 //							reconnectSchedFuture.cancel(false);	
 //							reconnectSchedFuture = null;
 //						}
-						reconnectSchedFuture =scheduler.schedule(reconnecter, delaySecs, TimeUnit.SECONDS);
+						if(reconnectSchedFuture==null) {
+							reconnectSchedFuture =
+								scheduler.schedule(reconnecter, delaySecs, TimeUnit.SECONDS);
+						}
 						return;
 					}
+
 					Log.d(TAG,"reconnecter no network, giving up reconnect...");
 					if(reconnectBusy) {
 						if(beepOnLostNetworkMode>0) {
@@ -1622,12 +1711,13 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					BufferedReader reader = null;
 					if(!reconnectBusy) {
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-							Log.d(TAG,"onStartCommand cancel reconnectSchedFuture");
+							Log.d(TAG,"reconnecter cancel reconnectSchedFuture");
 							reconnectSchedFuture.cancel(false);	
 						}
 						reconnectSchedFuture = null;
 						return;
 					}
+
 					try {
 						// in deep sleep (when device is not connected to power) this may hang
 						// this is why we wake the device up before
@@ -1635,7 +1725,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						con.connect();
 						int status = con.getResponseCode();
 						if(status!=200) {
-// TODO abort this reconnect loop !!!
+// TODO abort this reconnect loop - or reschedule !!!
 						}
 						Log.d(TAG,"reconnecter status="+status+" con.getInputStream()...");
 						reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
@@ -1660,7 +1750,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 									playSoundAlarm();
 								}
 								statusMessage("Given up reconnecting",true,true);
-								reconnectBusy=false;
+								reconnectBusy = false;
 							}
 							if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 								Log.d(TAG,"networkState keepAwakeWakeLock.release ----------------");
@@ -1680,8 +1770,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						reconnectCounter = 0;
 						return;
 					}
+
 					statusMessage("Connecting...",true,false);
-					//Log.d(TAG,"reconnecter reader.readLine()");
 					String response = reader.readLine();
 					String[] tokens = response.split("\\|");
 					Log.d(TAG,"reconnecter response tokens length="+tokens.length);
@@ -1718,7 +1808,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							Log.d(TAG,"networkState keepAwakeWakeLock.release ----------------");
 							keepAwakeWakeLock.release();
 						}
-						reconnectBusy=false;
+						reconnectBusy = false;
 						reconnectCounter = 0;
 						return;
 
@@ -1731,7 +1821,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 								playSoundAlarm();
 							}
 							statusMessage("Login failed. Giving up.",true,true);
-							reconnectBusy=false;
+							reconnectBusy = false;
 						}
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"networkState keepAwakeWakeLock.release ----------------");
@@ -1826,7 +1916,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
 						keepAwakeWakeLock.release();
 					}
-					reconnectBusy=false;
+					reconnectBusy = false;
 					reconnectCounter = 0;
 				} catch(Exception ex) {
 					ex.printStackTrace();
@@ -1858,7 +1948,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							Log.d(TAG,"networkState keepAwakeWakeLock.release ----------------");
 							keepAwakeWakeLock.release();
 						}
-						reconnectBusy=false;
+						reconnectBusy = false;
 					}
 					reconnectCounter = 0;
 				}
@@ -1994,8 +2084,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 	}
 
 	private void checkNetworkState(boolean restartReconnectOnNetwork) {
-		ConnectivityManager connectivitymanager =
-			(ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
 		NetworkInfo netInfo = connectivitymanager.getActiveNetworkInfo();
 		if(netInfo==null) {
 			Log.d(TAG,"networkState netInfo==null "+wsClient+" "+reconnectBusy);
