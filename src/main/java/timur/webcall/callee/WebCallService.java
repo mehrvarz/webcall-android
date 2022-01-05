@@ -336,17 +336,23 @@ public class WebCallService extends Service {
 						if(powerManager.isDeviceIdleMode()) {
 						    // the device is now in doze mode
 							dozeIdle = true;
-							Log.d(TAG,"dozeStateReceiver idle --------------");
+							if(extendedLogsFlag) {
+								Log.d(TAG,"dozeStateReceiver idle --------------");
+							}
 						} else {
 							// the device just woke up from doze mode
 							// most likely it will go to idle in about 30s
 							dozeIdle = false;
-							Log.d(TAG,"dozeStateReceiver awake --------------");
+							if(extendedLogsFlag) {
+								Log.d(TAG,"dozeStateReceiver awake "+(wsClient!=null)+" --------------");
+							}
 
-							// if we are disconnected now but supposed to be connected, 
-							// this is a good chance to start reconnecter
-							// this may be a lot quicker than waiting for the next alarm
-							checkLastPing();
+							if(wsClient!=null) {
+								// if we are disconnected now but supposed to be connected,
+								// this is a good chance to start reconnecter
+								// this may be a lot quicker than waiting for the next alarm
+								checkLastPing();
+							}
 						}
 					}
 				};
@@ -1292,11 +1298,12 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 			if(message.startsWith("callerOffer|")) {
 				// incoming call!!
-				Log.d(TAG,"onMessage incoming call! wakeup activity");
+				Log.d(TAG,"onMessage incoming call "+
+					new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date()));
 				// wake activity so that js code in webview can run
 
 				if(context==null) {
-					Log.e(TAG,"onMessage incoming call! wakeup activity - no context");
+					Log.e(TAG,"onMessage incoming call wakeup activity - no context");
 				} else {
 					// TODO on Android 10+ we may need to use a notification channel instead
 					// see: NotificationChannel
@@ -2242,7 +2249,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 	private void runJS(final String str, final ValueCallback<String> myBlock) {
 		if(myWebView==null) {
 			Log.d(TAG, "runJS("+str+") but no webview");
-		} else if(!webviewMainPageLoaded) {
+		} else if(!webviewMainPageLoaded && !str.equals("history.back()")) {
 			Log.d(TAG, "runJS("+str+") but no webviewMainPageLoaded");
 		} else {
 			Log.d(TAG, "runJS("+str+")...");
@@ -2252,7 +2259,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					// escape '\r\n' to '\\r\\n'
 					final String str2 = str.replace("\\", "\\\\");
 					//Log.d(TAG,"runJS evalJS "+str2);
-					if(myWebView!=null && webviewMainPageLoaded) {
+					if(myWebView!=null && (webviewMainPageLoaded || str.equals("history.back()"))) {
 						// evaluateJavascript() instead of loadUrl()
 						myWebView.evaluateJavascript(str2, myBlock);
 					}

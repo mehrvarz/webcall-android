@@ -8,10 +8,10 @@ const divspinnerframe = document.querySelector('div#spinnerframe');
 const divspinner = document.querySelector('div#spinner');
 const clearCookies = document.querySelector('input#clearCookies');
 const clearCache = document.querySelector('input#clearCache');
-//const ringOnSpeaker = document.querySelector('input#ringOnSpeaker');
-//const nfcConnect = document.querySelector('input#nfcConnect');
-//const startOnBoot = document.querySelector('input#startOnBoot');
 const submitButton = document.querySelector('input#submit');
+//const howtoElement = document.querySelector('a#howto');
+//const latestNewsElement = document.querySelector('a#latestNews');
+
 var domain = "";
 var username = "";
 
@@ -32,54 +32,23 @@ window.onload = function() {
 	formDomain.value = domain;
 	formUsername.value = username;
 
-//TODO remote these lines when functionality is implemented
-//	nfcConnect.disabled = true;
-//	nfcConnectLabel.style.opacity = 0.6;
-//	startOnBoot.disabled = true;
-//	startOnBootLabel.style.opacity = 0.6;
-
-	if(typeof Android !== "undefined" && Android !== null) {
+	// remove focus from any of the elements (to prevent accidental change)
+	document.activeElement.blur();
 /*
-		if(Android.androidApiVersion() >= 28) {
-			// TODO: for now we don't support ringOnSpeaker on Android 9+
-			ringOnSpeaker.disabled = true;
-			ringOnSpeakerLabel.style.opacity = 0.6;
-		} else {
-			ringOnSpeaker.checked = Android.readPreferenceBool("ringOnSpeaker");
-		}
-*/
-//TODO enable these lines when functionality is implemented
-//		nfcConnect.checked = Android.readPreferenceBool("nfcConnect");
-//		startOnBoot.checked = Android.readPreferenceBool("startOnBoot");
-	}
+	var howtoHref = "https://timur.mobi/webcall/android/";
+	howtoHref += "?_="+new Date().getTime();
+	howtoElement.href = howtoHref;
+	//console.log('howtoElement.href='+howtoElement.href);
 
-	setTimeout(function() {
-		submitButton.focus();
-	},800);
-	// see: submitFormDone() below
-}
-
-/*
-function getUrlParams(param) {
-	if(window.location.search!="") {
-		console.log("getUrlParams search="+window.location.search);
-		var query = window.location.search.substring(1);
-		var parts = query.split("&");
-		for (var i=0;i<parts.length;i++) {
-			//gLog("getUrlParams part(%d)=%s",i,parts[i]);
-			var seg = parts[i].split("=");
-			if (seg[0] == param) {
-				//gLog("getUrlParams found=(%s)",seg[1]);
-				if(typeof seg[1]!=="undefined" && seg[1]!="" && seg[1]!="undefined") {
-					return decodeURI(seg[1]);
-				}
-				return true;
-			}
-		}
-	}
-	return "";
-}
+// TODO only make this link visible, if the user has not seen this content yet
+	var latestNewsHref = "https://timur.mobi/webcall/android-news/";
+	latestNewsHref += "?_="+new Date().getTime();
+	latestNewsElement.href = latestNewsHref;
+	//console.log('latestNewsElement.href='+latestNewsElement.href);
+	latestNewsElement.style.display = "inline-block";
 */
+	// will proceed in submitFormDone()
+}
 
 function clearForm(idx) {
 	if(idx==0) {
@@ -98,9 +67,8 @@ function submitFormDone(theForm) {
 	console.log('valueUsername',valueUsername);
 	// store valueDomain
 	if(typeof Android !== "undefined" && Android !== null) {
-//		if(valueDomain!=domain) {
-			Android.storePreference("webcalldomain", valueDomain);
-//		}
+		Android.storePreference("webcalldomain", valueDomain);
+
 		if(valueUsername!="") {
 			console.log('store valueUsername',valueUsername);
 			Android.storePreference("username", valueUsername);
@@ -119,19 +87,11 @@ function submitFormDone(theForm) {
 			console.log('wsClearCache');
 			Android.wsClearCache();
 		}
-
-//		console.log('store ringOnSpeaker '+ringOnSpeaker.checked);
-//		Android.storePreferenceBool("ringOnSpeaker", ringOnSpeaker.checked);
-
-//		console.log('store nfcConnect '+nfcConnect.checked);
-//		Android.storePreferenceBool("nfcConnect", nfcConnect.checked);
-
-//		console.log('store startOnBoot '+startOnBoot.checked);
-//		Android.storePreferenceBool("startOnBoot", startOnBoot.checked);
 	}
 
 	if(valueUsername=="") {
-		if(confirm('Do you want to register a new WebCall user ID?\n\nIf so, please enter a password in the form and click the generated link to continue.')) {
+		if(confirm("Do you want to register a new WebCall user ID?\n\n"+
+			"If so, please enter a password on the next page and click the generated link to continue.")) {
 			Android.storePreference("username", "");
 			Android.wsClearCookies();
 
@@ -160,5 +120,4 @@ function submitFormDone(theForm) {
 	console.log('load main '+url);
 	window.location.replace(url);
 }
-
 

@@ -538,6 +538,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 			private File create_video() throws IOException {
 				//@SuppressLint("SimpleDateFormat")
+// TODO yyyy_mm_ss ???
 				String file_name    = new SimpleDateFormat("yyyy_mm_ss", Locale.US).format(new Date());
 				String new_name     = "file_"+file_name+"_";
 				File sd_directory   = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
@@ -820,13 +821,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(webCallServiceBinder!=null) {
 			String webviewUrl = webCallServiceBinder.getCurrentUrl();
 		    Log.d(TAG, "onBackPressed webviewUrl="+webviewUrl);
-			// we may need to do historyBack()
-			if(webviewUrl.indexOf("#")>=0 /*|| webviewUrl.indexOf("/callee/register")>=0*/) {
-			    Log.d(TAG, "onBackPressed -> historyBack()");
-				webCallServiceBinder.runJScode("historyBack()");
+			// we ONLY allow history.back(), if the user is NOT on the basepage or the mainpage
+			// except there is a '#' in webviewUrl
+			if(webviewUrl.indexOf("#")>=0 ||
+					(webviewUrl.indexOf("/callee/")<0 && webviewUrl.indexOf("/android_asset/")<0)) {
+			    Log.d(TAG, "onBackPressed -> history.back()");
+				webCallServiceBinder.runJScode("history.back()");
 				return;
 			}
 
+			// otherwise, if we are connected to webcall server, we move the activity to the back
 			int connectType = webCallServiceBinder.webcallConnectType();
 			if(connectType>0) {
 				// service is connected to webcall server (1,2) or reconnecting (3)
@@ -834,6 +838,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				moveTaskToBack(true);
 				return;
 			}
+
+			// if we are not connected to webcall server, we close the activity
+			// (which will end our service as well)
 		    Log.d(TAG, "onBackPressed connectType="+connectType+" -> destroy activity");
 		} else {
 		    Log.d(TAG, "onBackPressed webCallServiceBinder==null -> destroy activity");
