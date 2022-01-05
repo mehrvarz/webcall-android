@@ -167,7 +167,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG,"onCreateContextMenu user is not on mainpage");
 		} else {
 			Log.d(TAG,"onCreateContextMenu user is on mainpage");
-			menu.setHeaderTitle("WebCall Android");
+			menu.setHeaderTitle("WebCall Android "+BuildConfig.VERSION_NAME);
 			if(!nearbyMode) {
 				if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // <=9 <=api28
 					menu.add(none,menuNearbyOn,none,R.string.msg_nfcbeam_on);

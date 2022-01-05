@@ -1441,10 +1441,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				// but wsClose() will cancel alarms, so we won't get called if we shd be disconnected
 				needReconnecter = true;
 			} else {
-//				if(extendedLogsFlag) {
+				if(extendedLogsFlag) {
 					Log.d(TAG,"checkLastPing diff="+diffInMillies+
 						" < "+(serverPingPeriodPlus*1000)+" ----------------");
-//				}
+				}
 			}
 		}
 		if(reconnectBusy) {
