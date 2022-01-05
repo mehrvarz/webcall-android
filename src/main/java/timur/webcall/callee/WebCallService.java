@@ -148,6 +148,8 @@ import timur.webcall.callee.BuildConfig;
 public class WebCallService extends Service {
 	private final static String TAG = "WebCallService";
 	private final static int NOTIF_ID = 1;
+	private final static String startAlarmString = "timur.webcall.callee.START_ALARM";
+	private final static Intent startAlarmIntent = new Intent(startAlarmString);
 
 	// serverPingPeriodPlus corresponds to pingPeriod in wsClient.go
 	// after serverPingPeriodPlus secs we consider the pings from the server have stopped
@@ -225,7 +227,7 @@ public class WebCallService extends Service {
 		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
 
 		alarmReceiver = new AlarmReceiver();
-		registerReceiver(alarmReceiver, new IntentFilter("timur.webcall.callee.START_ALARM"));
+		registerReceiver(alarmReceiver, new IntentFilter(startAlarmString));
 	}
 
 	@Override
@@ -1351,10 +1353,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// a pong from the server in response to our ping
 			// note: if doze mode is active, many of our ws-pings (by Timer) do not execute
 			// and then we also don't receive the acompaning server-pongs
-			if(extendedLogsFlag) {
+//			if(extendedLogsFlag) {
 				Log.d(TAG,"onWebsocketPong "+
 					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date()));
-			}
+//			}
 			super.onWebsocketPong(conn,f); // without calling this we crash (at least on P9)
 		}
 
@@ -1388,17 +1390,19 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		public void onReceive(Context context, Intent intent) {
 			// we request to wakeup out of doze every 10-15 minutes
 			// we do so to check if we are still receiving pings from the server
+			if(pendingAlarm==null) {
 // TODO if pendingAlarm==null already we should abort right now
+				Log.w(TAG,"alarmStateReceiver pendingAlarm==null !!! ----------------");
+			}
 			pendingAlarm = null;
 			alarmPendingDate = null;
 			if(extendedLogsFlag) {
-				Log.d(TAG,"alarmStateReceiver onReceive ----------------");
+				Log.d(TAG,"alarmStateReceiver");
 			}
 			checkLastPing();
 
 			// always request a followup alarm
-			Intent i = new Intent("timur.webcall.callee.START_ALARM");
-			pendingAlarm = PendingIntent.getBroadcast(context, 0, i, 0);
+			pendingAlarm = PendingIntent.getBroadcast(context, 0, startAlarmIntent, 0);
 			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 				if(extendedLogsFlag) {
 					Log.d(TAG,"alarmStateReceiver alarm setAndAllowWhileIdle ----------------");
@@ -1429,7 +1433,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			Date newDate = new Date();
 			long diffInMillies = Math.abs(newDate.getTime() - lastPingDate.getTime());
 			if(diffInMillies > serverPingPeriodPlus*1000 && !reconnectBusy) {
-// TODO tmtmtm we don't branch in here bc reconnectBusy is wrongly set
+// TODO tmtmtm we sometimes do NOT branch in here bc reconnectBusy is wrongly set
 				// lastPingDate is too old
 				Log.d(TAG,"checkLastPing diff="+diffInMillies+" TOO OLD ----------------");
 				needKeepAwake = true;
@@ -1437,10 +1441,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				// but wsClose() will cancel alarms, so we won't get called if we shd be disconnected
 				needReconnecter = true;
 			} else {
-				if(extendedLogsFlag) {
+//				if(extendedLogsFlag) {
 					Log.d(TAG,"checkLastPing diff="+diffInMillies+
 						" < "+(serverPingPeriodPlus*1000)+" ----------------");
-				}
+//				}
 			}
 		}
 		if(reconnectBusy) {
@@ -2049,8 +2053,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						}
 					}
 					if(alarmPendingDate==null) {
-						Intent i = new Intent("timur.webcall.callee.START_ALARM");
-						pendingAlarm = PendingIntent.getBroadcast(context, 0, i, 0);
+						pendingAlarm = PendingIntent.getBroadcast(context, 0, startAlarmIntent, 0);
 						if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 							Log.d(TAG,"connectHost alarm setAndAllowWhileIdle ----------------");
 							alarmManager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
