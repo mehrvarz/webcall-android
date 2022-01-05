@@ -307,7 +307,7 @@ public class WebCallService extends Service {
 			scheduler = Executors.newScheduledThreadPool(20);
 		}
 		if(scheduler==null) {
-// TODO must abort
+// TODO must abort service
 		}
 
 		prefs = PreferenceManager.getDefaultSharedPreferences(context);
@@ -345,7 +345,7 @@ public class WebCallService extends Service {
 								reconnectSchedFuture = null;
 							}
 							// NOTE: if we wait less than 15secs, our connection may establish
-							// but will then be quickly disconnected
+							// but will then be quickly disconnected - not sure why
 							statusMessage("Going to login...",true,false);
 							reconnectSchedFuture = scheduler.schedule(reconnecter, 16, TimeUnit.SECONDS);
 						}
@@ -1175,32 +1175,22 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 					statusMessage("Disconnected from WebCall server...",true,true);
 
-					// reconnect to server
-					//have:	"https://timur.mobi/callee/84180846510" (currentUrl)
-					//want: "https://timur.mobi/rtcsig/login?id=84180846510" (loginUrl)
-					// may need to cut of hash from end of url
-					String webcalldomain = 
-						prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-					String username = prefs.getString("username", "");
-					if(webcalldomain.equals("")) {
-						Log.d(TAG,"onClose cannot reconnect: webcalldomain is not set");
-					} else if(username.equals("")) {
-						Log.d(TAG,"onClose cannot reconnect: username is not set");
-					} else {
-						loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
-						// schedule reconnect loop in 8s giving server some time to detect the disconnect
-						Log.d(TAG,"onClose re-login in 8s url="+loginUrl);
-
-// TODO tmtmtm: I saw this happen
-// server pings have stopped
-// after a while checkLastPing() from dozeStateReceiver is the 1st to find out
-// checkLastPing() schedules a reconnecter in 1s
-// before 1s is over, this code=1006 strikes, cancels the reconnecter and schedules a new one in 8s
-						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-							reconnectSchedFuture.cancel(false);	
-							reconnectSchedFuture = null;
+					if(reconnectSchedFuture==null) {
+						// if no reconnecter is scheduled at this time (say, by checkLastPing())
+						// then schedule a new reconnecter
+						// schedule in 8s to give server some time to detect the discon
+						String webcalldomain = 
+							prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+						String username = prefs.getString("username", "");
+						if(webcalldomain.equals("")) {
+							Log.d(TAG,"onClose cannot reconnect: webcalldomain is not set");
+						} else if(username.equals("")) {
+							Log.d(TAG,"onClose cannot reconnect: username is not set");
+						} else {
+							loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
+							Log.d(TAG,"onClose re-login in 8s url="+loginUrl);
+							reconnectSchedFuture = scheduler.schedule(reconnecter,8,TimeUnit.SECONDS);
 						}
-						reconnectSchedFuture = scheduler.schedule(reconnecter,8,TimeUnit.SECONDS);
 					}
 
 				} else {
@@ -1566,6 +1556,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		reconnecter = new Runnable() {
 			// loginUrl must be set before reconnecter is called
 			public void run() {
+				reconnectSchedFuture = null;
 				if(wsClient!=null) {
 					Log.d(TAG,"reconnecter already connected");
 					reconnectCounter = 0;
@@ -1587,10 +1578,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						}
 						Log.d(TAG,"reconnecter no network, postpone reconnect... "+reconnectCounter);
 						statusMessage("No network. Will try again...",true,false);
-						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-							reconnectSchedFuture.cancel(false);	
-							reconnectSchedFuture = null;
-						}
+//						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+//							reconnectSchedFuture.cancel(false);	
+//							reconnectSchedFuture = null;
+//						}
 						reconnectSchedFuture =scheduler.schedule(reconnecter, delaySecs, TimeUnit.SECONDS);
 						return;
 					}
@@ -1627,7 +1618,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						Log.d(TAG,"reconnecter con.setRequestProperty(prefs:cookies)");
 						con.setRequestProperty("Cookie", newWebviewCookies);
 					}
-					con.setRequestProperty("Connection", "close"); // kills keep alives
+					con.setRequestProperty("Connection", "close"); // this kills keep-alives TODO???
 					BufferedReader reader = null;
 					if(!reconnectBusy) {
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
@@ -1644,7 +1635,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						con.connect();
 						int status = con.getResponseCode();
 						if(status!=200) {
-// TODO abort reconnect !!!
+// TODO abort this reconnect loop !!!
 						}
 						Log.d(TAG,"reconnecter status="+status+" con.getInputStream()...");
 						reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
@@ -1682,7 +1673,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 					if(!reconnectBusy) {
 						// abort forced
-//TODO maybe better also cancel?
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							reconnectSchedFuture.cancel(false);	
 						}
@@ -1795,7 +1785,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						return;
 					}
 
-					reconnectSchedFuture=null;
+					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+						reconnectSchedFuture.cancel(false);	
+						reconnectSchedFuture = null;
+					}
 					if(reconnectBusy) {
 						// success
 						Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
@@ -2035,11 +2028,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						if(reconnectSchedFuture.cancel(false)) {
 							// cancel successful - run reconnecter right away
 							Log.d(TAG,"networkState connected to wifi restart recon");
-							reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
+							reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
 						}
 					} else {
 						Log.d(TAG,"networkState connected to wifi restart recon");
-						reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
+						reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
 					}
 				}
 			}
@@ -2067,11 +2060,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						if(reconnectSchedFuture.cancel(false)) {
 							// cancel successful - run reconnecter right away
 							Log.d(TAG,"networkState connected to net restart recon");
-							reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
+							reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
 						}
 					} else {
 						Log.d(TAG,"networkState connected to net restart recon");
-						reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
+						reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
 					}
 				}
 			}
