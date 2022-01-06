@@ -972,7 +972,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				Log.w(TAG,"wsSend wsClient==null "+logstr);
 			} else {
 				// TODO: this may happen here: WebsocketNotConnectedException
-				Log.d(TAG,"wsSend "+logstr);
+				if(extendedLogsFlag) {
+					Log.d(TAG,"wsSend "+logstr);
+				}
 				wsClient.send(str);
 
 				if(sendRtcMessagesAfterInit && str.startsWith("init|")) {
@@ -1214,13 +1216,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// occurs when we lose connection to our webcall server (N7 without ext power)
 
 			if(exString!=null && exString.indexOf("Read error") >=0) {
-				// trying to reconnect 
-				Log.d(TAG,"onError hide from JS");
-				//if(beepOnLostNetworkMode>0) {
-				//	playSoundAlarm();
-				//}
-				//statusMessage("Disconnected from WebCall server..",true,false);
-
+				if(extendedLogsFlag) {
+					Log.d(TAG,"onError hide from JS");
+				}
 			} else {
 				statusMessage(ex.toString(),true,false);
 			}
@@ -1722,7 +1720,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				statusMessage("Login...",true,false);
 				try {
 					URL url = new URL(loginUrl);
-					Log.d(TAG,"reconnecter url.openConnection("+url+")");
+					Log.d(TAG,"reconnecter openConnection("+url+")");
 					HttpURLConnection con = (HttpURLConnection)url.openConnection();
 					con.setConnectTimeout(22000);
 					con.setReadTimeout(10000);
@@ -1753,20 +1751,25 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						return;
 					}
 
+					int status=0;
 					try {
 						// in deep sleep (when device is not connected to power) this may hang
 						// this is why we wake the device up before
 						Log.d(TAG,"reconnecter con.connect()");
 						con.connect();
-						int status = con.getResponseCode();
+						status = con.getResponseCode();
 						if(status!=200) {
-// TODO abort this reconnect loop - or reschedule !!!
+							Log.d(TAG,"reconnecter con.connect() status="+status);
+						} else {
+							Log.d(TAG,"reconnecter status="+status+" con.getInputStream()...");
+							reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
 						}
-						Log.d(TAG,"reconnecter status="+status+" con.getInputStream()...");
-						reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
 					} catch(Exception ex) {
-						if(reconnectCounter<ReconnectCounterMax) {
-							Log.d(TAG,"reconnecter con.connect()/getInputStream() ex="+ex);
+						status = 0;
+						Log.d(TAG,"reconnecter con.connect()/getInputStream() ex="+ex);
+					}
+					if(status!=200) {
+						if(reconnectCounter < ReconnectCounterMax) {
 							int delaySecs = reconnectCounter*5;
 							if(delaySecs>30) {
 								delaySecs=30;
@@ -1778,21 +1781,21 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							}
 							reconnectSchedFuture =
 								scheduler.schedule(reconnecter,delaySecs,TimeUnit.SECONDS);
-						} else {
-							Log.e(TAG,"onClose con.connect()/getInputStream() fail ex="+ex);
-							if(reconnectBusy) {
-								if(beepOnLostNetworkMode>0) {
-									playSoundAlarm();
-								}
-								statusMessage("Given up reconnecting",true,true);
-								reconnectBusy = false;
-							}
-							if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-								Log.d(TAG,"networkState keepAwakeWakeLock.release ----------------");
-								keepAwakeWakeLock.release();
-							}
-							reconnectCounter = 0;
+							return;
 						}
+						Log.e(TAG,"reconnecter con.connect() fail. give up.");
+						if(reconnectBusy) {
+							if(beepOnLostNetworkMode>0) {
+								playSoundAlarm();
+							}
+							statusMessage("Given up reconnecting",true,true);
+							reconnectBusy = false;
+						}
+						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+							Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
+							keepAwakeWakeLock.release();
+						}
+						reconnectCounter = 0;
 						return;
 					}
 
@@ -2312,7 +2315,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		// these is true: no network, powerManager.isDeviceIdleMode, screen is off, running on battery
 		// in this case we want to call wakeUpFromDoze( to turn the screen on with the hope, that this
 		// will allow us to reconnect to server
-		Log.d(TAG,"wakeUpIfNeeded...");
+		if(extendedLogsFlag) {
+			Log.d(TAG,"wakeUpIfNeeded...");
+		}
 		if(haveNetworkInt<=0) {
 			if(reconnectCounter==ReconnectCounterBeep) {
 				if(beepOnLostNetworkMode>0) {
@@ -2325,20 +2330,24 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			}
 		}
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >= 23
-			Log.d(TAG,"wakeUpIfNeeded api "+Build.VERSION.SDK_INT+" >=23");
+			if(extendedLogsFlag) {
+				Log.d(TAG,"wakeUpIfNeeded api "+Build.VERSION.SDK_INT+">=23");
+			}
 			if(powerManager.isDeviceIdleMode()) {
 				if(reconnectCounter==ReconnectCounterBeep) {
 					if(beepOnLostNetworkMode>0) {
 						playSoundNotification();
 					}
 				} else if(reconnectCounter==ReconnectCounterScreen) {
-					Log.d(TAG,"wakeUpIfNeeded api>=23 deviceIdle 	reconnectCounter==ReconScreen");
+					Log.d(TAG,"wakeUpIfNeeded true deviceIdle reconnectCounter==ReconScreen");
 					wakeUpFromDoze();
 					return true;
 				}
 			}
 		}
-		Log.d(TAG,"wakeUpIfNeeded check screen on");
+		if(extendedLogsFlag) {
+			Log.d(TAG,"wakeUpIfNeeded check screen on");
+		}
 		// if we return false, the device will not be woken up for reconnect attempts
 		if(!isScreenOn(context)) {
 			if(reconnectCounter==ReconnectCounterBeep) {
@@ -2362,7 +2371,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				return true;
 			}
 		}
-		Log.d(TAG,"wakeUpIfNeeded false");
+		if(extendedLogsFlag) {
+			Log.d(TAG,"wakeUpIfNeeded false");
+		}
 		return false;
 	}
 
