@@ -216,7 +216,7 @@ public class WebCallService extends Service {
 	// section 1: android service methods
 	@Override
 	public IBinder onBind(Intent arg0) {
-		Log.d(TAG, "onBind");
+		Log.d(TAG,"onBind "+BuildConfig.VERSION_NAME);
 		context = this;
 		prefs = PreferenceManager.getDefaultSharedPreferences(context);
 		return mBinder;
@@ -224,15 +224,14 @@ public class WebCallService extends Service {
 
 	@Override
 	public void onCreate() {
-		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
-
+		Log.d(TAG,"onCreate "+BuildConfig.VERSION_NAME);
 		alarmReceiver = new AlarmReceiver();
 		registerReceiver(alarmReceiver, new IntentFilter(startAlarmString));
 	}
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		Log.d(TAG, "onStartCommand");
+		Log.d(TAG,"onStartCommand");
 		context = this;
 
 		if(scheduler==null) {
@@ -316,7 +315,7 @@ public class WebCallService extends Service {
 			networkStateReceiver = new BroadcastReceiver() {
 				@Override
 				public void onReceive(Context context, Intent intent) {
-					Log.d(TAG,"networkStateReceiver onReceive");
+					//Log.d(TAG,"networkStateReceiver onReceive");
 					checkNetworkState(true);
 				}
 			};
@@ -385,7 +384,9 @@ public class WebCallService extends Service {
 				Bundle extras = intent.getExtras();
 				if(extras!=null) {
 					String extraCommand = extras.getString("onstart");
-					Log.d(TAG, "onStartCommand extraCommand="+extraCommand);
+					if(!extraCommand.equals("") && !extraCommand.equals("donothing")) {
+						Log.d(TAG,"onStartCommand extraCommand="+extraCommand);
+					}
 					if(extraCommand!=null && extraCommand.equals("connect")) {
 						if(!webcalldomain.equals("") && !username.equals("")) {
 							loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
@@ -573,11 +574,13 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				}
 
 				private boolean handleUri(final Uri uri) {
-					Log.i(TAG, "handleUri " + uri);
+					//Log.i(TAG, "handleUri " + uri);
 					//final String host = uri.getHost();
 					//final String scheme = uri.getScheme();
 					final String path = uri.getPath();
-					Log.i(TAG, "handleUri path="+path);
+					if(extendedLogsFlag) {
+						Log.i(TAG, "handleUri path="+path);
+					}
 					if(path.indexOf("/user/")>=0) {
 						// this is not a valid url. we store it in the clipboard
 						Log.i(TAG, "handleUri store uri in clipboard " + uri);
@@ -589,7 +592,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						return true; // do not load this url
 					}
 					String username = prefs.getString("username", "");
-					Log.d(TAG, "handleUri username=("+username+")");
+					if(extendedLogsFlag) {
+						Log.d(TAG, "handleUri username=("+username+")");
+					}
 					if(username.equals("")) {
 						// the username is not yet stored in the prefs
 						Log.d(TAG, "handleUri empty username=("+username+")");
@@ -638,7 +643,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 					// if the url has changed (beyond a hashchange)
 					// and if we ARE connected already -> call js:wakeGoOnline()
-					Log.d(TAG, "onPageFinished process url=" + url);
+					if(extendedLogsFlag) {
+						Log.d(TAG, "onPageFinished process url=" + url);
+					}
 					currentUrl = url;
 					webviewMainPageLoaded = false;
 					webviewCookies = CookieManager.getInstance().getCookie(url);
@@ -726,7 +733,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				public boolean onConsoleMessage(ConsoleMessage cm) {
 					String msg = cm.message();
 					if(!msg.startsWith("showStatus")) {
-						Log.d(TAG,"console "+msg + " L"+cm.lineNumber());
+						if(extendedLogsFlag) {
+							Log.d(TAG,"console "+msg + " L"+cm.lineNumber());
+						}
 					}
 					if(msg.equals("Uncaught ReferenceError: goOnline is not defined")) {
 						if(wsClient==null) {
@@ -909,7 +918,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		}
 
 		public void runJScode(String str) {
-			// for instance, this lets the activity run "historyBack()"
+			// for instance, this lets the activity run "history.back()"
 			runJS(str,null);
 		}
 
@@ -1105,7 +1114,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		public String readPreference(String pref) {
 			// used by WebCallAndroid
 			String str = prefs.getString(pref, "");
-			Log.d(TAG, "readPreference "+pref+" = "+str);
+			if(extendedLogsFlag) {
+				Log.d(TAG, "readPreference "+pref+" = "+str);
+			}
 			return str;
 		}
 
@@ -1113,7 +1124,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		public boolean readPreferenceBool(String pref) {
 			// used by WebCallAndroid
 			boolean bool = prefs.getBoolean(pref, false);
-			Log.d(TAG, "readPreferenceBool "+pref+" = "+bool);
+			if(extendedLogsFlag) {
+				Log.d(TAG, "readPreferenceBool "+pref+" = "+bool);
+			}
 			return bool;
 		}
 
@@ -1123,7 +1136,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			SharedPreferences.Editor prefed = prefs.edit();
 			prefed.putString(pref,str);
 			prefed.apply();
-			Log.d(TAG, "storePreference "+pref+" "+str+" stored");
+			if(extendedLogsFlag) {
+				Log.d(TAG, "storePreference "+pref+" "+str+" stored");
+			}
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1132,19 +1147,19 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			SharedPreferences.Editor prefed = prefs.edit();
 			prefed.putBoolean(pref,bool);
 			prefed.apply();
-			Log.d(TAG, "storePreferenceBool "+pref+" "+bool+" stored");
+			if(extendedLogsFlag) {
+				Log.d(TAG, "storePreferenceBool "+pref+" "+bool+" stored");
+			}
 		}
 
 		@android.webkit.JavascriptInterface
 		public void getBase64FromBlobData(String base64Data, String filename) throws IOException {
 			// used by WebCallAndroid
-			Log.d(TAG,"getBase64FromBlobData "+filename);
-			Log.d(TAG,"getBase64FromBlobData len="+base64Data.length());
+			Log.d(TAG,"getBase64FromBlobData "+filename+" "+base64Data.length());
 			int skipHeader = base64Data.indexOf("base64,");
 			if(skipHeader>=0) {
 				base64Data = base64Data.substring(skipHeader+7);
 			}
-			Log.d(TAG,"base64Data len="+base64Data.length());
 			//Log.d(TAG,"base64Data="+base64Data);
 			byte[] blobAsBytes = Base64.decode(base64Data,Base64.DEFAULT);
 			Log.d(TAG,"bytearray len="+blobAsBytes.length);
@@ -1320,8 +1335,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 			if(myWebView!=null && webviewMainPageLoaded) {
 				String argStr = "wsOnMessage2('"+message+"');";
-// TODO argStr can be very long, maybe just log the 1st 20-30 chars
-				Log.d(TAG,"onMessage runJS "+argStr);
+				//Log.d(TAG,"onMessage runJS "+argStr);
 				runJS(argStr,null);
 			} else {
 				// we can not send messages (for instance callerCandidate's) into the JS 
@@ -1350,7 +1364,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// this method is only supported on Android >= 24 (Nougat)
 			// below we do host verification ourselves in wsOpen()
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-				Log.d(TAG,"onSetSSLParameters");
+				if(extendedLogsFlag) {
+					Log.d(TAG,"onSetSSLParameters");
+				}
 				super.onSetSSLParameters(sslParameters);
 			}
 		}
@@ -1987,7 +2003,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// if the client sends a ping every 60s, then the server will never do so
 			// we just use the default value of 60s
 			wsClient.setConnectionLostTimeout(0); // turn off client pings; default=60s
-			Log.d(TAG,"connectHost connectBlocking...");
+			if(extendedLogsFlag) {
+				Log.d(TAG,"connectHost connectBlocking...");
+			}
 			boolean isOpen = wsClient.connectBlocking();
 			Log.d(TAG,"connectHost connectBlocking done isOpen="+isOpen);
 			if(isOpen) {
@@ -2027,13 +2045,14 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					connectTypeInt = 1;
 					audioToSpeakerSet(audioToSpeakerMode>0,false);
 
-// TODO evtl muss ich jetzt die webviewCookies übernehmen
-// setAddr = wss://
-// wir brauchen aber currentUrl: https://timur.mobi/callee/Gisela?auto=1
-					Log.d(TAG,"connectHost get cookies from "+currentUrl);
+					if(extendedLogsFlag) {
+						Log.d(TAG,"connectHost get cookies from "+currentUrl);
+					}
 					if(!currentUrl.equals("")) {
 						webviewCookies = CookieManager.getInstance().getCookie(currentUrl);
-						Log.d(TAG,"connectHost webviewCookies="+webviewCookies);
+						if(extendedLogsFlag) {
+							Log.d(TAG,"connectHost webviewCookies="+webviewCookies);
+						}
 						if(!webviewCookies.equals("")) {
 							SharedPreferences.Editor prefed = prefs.edit();
 							prefed.putString("cookies", webviewCookies);
@@ -2062,20 +2081,25 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					if(alarmPendingDate==null) {
 						pendingAlarm = PendingIntent.getBroadcast(context, 0, startAlarmIntent, 0);
 						if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-							Log.d(TAG,"connectHost alarm setAndAllowWhileIdle ----------------");
+							if(extendedLogsFlag) {
+								Log.d(TAG,"connectHost alarm setAndAllowWhileIdle ----------------");
+							}
 							alarmManager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
 								SystemClock.elapsedRealtime() + 10*60*1000, pendingAlarm);
 						} else {
 							// for Android 5 and below only:
-							Log.d(TAG,"connectHost alarm set ----------------");
+							if(extendedLogsFlag) {
+								Log.d(TAG,"connectHost alarm set ----------------");
+							}
 							alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
 								SystemClock.elapsedRealtime() + 10*60*1000, pendingAlarm);
 						}
 						alarmPendingDate = new Date();
 					} else {
-						Log.d(TAG,"connectHost old alarm pending age="+diffInMillies+" ----------------");
+						if(extendedLogsFlag) {
+							Log.d(TAG,"connectHost old alarm pending age="+diffInMillies+" -------------");
+						}
 					}
-
 					return wsClient;
 				}
 			}
@@ -2247,12 +2271,17 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 	}
 
 	private void runJS(final String str, final ValueCallback<String> myBlock) {
+		// str can be very long, we just log the 1st 30 chars
+		String logstr = str;
+		if(logstr.length()>30) {
+			logstr = logstr.substring(0,30);
+		}
 		if(myWebView==null) {
-			Log.d(TAG, "runJS("+str+") but no webview");
+			Log.d(TAG, "runJS("+logstr+") but no webview");
 		} else if(!webviewMainPageLoaded && !str.equals("history.back()")) {
-			Log.d(TAG, "runJS("+str+") but no webviewMainPageLoaded");
+			Log.d(TAG, "runJS("+logstr+") but no webviewMainPageLoaded");
 		} else {
-			Log.d(TAG, "runJS("+str+")...");
+			Log.d(TAG, "runJS("+logstr+")");
 			myWebView.post(new Runnable() {
 				@Override
 				public void run() {

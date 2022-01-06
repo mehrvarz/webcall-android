@@ -104,12 +104,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	//private Date lastUserInteraction = new Date();
 	private boolean startupFail = false;
 	private volatile int touchX, touchY;
+	private volatile boolean extendedLogsFlag = false;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
-			Log.d(TAG, "onServiceConnected");
-
+			if(extendedLogsFlag) {
+				Log.d(TAG, "onServiceConnected");
+			}
 			webCallServiceBinder = (WebCallService.WebCallServiceBinder)service;
 			if(webCallServiceBinder==null) {
 				Log.d(TAG, "onServiceConnected bind service failed");
@@ -121,7 +123,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				webview.setBackgroundColor(Color.TRANSPARENT);
 
 				String appCachePath = getCacheDir().getAbsolutePath();
-				Log.d(TAG, "onServiceConnected appCachePath "+appCachePath);
+				if(extendedLogsFlag) {
+					Log.d(TAG, "onServiceConnected appCachePath "+appCachePath);
+				}
 				WebSettings webSettings = webview.getSettings();
 				webSettings.setAppCachePath(appCachePath);
 				webSettings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
@@ -162,7 +166,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		// for the context menu to be shown, our service must be connected to webcall server
 		// and our webview url must contain "/callee/"
 		String webviewUrl = webCallServiceBinder.getCurrentUrl();
-		Log.d(TAG,"onCreateContextMenu url="+webviewUrl+" touchY="+touchY);
+		if(extendedLogsFlag) {
+			Log.d(TAG,"onCreateContextMenu url="+webviewUrl+" touchY="+touchY);
+		}
 		if(webviewUrl.indexOf("/callee/")<0) {
 			Log.d(TAG,"onCreateContextMenu user is not on mainpage");
 		} else {
@@ -322,8 +328,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(selectedItem==menuExtendedLogs) {
 			Log.d(TAG, "onContextItemSelected extended logs");
 			if(webCallServiceBinder.extendedLogs()) {
+				extendedLogsFlag = true;
 				Toast.makeText(context, "Extended logs are on", Toast.LENGTH_LONG).show();
 			} else {
+				extendedLogsFlag = false;
 				Toast.makeText(context, "Extended logs are off", Toast.LENGTH_LONG).show();
 			}
 			return true;
@@ -353,7 +361,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				// so instead we risk a crash (to find out if no webview is installed) in the next line
 			}
 		} else {
-		    Log.d(TAG, "onCreate WEBVIEW VERSION "+packageInfo.packageName+", "+packageInfo.versionName);
+		    Log.d(TAG, "onCreate webview "+packageInfo.packageName+" "+packageInfo.versionName);
 		}
 
 		try {
@@ -585,9 +593,13 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
 		// onServiceConnected -> webCallServiceBinder.startWebView()
 
-		Log.d(TAG, "onCreate registerForContextMenu");
+		if(extendedLogsFlag) {
+			Log.d(TAG, "onCreate registerForContextMenu");
+		}
 		registerForContextMenu(mainView);
-		Log.d(TAG, "onCreate done");
+		if(extendedLogsFlag) {
+			Log.d(TAG, "onCreate done");
+		}
     }
 
 	@Override
@@ -645,7 +657,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
 			String packageName = context.getPackageName();
 			boolean ignoreOpti = powerManager.isIgnoringBatteryOptimizations(packageName);
-			Log.d(TAG, "onStart isIgnoreOpti="+ignoreOpti);
+			Log.d(TAG, "onStart isIgnoreBattOpti="+ignoreOpti);
 			if(!ignoreOpti) {
 				// battery optimizations must be deactivated
 				// this allows us to use a wakelock against doze
@@ -667,14 +679,18 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
     @Override
     public void onStop() {
-	    Log.d(TAG, "onStop");
+		if(extendedLogsFlag) {
+		    Log.d(TAG, "onStop");
+		}
 		activityStartNeeded = false;
         super.onStop();
 	}
 
     @Override
     public void onResume() {
-	    Log.d(TAG, "onResume");
+		if(extendedLogsFlag) {
+		    Log.d(TAG, "onResume");
+		}
         super.onResume();
 
 		if(sensorManager==null) {
@@ -736,8 +752,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
 				}
 				if(proximitySensor==null) {
-					Log.d(TAG, "no proximitySensor");
-					// this happens on devices where there is no such sensor
+					// this device does not have a proximity sensor
+					if(extendedLogsFlag) {
+						Log.d(TAG, "no proximitySensor");
+					}
 				} else {
 					sensorManager.registerListener(proximitySensorEventListener,
 						proximitySensor, SensorManager.SENSOR_DELAY_NORMAL);
@@ -748,7 +766,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
     @Override
     public void onPause() {
-	    Log.d(TAG, "onPause");
+		if(extendedLogsFlag) {
+		    Log.d(TAG, "onPause");
+		}
         super.onPause();
 
 		if(sensorManager!=null && wakeLockProximity!=null && proximitySensor!=null) {
@@ -1064,7 +1084,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}, 2000);
 
 		} else {
-		    Log.d(TAG, "activityStart no special wakeup");
+			if(extendedLogsFlag) {
+			    Log.d(TAG, "activityStart no special wakeup");
+			}
 			// set screenBrightness only if LowBrightness (0.01f) occured more than 2s ago
 			if(System.currentTimeMillis() - lastSetLowBrightness >= 2000) {
 				mParams.screenBrightness = -1f;
@@ -1078,7 +1100,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		PackageInfo pInfo = null;
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 			//starting with Android O (API 26) they added a new method specific for this
-		    Log.d(TAG, "getCurrentWebViewPackageInfo for O+");
+			if(extendedLogsFlag) {
+			    Log.d(TAG, "getCurrentWebViewPackageInfo for O+");
+			}
 			pInfo = WebView.getCurrentWebViewPackage();
 		} else if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 			//with Android Lollipop (API 21) they started to update the WebView 
@@ -1086,21 +1110,27 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			//getLoadedPackageInfo() method to the WebViewFactory class and this
 			//should handle the Android 7.0 behaviour changes too
 			try {
-			    Log.d(TAG, "getCurrentWebViewPackageInfo for L+");
+				if(extendedLogsFlag) {
+				    Log.d(TAG, "getCurrentWebViewPackageInfo for L+");
+				}
 				Class webViewFactory = Class.forName("android.webkit.WebViewFactory");
 				Method method = webViewFactory.getMethod("getLoadedPackageInfo");
 				pInfo = (PackageInfo) method.invoke(null);
-			} catch (Exception e) {
+			} catch(Exception e) {
 				//e.printStackTrace();
-			    Log.d(TAG, "getCurrentWebViewPackageInfo for L+ ex="+e);
+				if(extendedLogsFlag) {
+					Log.d(TAG, "getCurrentWebViewPackageInfo for L+ ex="+e);
+				}
 			}
 			if(pInfo==null) {
 				try {
-				    Log.d(TAG, "getCurrentWebViewPackageInfo for L+ (2)");
+					if(extendedLogsFlag) {
+					    Log.d(TAG, "getCurrentWebViewPackageInfo for L+ (2)");
+					}
 					Class webViewFactory = Class.forName("com.google.android.webview.WebViewFactory");
 					Method method = webViewFactory.getMethod("getLoadedPackageInfo");
 					pInfo = (PackageInfo) method.invoke(null);
-				} catch (Exception e2) {
+				} catch(Exception e2) {
 					//e.printStackTrace();
 				    Log.d(TAG, "getCurrentWebViewPackageInfo for L+ (2) ex="+e2);
 				}
