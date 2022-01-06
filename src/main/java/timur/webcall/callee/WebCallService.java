@@ -964,10 +964,15 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 		@android.webkit.JavascriptInterface
 		public void wsSend(String str) {
-// TODO str can be very long, maybe only show the 1st 20-30 chars
-			Log.d(TAG,"wsSend "+str);
-			if(wsClient!=null) {
+			String logstr = str;
+			if(logstr.length()>40) {
+				logstr = logstr.substring(0,40);
+			}
+			if(wsClient==null) {
+				Log.w(TAG,"wsSend wsClient==null "+logstr);
+			} else {
 				// TODO: this may happen here: WebsocketNotConnectedException
+				Log.d(TAG,"wsSend "+logstr);
 				wsClient.send(str);
 
 				if(sendRtcMessagesAfterInit && str.startsWith("init|")) {
@@ -1717,21 +1722,24 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				statusMessage("Login...",true,false);
 				try {
 					URL url = new URL(loginUrl);
-					Log.d(TAG,"reconnecter url.openConnection()");
+					Log.d(TAG,"reconnecter url.openConnection("+url+")");
 					HttpURLConnection con = (HttpURLConnection)url.openConnection();
-					//Log.d(TAG,"reconnecter CookieManager.getInstance().setAcceptCookie(true)");
 					con.setConnectTimeout(22000);
 					con.setReadTimeout(10000);
 					CookieManager.getInstance().setAcceptCookie(true);
 					if(webviewCookies!=null) {
-						Log.d(TAG,"reconnecter con.setRequestProperty(webviewCookies)");
+						if(extendedLogsFlag) {
+							Log.d(TAG,"reconnecter con.setRequestProperty(webviewCookies)");
+						}
 						con.setRequestProperty("Cookie", webviewCookies);
 						SharedPreferences.Editor prefed = prefs.edit();
 						prefed.putString("cookies", webviewCookies);
 						prefed.apply();
 					} else {
 						String newWebviewCookies = prefs.getString("cookies", "");
-						Log.d(TAG,"reconnecter con.setRequestProperty(prefs:cookies)");
+						if(extendedLogsFlag) {
+							Log.d(TAG,"reconnecter con.setRequestProperty(prefs:cookies)");
+						}
 						con.setRequestProperty("Cookie", newWebviewCookies);
 					}
 					con.setRequestProperty("Connection", "close"); // this kills keep-alives TODO???
@@ -2273,15 +2281,17 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 	private void runJS(final String str, final ValueCallback<String> myBlock) {
 		// str can be very long, we just log the 1st 30 chars
 		String logstr = str;
-		if(logstr.length()>30) {
-			logstr = logstr.substring(0,30);
+		if(logstr.length()>40) {
+			logstr = logstr.substring(0,40);
 		}
 		if(myWebView==null) {
 			Log.d(TAG, "runJS("+logstr+") but no webview");
 		} else if(!webviewMainPageLoaded && !str.equals("history.back()")) {
 			Log.d(TAG, "runJS("+logstr+") but no webviewMainPageLoaded");
 		} else {
-			Log.d(TAG, "runJS("+logstr+")");
+			if(extendedLogsFlag && !logstr.startsWith("wsOnError") && !logstr.startsWith("showStatus")) {
+				Log.d(TAG, "runJS("+logstr+")");
+			}
 			myWebView.post(new Runnable() {
 				@Override
 				public void run() {
@@ -2386,7 +2396,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		// set=0: route audio to it's normal destination (to headset if connected)
 		// set=1: route audio to speaker (even if headset is connected)
 		// called by callPickedUp()
-		Log.d(TAG,"audioToSpeakerSet "+set+" (prev="+audioToSpeakerActive+")");
+		if(extendedLogsFlag) {
+			Log.d(TAG,"audioToSpeakerSet "+set+" (prev="+audioToSpeakerActive+")");
+		}
 		if(set==audioToSpeakerActive) {
 			return;
 		}

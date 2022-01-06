@@ -1014,9 +1014,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(boundService && webCallServiceBinder!=null) {
 			typeOfWakeup = webCallServiceBinder.wakeupType();
 		}
-	    Log.d(TAG, "activityStart typeOfWakeup="+typeOfWakeup);
-
-		if(typeOfWakeup==2) { // incoming call
+		if(typeOfWakeup>0) {
+		    Log.d(TAG, "activityStart typeOfWakeup="+typeOfWakeup);
+		}
+		if(typeOfWakeup==2) {
+			// incoming call
 			if(wakeLockScreen!=null /*&& wakeLockScreen.isHeld()*/) {
 			    Log.d(TAG, "activityStart wakelock + screen already held");
 				// this can happen when we receive onStart, onStop, onStart in quick order
@@ -1049,16 +1051,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			//		        | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
 			//		        | WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON);
 
-			// delayed release of wakeLockScreen. why are we releasing wakeLockScreen already?
-			// this wakelock is only for incoming calls. we release the wakelock now
-			// so the normal screen-off timer can take over
+			// we release wakeLockScreen with a small delay
+			// bc the screen is now on and the normal screen-off timer shall take over
 			final Handler handler = new Handler(Looper.getMainLooper());
 			handler.postDelayed(new Runnable() {
 				@Override
 				public void run() {
-					Log.d(TAG, "activityStart delayed");
 					if(wakeLockScreen.isHeld()) {
-						Log.d(TAG, "activityStart delayed wakeLockScreen.release");
+						if(extendedLogsFlag) {
+							Log.d(TAG, "activityStart delayed wakeLockScreen.release");
+						}
 						wakeLockScreen.release();
 						wakeLockScreen = null;
 					}
@@ -1066,9 +1068,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}, 500);
 
 		} else if(typeOfWakeup==1) {
-			// service got disconnected from webcall server
-			// typeOfWakeup==1 is only sent to bring webcall activity to front
-			Log.d(TAG, "activityStart bring webcall to front");
+			// disconnected from webcall server
+			// screen on + bring webcall activity to front
+			Log.d(TAG, "activityStart screen on + webcall to front");
 			mParams.screenBrightness = 0.01f;
 			getWindow().setAttributes(mParams);
 			lastSetLowBrightness = System.currentTimeMillis();
