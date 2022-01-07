@@ -74,8 +74,11 @@ import android.app.PendingIntent;
 import android.app.Notification;
 import android.net.wifi.WifiManager;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.net.NetworkInfo; // deprecated in API level 29
 import android.net.Uri;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.LinkProperties;
 import android.app.NotificationManager;
 import android.app.NotificationChannel;
 import android.graphics.Bitmap;
@@ -165,7 +168,7 @@ public class WebCallService extends Service {
 	private SharedPreferences preferences = null;
 	private SharedPreferences.Editor prefEditor = null;
     private Binder mBinder = new WebCallServiceBinder();
-	private BroadcastReceiver networkStateReceiver = null;
+	private BroadcastReceiver networkStateReceiver = null; // for api < 24
 	private BroadcastReceiver dozeStateReceiver = null;
 	private BroadcastReceiver alarmReceiver = null;
 	private PowerManager powerManager = null;
@@ -180,7 +183,7 @@ public class WebCallService extends Service {
 	private String loginUrl = null;
 	private AlarmManager alarmManager = null;
 	private WakeLock keepAwakeWakeLock = null; // PARTIAL_WAKE_LOCK (screen off)
-	private ConnectivityManager connectivitymanager = null;
+	private ConnectivityManager connectivityManager = null;
 
 	private volatile String webviewCookies = null;
 	private volatile WakeLock wakeUpWakeLock = null; // for wakeup from doze, released by activity
@@ -302,30 +305,123 @@ public class WebCallService extends Service {
 			return 0;
 		}
 
-		if(connectivitymanager==null) {
-			connectivitymanager = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+		if(connectivityManager==null) {
+			connectivityManager = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
 		}
-		if(connectivitymanager==null) {
-			Log.d(TAG,"fatal: cannot get connectivitymanager");
+		if(connectivityManager==null) {
+			Log.d(TAG,"fatal: cannot get connectivityManager");
 			return 0;
 		}
 
-		if(networkStateReceiver==null) {
-			checkNetworkState(false);
-			networkStateReceiver = new BroadcastReceiver() {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) { // >=api24
+			// this code (networkCallback) fully replaces checkNetworkState()
+			connectivityManager.registerDefaultNetworkCallback(new ConnectivityManager.NetworkCallback() {
 				@Override
-				public void onReceive(Context context, Intent intent) {
-					//Log.d(TAG,"networkStateReceiver onReceive");
-					checkNetworkState(true);
+				public void onAvailable(Network network) {
+		            super.onAvailable(network);
+					Log.d(TAG, "networkCallback gaining access to new network");
 				}
-			};
-			registerReceiver(networkStateReceiver,
-				new IntentFilter(android.net.ConnectivityManager.CONNECTIVITY_ACTION));
+
+				@Override
+				public void onLost(Network network) {
+					Log.d(TAG,"networkCallback default network lost");
+					if(haveNetworkInt==2) {
+						if(wifiLock!=null && wifiLock.isHeld()) {
+							// release wifi lock
+							Log.d(TAG,"networkCallback wifiLock.release --------------");
+							wifiLock.release();
+						}
+					}
+					haveNetworkInt = 0;
+					statusMessage("No network",true,false);
+				}
+
+				@Override
+				public void onCapabilitiesChanged(Network network, NetworkCapabilities networkCapabi) {
+//					Log.d(TAG,"networkCallback network capab change: " + networkCapabi +
+//						" wifi="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)+
+//						" cell="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)+
+//						" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
+//						" vpn="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_VPN)+
+//						" wifiAw="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)+
+//						" usb="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB));
+
+					int newNetworkInt = 0;
+					if(networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+						newNetworkInt = 2;
+					} else if(networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+							networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ||
+							networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB)) {
+						newNetworkInt = 1;
+					} else {
+						newNetworkInt = 0; // ?
+					}
+					if(haveNetworkInt==2 && newNetworkInt!=2) {
+						// losing wifi
+						if(wifiLock!=null && wifiLock.isHeld()) {
+							// release wifi lock
+							Log.d(TAG,"networkCallback wifiLock.release --------------");
+							wifiLock.release();
+						}
+						statusMessage("Connecting via other network",true,false);
+					}
+					if(newNetworkInt==2 && haveNetworkInt!=2) {
+						// gaining wifi
+						if(wifiLock!=null && !wifiLock.isHeld()) {
+							// enable wifi lock
+							Log.d(TAG,"networkCallback wifiLock.acquire ----------------");
+							wifiLock.acquire();
+						}
+						statusMessage("Connecting via Wifi network",true,false);
+					}
+					if(newNetworkInt>0 && haveNetworkInt<=0 && reconnectBusy) {
+						// call scheduler.schedule()
+						if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
+							Log.d(TAG,"networkState keepAwakeWakeLock.acquire --------");
+							keepAwakeWakeLock.acquire(15 * 60 * 1000);
+						}
+						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+							// why wait for the scheduled reconnecter job
+							// let's cancel it and start it immediately
+							Log.d(TAG,"networkState cancel reconnectSchedFuture");
+							if(reconnectSchedFuture.cancel(false)) {
+								// now run reconnecter in the next second
+								Log.d(TAG,"networkState restart reconnecter in 1s");
+								reconnectSchedFuture = scheduler.schedule(reconnecter,1,TimeUnit.SECONDS);
+							}
+						} else {
+							Log.d(TAG,"networkState start reconnecter in 1s");
+							reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
+						}
+					}
+					haveNetworkInt = newNetworkInt;
+				}
+
+//				@Override
+//				public void onLinkPropertiesChanged(Network network, LinkProperties linkProperties) {
+//					Log.d(TAG, "The default network changed link properties: " + linkProperties);
+//				}
+			});
+		} 
+		else {
+			checkNetworkState(false);
+			if(networkStateReceiver==null) {
+				networkStateReceiver = new BroadcastReceiver() {
+					@Override
+					public void onReceive(Context context, Intent intent) {
+						//Log.d(TAG,"networkStateReceiver onReceive");
+						checkNetworkState(true);
+					}
+				};
+				registerReceiver(networkStateReceiver,
+					new IntentFilter(android.net.ConnectivityManager.CONNECTIVITY_ACTION));
+			}
+			if(networkStateReceiver==null) {
+				Log.d(TAG,"fatal: cannot create networkStateReceiver");
+				return 0;
+			}
 		}
-		if(networkStateReceiver==null) {
-			Log.d(TAG,"fatal: cannot create networkStateReceiver");
-			return 0;
-		}
+
 
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 			if(dozeStateReceiver==null) {
@@ -1024,7 +1120,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 		@android.webkit.JavascriptInterface
 		public boolean isNetwork() {
-			//checkNetworkState(false);
 			return haveNetworkInt>0;
 		}
 
@@ -1230,7 +1325,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// code 1006: connection was closed abnormally (locally)
 			// code 1000: indicates a normal closure (when we click goOffline)
 			if(reconnectBusy) {
-// TODO tmtmtm this happens with no reconnecter active
+// TODO for some reason this happens with no reconnecter active
 				Log.d(TAG,"onClose skip busy (code="+code+" "+reason+")");
 			} else if(code==1000) { // TODO hack!
 				Log.d(TAG,"onClose skip code=1000");
@@ -1459,7 +1554,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			Date newDate = new Date();
 			long diffInMillies = Math.abs(newDate.getTime() - lastPingDate.getTime());
 			if(diffInMillies > serverPingPeriodPlus*1000 && !reconnectBusy) {
-// TODO tmtmtm we sometimes do NOT branch in here bc reconnectBusy is wrongly set
+// TODO we sometimes do NOT branch in here bc reconnectBusy is wrongly set
 				// lastPingDate is too old
 				Log.d(TAG,"checkLastPing diff="+diffInMillies+" TOO OLD ----------------");
 				needKeepAwake = true;
@@ -1684,22 +1779,29 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				wakeUpIfNeeded(context);
 				reconnectCounter++;
 
-				if(haveNetworkInt<1) {
+				if(haveNetworkInt<=0) {
 					// it makes no sense to try to reconnect now - we have no network
-					if(reconnectCounter<ReconnectCounterMax) {
+					if(reconnectCounter < ReconnectCounterMax) {
+// TODO tmtmtm can we not simply wait for network reconnect (checkNetworkState() via networkStateReceiver) 
+// to wake us up? if reconnect to network takes a long time, this would consume less battery
+// all it would take is to: keepAwakeWakeLock.release
+// and to remove this block (minus the return)
+// for this reconnectBusy must stay true
+/*
 						int delaySecs = reconnectCounter*5;
 						if(delaySecs>30) {
 							delaySecs=30;
 						}
 						Log.d(TAG,"reconnecter no network, postpone reconnect... "+reconnectCounter);
 						statusMessage("No network. Will try again...",true,false);
-//						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-//							reconnectSchedFuture.cancel(false);	
-//							reconnectSchedFuture = null;
-//						}
 						if(reconnectSchedFuture==null) {
 							reconnectSchedFuture =
 								scheduler.schedule(reconnecter, delaySecs, TimeUnit.SECONDS);
+						}
+*/
+						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+							Log.d(TAG,"reconnecter waiting for net keepAwakeWakeLock.release -----------");
+							keepAwakeWakeLock.release();
 						}
 						return;
 					}
@@ -1720,7 +1822,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				statusMessage("Login...",true,false);
 				try {
 					URL url = new URL(loginUrl);
-					Log.d(TAG,"reconnecter openConnection("+url+")");
+					//Log.d(TAG,"reconnecter openCon("+url+")");
 					HttpURLConnection con = (HttpURLConnection)url.openConnection();
 					con.setConnectTimeout(22000);
 					con.setReadTimeout(10000);
@@ -1743,6 +1845,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					con.setRequestProperty("Connection", "close"); // this kills keep-alives TODO???
 					BufferedReader reader = null;
 					if(!reconnectBusy) {
+						Log.d(TAG,"reconnecter abort");
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							Log.d(TAG,"reconnecter cancel reconnectSchedFuture");
 							reconnectSchedFuture.cancel(false);	
@@ -1759,9 +1862,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						con.connect();
 						status = con.getResponseCode();
 						if(status!=200) {
-							Log.d(TAG,"reconnecter con.connect() status="+status);
+							Log.d(TAG,"reconnecter status="+status+" fail");
 						} else {
-							Log.d(TAG,"reconnecter status="+status+" con.getInputStream()...");
+							Log.d(TAG,"reconnecter status="+status+" OK");
 							reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
 						}
 					} catch(Exception ex) {
@@ -1809,7 +1912,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						return;
 					}
 
-					statusMessage("Connecting...",true,false);
+//					statusMessage("Connecting...",true,false);
 					String response = reader.readLine();
 					String[] tokens = response.split("\\|");
 					Log.d(TAG,"reconnecter response tokens length="+tokens.length);
@@ -2056,18 +2159,28 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					connectTypeInt = 1;
 					audioToSpeakerSet(audioToSpeakerMode>0,false);
 
-					if(extendedLogsFlag) {
-						Log.d(TAG,"connectHost get cookies from "+currentUrl);
+// TODO currentUrl==null beim booten
+					if(currentUrl==null) {
+						String webcalldomain = 
+							prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+						String username = prefs.getString("username", "");
+						currentUrl = "https://"+webcalldomain+"/callee/"+username;
 					}
-					if(!currentUrl.equals("")) {
-						webviewCookies = CookieManager.getInstance().getCookie(currentUrl);
+
+					if(currentUrl!=null) {
 						if(extendedLogsFlag) {
-							Log.d(TAG,"connectHost webviewCookies="+webviewCookies);
+							Log.d(TAG,"connectHost get cookies from "+currentUrl);
 						}
-						if(!webviewCookies.equals("")) {
-							SharedPreferences.Editor prefed = prefs.edit();
-							prefed.putString("cookies", webviewCookies);
-							prefed.apply();
+						if(!currentUrl.equals("")) {
+							webviewCookies = CookieManager.getInstance().getCookie(currentUrl);
+							if(extendedLogsFlag) {
+								Log.d(TAG,"connectHost webviewCookies="+webviewCookies);
+							}
+							if(!webviewCookies.equals("")) {
+								SharedPreferences.Editor prefed = prefs.edit();
+								prefed.putString("cookies", webviewCookies);
+								prefed.apply();
+							}
 						}
 					}
 
@@ -2128,10 +2241,21 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		return null;
 	}
 
+	// for API < 24 only (Android 4-6)
 	private void checkNetworkState(boolean restartReconnectOnNetwork) {
-		NetworkInfo netInfo = connectivitymanager.getActiveNetworkInfo();
-		if(netInfo==null) {
-			Log.d(TAG,"networkState netInfo==null "+wsClient+" "+reconnectBusy);
+		// sets haveNetworkInt = 0,1,2
+		// calls statusMessage
+		// if wifi -> wifiLock.acquire(), else -> wifiLock.release()
+		// if new network && reconnectBusy && restartReconnectOnNetwork && haveNetworkInt<=0
+		// 	 call scheduler.schedule()
+
+		NetworkInfo netActiveInfo = connectivityManager.getActiveNetworkInfo();
+		NetworkInfo wifiInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+		NetworkInfo mobileInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
+		if(netActiveInfo==null) {
+// TODO netActiveInfo==null despite wifi icon visible and wifi being available
+			Log.d(TAG,"networkState netActiveInfo==null "+wsClient+" "+reconnectBusy+
+				" wifiInfo="+wifiInfo+" mobileInfo="+mobileInfo);
 			if(haveNetworkInt==0) {
 				return;
 			}
@@ -2139,7 +2263,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			statusMessage("No network",true,false);
 			return;
 		}
-		if(netInfo.getTypeName().equalsIgnoreCase("WIFI")) {
+		String netTypeName = netActiveInfo.getTypeName();
+// TODO netTypeName=="WIFI" despite wifi icon NOT visible
+		Log.d(TAG,"networkState netActiveInfo!=null "+
+			wsClient+" "+reconnectBusy+" "+netTypeName+" !!!!!!");
+		if(netTypeName.equalsIgnoreCase("WIFI")) {
 			// need wifi-lock ONLY if wifi is enabled && mobile is not connected
 			if(haveNetworkInt==2) {
 				return;
@@ -2152,8 +2280,12 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					Log.d(TAG,"networkState wifiLock.acquire ----------------");
 					wifiLock.acquire();
 				}
-
-				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && haveNetworkInt<=0) { 
+				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && haveNetworkInt<=0) {
+// new tmtmtm keepAwakeWakeLock.acquire
+					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
+						Log.d(TAG,"networkState connected to wifi keepAwakeWakeLock.acquire ------------");
+						keepAwakeWakeLock.acquire(15 * 60 * 1000);
+					}
 					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 						// why wait for the scheduled reconnecter job
 						// let's cancel and start it right away
@@ -2171,7 +2303,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			}
 			haveNetworkInt=2;
 
-		} else if(netInfo.isConnected()) {
+		} else if(netActiveInfo.isConnected()) {
 			// no need for wifi-lock if connected via mobile (or whatever)
 			if(haveNetworkInt==1) {
 				return;
@@ -2186,6 +2318,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				// we don't like to wait for the scheduled reconnecter job
 				// let's cancel it and start it right away
 				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && haveNetworkInt<=0) { 
+// new tmtmtm keepAwakeWakeLock.acquire
+					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
+						Log.d(TAG,"networkState connected to net keepAwakeWakeLock.acquire ------------");
+						keepAwakeWakeLock.acquire(15 * 60 * 1000);
+					}
 					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 						// why wait for the scheduled reconnecter job
 						// let's cancel and start it right away

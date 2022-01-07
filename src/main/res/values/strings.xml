@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">WebCall</string>
+    <string name="app_name"                    >WebCall</string>
 
     <string name="msg_nfcon"                   >Please turn the NFC adapter On</string>
 <!--
     <string name="msg_noopti"                  >Click Continue. Then select \'All apps\' from the top right, scroll down to \'WebCall\' and switch to \'Don\'t optimize\'</string>
 -->
-    <string name="msg_noopti2"                 >A permission is needed to answer calls in the background.\n\nThis permission is used less than 1 minute per 6 hours (less than 240s per day). The effect on battery power is very low.</string>
+    <string name="msg_noopti2"                 >A permission is needed to make connection handling more reliable.\n\nThis is used less than 20 seconds per 24h (0.023% a day) on average. The effect on battery power is very low.</string>
 
     <string name="msg_nfcbeam_on"              >NFC WebCall link - Off</string>
     <string name="msg_nfcbeam_off"             >NFC WebCall link - On</string>
