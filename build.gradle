@@ -6,8 +6,8 @@ android {
 		applicationId "timur.webcall.callee"
 		minSdkVersion 21
 		targetSdkVersion 31
-		versionCode 16
-		versionName "0.7.17"
+		versionCode 18
+		versionName "0.7.18"
 	}
 
 	signingConfigs {

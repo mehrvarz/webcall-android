@@ -253,10 +253,12 @@ public class WebCallService extends Service {
 			return 0;
 		}
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
-			// check with isIgnoringBatteryOptimizations()
-			String packageName = context.getPackageName();
-			boolean isIgnoringBatteryOpti = powerManager.isIgnoringBatteryOptimizations(packageName);
-			Log.d(TAG, "onStartCommand ignoringBattOpt="+isIgnoringBatteryOpti);
+			if(extendedLogsFlag) {
+				// check with isIgnoringBatteryOptimizations()
+				String packageName = context.getPackageName();
+				boolean isIgnoringBatteryOpti = powerManager.isIgnoringBatteryOptimizations(packageName);
+				Log.d(TAG, "onStartCommand ignoringBattOpt="+isIgnoringBatteryOpti);
+			}
 		}
 
 		if(keepAwakeWakeLock==null) {
@@ -369,6 +371,13 @@ public class WebCallService extends Service {
 						// gaining wifi
 						if(wifiLock!=null && !wifiLock.isHeld()) {
 							// enable wifi lock
+// TODO maybe the user prefers mobile over wifi, even if wifi is now available
+// reasons to do so: wifi costs more battery and may be less stable
+// in this case we would ONLY acquire wifilock, if the mobile network is gone
+// above we would ask: if(newNetworkInt==2 && haveNetworkInt<=0) {
+// and below we would do: 
+// if(haveNetworkInt==0 || haveNetworkInt==2) haveNetworkInt = newNetworkInt;
+// in other words: we would NOT switch to the new network, if the existing one is mobile (or USB or ETHER)
 							Log.d(TAG,"networkCallback wifiLock.acquire ----------------");
 							wifiLock.acquire();
 						}
@@ -701,7 +710,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 								Log.d(TAG, "handleUri store username=("+username+")");
 								SharedPreferences.Editor prefed = prefs.edit();
 								prefed.putString("username",username);
-								prefed.apply();
+								//prefed.apply();
+								prefed.commit();
 							}
 						}
 					}
@@ -746,7 +756,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					webviewCookies = CookieManager.getInstance().getCookie(url);
 					SharedPreferences.Editor prefed = prefs.edit();
 					prefed.putString("cookies", webviewCookies);
-					prefed.apply();
+					//prefed.apply();
+					prefed.commit();
 					//Log.d(TAG, "onPageFinished webviewCookies=" + webviewCookies);
 
 					// if page sends "init|" when sendRtcMessagesAfterInit is set true
@@ -828,9 +839,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				public boolean onConsoleMessage(ConsoleMessage cm) {
 					String msg = cm.message();
 					if(!msg.startsWith("showStatus")) {
-						if(extendedLogsFlag) {
+//						if(extendedLogsFlag) {
 							Log.d(TAG,"console "+msg + " L"+cm.lineNumber());
-						}
+//						}
 					}
 					if(msg.equals("Uncaught ReferenceError: goOnline is not defined")) {
 						if(wsClient==null) {
@@ -980,7 +991,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				beepOnLostNetworkMode = val;
 				SharedPreferences.Editor prefed = prefs.edit();
 				prefed.putInt("beepOnLostNetwork", beepOnLostNetworkMode);
-				prefed.apply();
+				//prefed.apply();
+				prefed.commit();
 			}
 			return beepOnLostNetworkMode;
 		}
@@ -991,7 +1003,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				startOnBootMode = val;
 				SharedPreferences.Editor prefed = prefs.edit();
 				prefed.putInt("startOnBoot", startOnBootMode);
-				prefed.apply();
+				//prefed.apply();
+				prefed.commit();
 			}
 			return startOnBootMode;
 		}
@@ -1236,7 +1249,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// used by WebCallAndroid
 			SharedPreferences.Editor prefed = prefs.edit();
 			prefed.putString(pref,str);
-			prefed.apply();
+			//prefed.apply();
+			prefed.commit();
+			// TODO how can we flush this
+			// (at least) on android 5 this is not stored, if the app later crashes, or is killed
 			if(extendedLogsFlag) {
 				Log.d(TAG, "storePreference "+pref+" "+str+" stored");
 			}
@@ -1247,10 +1263,16 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// used by WebCallAndroid
 			SharedPreferences.Editor prefed = prefs.edit();
 			prefed.putBoolean(pref,bool);
-			prefed.apply();
+			//prefed.apply();
+			prefed.commit();
 			if(extendedLogsFlag) {
 				Log.d(TAG, "storePreferenceBool "+pref+" "+bool+" stored");
 			}
+		}
+
+		@android.webkit.JavascriptInterface
+		public String getVersionName() {
+			return BuildConfig.VERSION_NAME;
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1818,7 +1840,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						con.setRequestProperty("Cookie", webviewCookies);
 						SharedPreferences.Editor prefed = prefs.edit();
 						prefed.putString("cookies", webviewCookies);
-						prefed.apply();
+						//prefed.apply();
+						prefed.commit();
 					} else {
 						String newWebviewCookies = prefs.getString("cookies", "");
 						if(extendedLogsFlag) {
@@ -2163,7 +2186,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							if(!webviewCookies.equals("")) {
 								SharedPreferences.Editor prefed = prefs.edit();
 								prefed.putString("cookies", webviewCookies);
-								prefed.apply();
+								//prefed.apply();
+								prefed.commit();
 							}
 						}
 					}
@@ -2557,7 +2581,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				Log.d(TAG,"audioToSpeakerSet setForceUse "+set);
 				SharedPreferences.Editor prefed = prefs.edit();
 				prefed.putInt("audioToSpeaker", audioToSpeakerMode);
-				prefed.apply();
+				//prefed.apply();
+				prefed.commit();
 			} catch(Exception ex) {
 				Log.d(TAG,"audioToSpeakerSet "+set+" ex="+ex);
 				Intent intent = new Intent("webcall");
@@ -2566,7 +2591,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				audioToSpeakerMode = 0;
 				SharedPreferences.Editor prefed = prefs.edit();
 				prefed.putInt("audioToSpeaker", audioToSpeakerMode);
-				prefed.apply();
+				//prefed.apply();
+				prefed.commit();
 			}
 		} else {
 			// TODO Android 9+ implementation needed
@@ -2579,7 +2605,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			audioToSpeakerMode = 0;
 			SharedPreferences.Editor prefed = prefs.edit();
 			prefed.putInt("audioToSpeaker", audioToSpeakerMode);
-			prefed.apply();
+			//prefed.apply();
+			prefed.commit();
 		}
 	}
 

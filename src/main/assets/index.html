@@ -155,6 +155,51 @@ input[type=submit]:focus {
 	0% { transform: rotate(0deg); }
 	100% { transform: rotate(360deg); }
 }
+.speechbubble {
+	position: absolute;
+	background: #eeee00;
+	border-radius: .4em;
+	color:#000;
+	font-size:1.3em;
+	font-weight:500;
+}
+.speechbubble:after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 50%;
+	width: 0;
+	height: 0;
+	border: 26px solid transparent;
+	border-bottom-color: #eeee00;
+	border-top: 0;
+	border-left: 0;
+	margin-left: -13px;
+	margin-top: -26px;
+}
+
+.speechbubble2 {
+	position: absolute;
+	background: #ff88ee;
+	border-radius: .4em;
+	color:#000;
+	font-size:1.25em;
+	font-weight:500;
+}
+.speechbubble2:after {
+	content: '';
+	position: absolute;
+	bottom: 0;
+	left: 50%;
+	width: 0;
+	height: 0;
+	border: 26px solid transparent;
+	border-top-color: #ff88ee;
+	border-bottom: 0;
+	border-left: 0;
+	margin-left: -13px;
+	margin-bottom: -26px;
+}
 </style>
 </head>
 

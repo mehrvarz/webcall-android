@@ -14,6 +14,7 @@ const submitButton = document.querySelector('input#submit');
 
 var domain = "";
 var username = "";
+var versionName = "";
 
 window.onload = function() {
 	if(typeof Android !== "undefined" && Android !== null) {
@@ -22,6 +23,66 @@ window.onload = function() {
 		if(username=="register") {
 			username="";
 			Android.storePreference("username", "");
+		}
+
+		versionName = Android.getVersionName();
+		var lastUsedVersionName = Android.readPreference("versionName");
+		console.log("versionName "+versionName);
+		if(lastUsedVersionName!=versionName) {
+			// the user has upgraded (or downgraded) the webcall apk
+			console.log("upgrade from lastUsedVersionName "+lastUsedVersionName);
+
+			setTimeout(function() {
+			var bubbleElement = document.createElement("div");
+			bubbleElement.classList.add("speechbubble");
+			bubbleElement.id = "speechBubble";
+			bubbleElement.style = "left:5%;top:155px;max-width:75%;width:320px;padding:20px;";
+			bubbleElement.innerHTML = "To use your own WebCall server, enter your domain name here.";
+			bubbleElement.onclick = function () {
+				this.parentElement.removeChild(this);
+
+				setTimeout(function() {
+				bubbleElement = document.createElement("div");
+				bubbleElement.classList.add("speechbubble");
+				bubbleElement.id = "speechBubble";
+				bubbleElement.style = "left:5%;top:230px;max-width:80%;width:320px;padding:20px;";
+				bubbleElement.innerHTML = "To create a new phone number use a blank ID and click OK.";
+				bubbleElement.onclick = function () {
+					this.parentElement.removeChild(this);
+
+					setTimeout(function() {
+					bubbleElement = document.createElement("div");
+					bubbleElement.classList.add("speechbubble2");
+					bubbleElement.id = "speechBubble";
+					bubbleElement.style = "left:4%;top:245px;max-width:75%;width:320px;padding:20px;";
+					bubbleElement.innerHTML = "Clear password cookie to enforce the password form.";
+					bubbleElement.onclick = function () {
+						this.parentElement.removeChild(this);
+
+						setTimeout(function() {
+						bubbleElement = document.createElement("div");
+						bubbleElement.classList.add("speechbubble2");
+						bubbleElement.id = "speechBubble";
+						bubbleElement.style = "left:3%;top:265px;max-width:75%;width:320px;padding:20px;";
+						bubbleElement.innerHTML = "Clear cache to force reloading the web application. You may receive an updated version.";
+						bubbleElement.onclick = function () {
+							this.parentElement.removeChild(this);
+						}
+						container.appendChild(bubbleElement);
+						},300);
+					}
+					container.appendChild(bubbleElement);
+					},300);
+				}
+				container.appendChild(bubbleElement);
+				},300);
+			}
+			container.appendChild(bubbleElement);
+			},300);
+
+			// store the new versionName, so that the speech bubbles do not appear next time
+			console.log("store versionName "+versionName);
+			Android.storePreference("versionName", versionName);
 		}
 	}
 	if(domain=="") {

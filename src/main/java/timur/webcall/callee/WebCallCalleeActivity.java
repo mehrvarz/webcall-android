@@ -356,10 +356,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				Toast.makeText(context, "WebCall cannot start. No System WebView installed.",
 					Toast.LENGTH_LONG).show();
 				return;
-			} else {
-				// on LOLLIPOP and below getCurrentWebViewPackageInfo() doesn't work
-				// so instead we risk a crash (to find out if no webview is installed) in the next line
 			}
+			// on LOLLIPOP and below getCurrentWebViewPackageInfo() doesn't work
+			// so instead we may see an exception (if no webview is installed) in the next line
 		} else {
 		    Log.d(TAG, "onCreate webview "+packageInfo.packageName+" "+packageInfo.versionName);
 		}
@@ -375,6 +374,20 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
+/*
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+		String lastUsedVersionName = prefs.getString("versionName", "");
+		if(!lastUsedVersionName.equals(BuildConfig.VERSION_NAME)) {
+			// the user has upgraded (or downgraded) the webcall apk
+// TODO show sprechblasen for "server domain" and "username"
+
+			// store new BuildConfig.VERSION_NAME in preference
+			SharedPreferences.Editor prefed = prefs.edit();
+			prefed.putString("versionName", BuildConfig.VERSION_NAME);
+			//prefed.apply();
+			prefed.commit();
+		}
+*/
 		activityStartNeeded = false;
 
 		if(powerManager==null) {
@@ -657,7 +670,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
 			String packageName = context.getPackageName();
 			boolean ignoreOpti = powerManager.isIgnoringBatteryOptimizations(packageName);
-			Log.d(TAG, "onStart isIgnoreBattOpti="+ignoreOpti);
+			if(extendedLogsFlag) {
+				Log.d(TAG, "onStart isIgnoreBattOpti="+ignoreOpti);
+			}
 			if(!ignoreOpti) {
 				// battery optimizations must be deactivated
 				// this allows us to use a wakelock against doze
