@@ -319,7 +319,7 @@ public class WebCallService extends Service {
 				@Override
 				public void onAvailable(Network network) {
 		            super.onAvailable(network);
-					Log.d(TAG, "networkCallback gaining access to new network");
+					Log.d(TAG, "networkCallback gaining access to new network...");
 				}
 
 				@Override
@@ -338,13 +338,13 @@ public class WebCallService extends Service {
 
 				@Override
 				public void onCapabilitiesChanged(Network network, NetworkCapabilities networkCapabi) {
-//					Log.d(TAG,"networkCallback network capab change: " + networkCapabi +
-//						" wifi="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)+
-//						" cell="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)+
-//						" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
-//						" vpn="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_VPN)+
-//						" wifiAw="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)+
-//						" usb="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB));
+					//Log.d(TAG,"networkCallback network capab change: " + networkCapabi +
+					//	" wifi="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)+
+					//	" cell="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)+
+					//	" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
+					//	" vpn="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_VPN)+
+					//	" wifiAw="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)+
+					//	" usb="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB));
 
 					int newNetworkInt = 0;
 					if(networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
@@ -397,13 +397,12 @@ public class WebCallService extends Service {
 					haveNetworkInt = newNetworkInt;
 				}
 
-//				@Override
-//				public void onLinkPropertiesChanged(Network network, LinkProperties linkProperties) {
-//					Log.d(TAG, "The default network changed link properties: " + linkProperties);
-//				}
+				//@Override
+				//public void onLinkPropertiesChanged(Network network, LinkProperties linkProperties) {
+				//	Log.d(TAG, "The default network changed link properties: " + linkProperties);
+				//}
 			});
-		} 
-		else {
+		} else {
 			checkNetworkState(false);
 			if(networkStateReceiver==null) {
 				networkStateReceiver = new BroadcastReceiver() {
@@ -1377,7 +1376,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					}
 
 				} else {
-					// not 1006
+					// NOT 1006
 					// TODO not exactly sure what to do with this
 					if(myWebView!=null && webviewMainPageLoaded) {
 						// offlineAction(): disable offline-button and enable online-button
@@ -1782,23 +1781,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				if(haveNetworkInt<=0) {
 					// it makes no sense to try to reconnect now - we have no network
 					if(reconnectCounter < ReconnectCounterMax) {
-// TODO tmtmtm can we not simply wait for network reconnect (checkNetworkState() via networkStateReceiver) 
-// to wake us up? if reconnect to network takes a long time, this would consume less battery
-// all it would take is to: keepAwakeWakeLock.release
-// and to remove this block (minus the return)
-// for this reconnectBusy must stay true
-/*
-						int delaySecs = reconnectCounter*5;
-						if(delaySecs>30) {
-							delaySecs=30;
-						}
-						Log.d(TAG,"reconnecter no network, postpone reconnect... "+reconnectCounter);
-						statusMessage("No network. Will try again...",true,false);
-						if(reconnectSchedFuture==null) {
-							reconnectSchedFuture =
-								scheduler.schedule(reconnecter, delaySecs, TimeUnit.SECONDS);
-						}
-*/
+						// just wait for a new-network event via networkCallback or networkStateReceiver
+						// for this to work we keep reconnectBusy set, but we release keepAwakeWakeLock
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"reconnecter waiting for net keepAwakeWakeLock.release -----------");
 							keepAwakeWakeLock.release();
@@ -2241,7 +2225,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		return null;
 	}
 
-	// for API < 24 only (Android 4-6)
+	// checkNetworkState() is for API < 24; for higher API's: fully replaced by networkCallback
 	private void checkNetworkState(boolean restartReconnectOnNetwork) {
 		// sets haveNetworkInt = 0,1,2
 		// calls statusMessage
@@ -2253,7 +2237,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		NetworkInfo wifiInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 		NetworkInfo mobileInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
 		if(netActiveInfo==null) {
-// TODO netActiveInfo==null despite wifi icon visible and wifi being available
+			// the problem with checkNetworkState(): netActiveInfo==null despite wifi icon visible
 			Log.d(TAG,"networkState netActiveInfo==null "+wsClient+" "+reconnectBusy+
 				" wifiInfo="+wifiInfo+" mobileInfo="+mobileInfo);
 			if(haveNetworkInt==0) {
@@ -2264,7 +2248,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			return;
 		}
 		String netTypeName = netActiveInfo.getTypeName();
-// TODO netTypeName=="WIFI" despite wifi icon NOT visible
+		// the problem with checkNetworkState(): netTypeName=="WIFI" despite wifi icon NOT visible
 		Log.d(TAG,"networkState netActiveInfo!=null "+
 			wsClient+" "+reconnectBusy+" "+netTypeName+" !!!!!!");
 		if(netTypeName.equalsIgnoreCase("WIFI")) {
@@ -2281,7 +2265,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					wifiLock.acquire();
 				}
 				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && haveNetworkInt<=0) {
-// new tmtmtm keepAwakeWakeLock.acquire
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to wifi keepAwakeWakeLock.acquire ------------");
 						keepAwakeWakeLock.acquire(15 * 60 * 1000);
@@ -2318,7 +2301,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				// we don't like to wait for the scheduled reconnecter job
 				// let's cancel it and start it right away
 				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && haveNetworkInt<=0) { 
-// new tmtmtm keepAwakeWakeLock.acquire
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to net keepAwakeWakeLock.acquire ------------");
 						keepAwakeWakeLock.acquire(15 * 60 * 1000);
