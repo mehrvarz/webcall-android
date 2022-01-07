@@ -1,4 +1,4 @@
-// WebCall Copyright 2021 timur.mobi. All rights reserved.
+// WebCall Copyright 2022 timur.mobi. All rights reserved.
 'use strict';
 
 const container = document.querySelector('div#container');
@@ -36,6 +36,8 @@ window.onload = function() {
 			var bubbleElement = document.createElement("div");
 			bubbleElement.classList.add("speechbubble");
 			bubbleElement.id = "speechBubble";
+			// TODO it would of course be much better if we could aligh the bubbles with 
+			// the elements they refer to
 			bubbleElement.style = "left:5%;top:155px;max-width:75%;width:320px;padding:20px;";
 			bubbleElement.innerHTML = "To use your own WebCall server, enter your domain name here.";
 			bubbleElement.onclick = function () {

@@ -1,4 +1,4 @@
-// WebCall Copyright 2021 timur.mobi. All rights reserved.
+// WebCall Copyright 2022 timur.mobi. All rights reserved.
 
 package timur.webcall.callee;
 
@@ -439,14 +439,17 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					}
 					return;
 				}
-				String clip = intent.getStringExtra("clip");
-				if(clip!="") {
-					Log.d(TAG, "broadcastReceiver clip "+clip);
-					ClipData clipData = ClipData.newPlainText("url", clip);
+				String clipText = intent.getStringExtra("clip");
+				if(clipText!="") {
+					Log.d(TAG, "broadcastReceiver clipText "+clipText);
+					ClipData clipData = ClipData.newPlainText(null,clipText);
 					ClipboardManager clipboard =
 						(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
-					clipboard.setPrimaryClip(clipData);
-	                Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_LONG).show();
+					if(clipboard!=null) {
+						clipboard.setPrimaryClip(clipData);
+			            Toast.makeText(context, "Data copied to clipboard", Toast.LENGTH_LONG).show();
+					}
+					return;
 				}
 
 				String forResults = intent.getStringExtra("forResults");
