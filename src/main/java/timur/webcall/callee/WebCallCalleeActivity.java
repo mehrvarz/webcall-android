@@ -552,6 +552,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					startActivityForResult(chooserIntent, FILE_REQ_CODE);
 				}
 			}
+/*
 			private File create_image() throws IOException{
 				//@SuppressLint("SimpleDateFormat") 
 				String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
@@ -568,6 +569,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				File sd_directory   = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
 				return File.createTempFile(new_name, ".3gp", sd_directory);
 			}
+*/
 		};
 		registerReceiver(broadcastReceiver, new IntentFilter("webcall"));
 

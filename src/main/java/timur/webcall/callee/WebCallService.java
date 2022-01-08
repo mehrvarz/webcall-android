@@ -540,7 +540,9 @@ public class WebCallService extends Service {
 
 	@Override
 	public void onTrimMemory(int level) {
-		Log.d(TAG, "onTrimMemory level="+level+" ----------------------");
+		if(extendedLogsFlag) {
+			Log.d(TAG, "onTrimMemory level="+level+" ----------------------");
+		}
 	}
 
 	@Override
@@ -724,7 +726,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					// first we want to know if url is just a hashchange
 					// in which case we will NOT do anyhing special
 					if(currentUrl!=null && webviewMainPageLoaded) {
-						Log.d(TAG, "onPageFinished currentUrl=" + currentUrl);
+						//Log.d(TAG, "onPageFinished currentUrl=" + currentUrl);
 						// for onPageFinished we need currentUrl WITHOUT hash
 						// for getCurrentUrl() called by activity onBackPressed()
 						//   currentUrl must contain the full current url (WITH hash)
@@ -735,7 +737,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						if(idxHash>=0) {
 							baseCurrentUrl = baseCurrentUrl.substring(0,idxHash);
 						}
-						Log.d(TAG, "onPageFinished baseCurrentUrl=" + baseCurrentUrl);
+						//Log.d(TAG, "onPageFinished baseCurrentUrl=" + baseCurrentUrl);
 						if(url.startsWith(baseCurrentUrl)) {
 							// url is just a hashchange; does not need onPageFinished processing
 							Log.d(TAG, "onPageFinished url is just a hashchange");
@@ -858,12 +860,17 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				@Override
 				public void onPermissionRequest(PermissionRequest request) {
 					String[] strArray = request.getResources();
-					for(int i=0; i<strArray.length; i++) {
-						Log.d(TAG, "onPermissionRequest "+i+" "+strArray[i]);
-					}
-					// TODO only grant the permission we want to grant!
+					// we only grant the permission we want to grant!
 					// for instance "android.webkit.resource.AUDIO_CAPTURE"
-					request.grant(request.getResources());
+					// and          "android.webkit.resource.VIDEO_CAPTURE"
+					for(int i=0; i<strArray.length; i++) {
+						if(strArray[i].equals("android.webkit.resource.AUDIO_CAPTURE") ||
+						   strArray[i].equals("android.webkit.resource.VIDEO_CAPTURE")) {
+							request.grant(request.getResources());
+						} else {
+							Log.w(TAG, "onPermissionRequest unexpected "+strArray[i]);
+						}
+					}
 				}
 
 				@Override
@@ -1168,6 +1175,18 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			Log.d(TAG,"rtcConnect()");
 			// making sure this is activated (if it is enabled)
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
+
+			// wake up activity
+			// TODO on Android 10+ we may need to use a notification channel instead
+			// see: NotificationChannel
+			// see: https://developer.android.com/guide/components/activities/background-starts
+			// see: https://developer.android.com/training/notify-user/time-sensitive
+			wakeupTypeInt = 2; // incoming call
+			Intent wakeIntent = new Intent(context, WebCallCalleeActivity.class);
+			wakeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
+				Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
+				Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+			context.startActivity(wakeIntent);
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1430,8 +1449,12 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				return;
 			}
 
+/*
 			if(message.startsWith("callerOffer|")) {
 				// incoming call!!
+// TODO this is too early in the process
+// if setting up the call fails, we have turned on the screen too early
+// moved to rtcConnect()
 				Log.d(TAG,"onMessage incoming call "+
 					new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date()));
 				// wake activity so that js code in webview can run
@@ -1451,7 +1474,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					context.startActivity(wakeIntent);
 				}
 			}
-
+*/
 			if(myWebView!=null && webviewMainPageLoaded) {
 				String argStr = "wsOnMessage2('"+message+"');";
 				//Log.d(TAG,"onMessage runJS "+argStr);
