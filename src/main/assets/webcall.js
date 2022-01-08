@@ -28,7 +28,8 @@ window.onload = function() {
 		versionName = Android.getVersionName();
 		var lastUsedVersionName = Android.readPreference("versionName");
 		console.log("versionName "+versionName);
-		if(lastUsedVersionName!=versionName) {
+//		if(lastUsedVersionName!=versionName) {
+		if(lastUsedVersionName=="") {
 			// the user has upgraded (or downgraded) the webcall apk
 			console.log("upgrade from lastUsedVersionName "+lastUsedVersionName);
 
