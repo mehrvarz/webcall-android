@@ -1217,6 +1217,14 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		}
 
 		@android.webkit.JavascriptInterface
+		public void browse(String url) {
+			Log.d(TAG,"browse("+url+")");
+			Intent intent = new Intent("webcall");
+			intent.putExtra("browse", url);
+			sendBroadcast(intent);
+		}
+
+		@android.webkit.JavascriptInterface
 		public void wsExit() {
 			// called by Exit button
 			if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
@@ -2576,10 +2584,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		if(extendedLogsFlag) {
 			Log.d(TAG,"audioToSpeakerSet "+set+" (prev="+audioToSpeakerActive+")");
 		}
-		if(set==audioToSpeakerActive) {
-			return;
-		}
-		if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O) { // <= 27
+//		if(set==audioToSpeakerActive) {
+//			return;
+//		}
+		if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) { // <= 27
 			// this works on Android 5-8 but not on Android 9+
 			try {
 				Class audioSystemClass = Class.forName("android.media.AudioSystem");

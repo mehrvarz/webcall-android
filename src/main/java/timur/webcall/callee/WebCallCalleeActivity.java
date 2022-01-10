@@ -190,7 +190,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			}
 
-			if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O) { // <=8 <=api27
+			if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) { // <=8 <=api27
 				if(webCallServiceBinder.audioToSpeaker(-1)==0) {
 					menu.add(none,menuRingOnSpeakerOn,none,R.string.msg_ring_on_speaker_on);
 				} else {
@@ -437,6 +437,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					if(command.equals("shutdown")) {
 						finish();
 					}
+					return;
+				}
+				String url = intent.getStringExtra("browse");
+				if(url!=null) {
+					Log.d(TAG, "broadcastReceiver browse "+url);
+					Intent i = new Intent(Intent.ACTION_VIEW);
+					i.setData(Uri.parse(url));
+					startActivity(i);
 					return;
 				}
 				String clipText = intent.getStringExtra("clip");
