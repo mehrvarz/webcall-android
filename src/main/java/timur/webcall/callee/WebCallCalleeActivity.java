@@ -176,14 +176,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			menu.setHeaderTitle("WebCall Android "+BuildConfig.VERSION_NAME);
 			if(!nearbyMode) {
 				if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // <=9 <=api28
-					menu.add(none,menuNearbyOn,none,R.string.msg_nfcbeam_on);
+					menu.add(none,menuNearbyOn,none,R.string.msg_nfcconnect_on);
 				} else {
 					// TODO turn nearby On for Android 10+ (not yet implemented)
 					//menu.add(none,menuNearbyOn,none,R.string.msg_nearby_on);
 				}
 			} else {
 				if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // <=9 <=api28
-					menu.add(none,menuNearbyOff,none,R.string.msg_nfcbeam_off);
+					menu.add(none,menuNearbyOff,none,R.string.msg_nfcconnect_off);
 				} else {
 					// TODO turn nearby Off for Android 10+ (not yet implemented)
 					//menu.add(none,menuNearbyOff,none,R.string.msg_nearby_off);

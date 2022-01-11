@@ -8,11 +8,11 @@
 -->
     <string name="msg_noopti2"                 >A permission is needed to make connection handling more reliable.\n\nThis is used less than 20 seconds per 24h (0.023% a day) on average. The effect on battery power is very low.</string>
 
-    <string name="msg_nfcbeam_on"              >NFC WebCall link - Off</string>
-    <string name="msg_nfcbeam_off"             >NFC WebCall link - On</string>
+    <string name="msg_nfcconnect_on"           >NFC Connect - Off</string>
+    <string name="msg_nfcconnect_off"          >NFC Connect - On</string>
 <!--
-    <string name="msg_nearby_on"               >Nearby WebCall link - Off</string>
-    <string name="msg_nearby_off"              >Nearby WebCall link - On</string>
+    <string name="msg_nearby_on"               >Nearby Connect - Off</string>
+    <string name="msg_nearby_off"              >Nearby Connect - On</string>
 -->
     <string name="msg_ring_on_speaker_on"      >Ring on speaker - Off</string>
     <string name="msg_ring_on_speaker_off"     >Ring on speaker - On</string>

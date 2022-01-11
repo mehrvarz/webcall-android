@@ -2587,7 +2587,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 //		if(set==audioToSpeakerActive) {
 //			return;
 //		}
-		if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) { // <= 27
+		if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) { // <= 27
 			// this works on Android 5-8 but not on Android 9+
 			try {
 				Class audioSystemClass = Class.forName("android.media.AudioSystem");
