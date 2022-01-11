@@ -2630,9 +2630,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// see: setAudioRoute(ROUTE_SPEAKER) from android/telecom/InCallService is needed
 			// https://developer.android.com/reference/android/telecom/InCallService
 			// audioToSpeakerActive = set;
-			Intent intent = new Intent("webcall");
-			intent.putExtra("toast", "Ring on speaker non-functional");
-			sendBroadcast(intent);
+			if(set) {
+				Intent intent = new Intent("webcall");
+				intent.putExtra("toast", "Ring on speaker non-functional");
+				sendBroadcast(intent);
+			}
 			audioToSpeakerMode = 0;
 			SharedPreferences.Editor prefed = prefs.edit();
 			prefed.putInt("audioToSpeaker", audioToSpeakerMode);
