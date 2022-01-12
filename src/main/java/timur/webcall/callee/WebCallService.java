@@ -191,7 +191,8 @@ public class WebCallService extends Service {
 	private volatile ScheduledFuture<?> reconnectSchedFuture = null;
 	private volatile WebSocketClient wsClient = null;
 	private volatile int connectTypeInt = 0; // >0 = connected to webcall server (if wsClient!=null)
-	private volatile int wakeupTypeInt = -1;
+	private volatile int wakeupTypeInt = -1; // 1=disconnected, 2=incoming call
+	private volatile int haveNetworkInt = -1; // 0=noNet, 2=wifi, 1=other
 	private volatile WebView myWebView = null;
 	private volatile String currentUrl = null;
 	private volatile boolean webviewMainPageLoaded = false; // is the main page loaded?
@@ -199,8 +200,8 @@ public class WebCallService extends Service {
 	private volatile boolean callPickedUpFlag;
 	private volatile boolean peerConnectFlag;
 	private volatile boolean sendRtcMessagesAfterInit;
-	private volatile int haveNetworkInt = -1; // 0=noNet, 2=wifi, 1=other
 	private volatile boolean reconnectBusy = false;
+	private volatile boolean reconnectWaitNetwork = false;
 	private volatile int reconnectCounter = 0;
 	//private boolean ringOnSpeaker = false;
 	//private AudioManager audioManager = null;
@@ -283,8 +284,9 @@ public class WebCallService extends Service {
 		}
 
 		if(wifiLock==null) {
-			wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL , "WebCall:wifiLock");
-			//wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF , "WebCall:wifiLockHigh");
+			// Note: N7 and N9 don't seem to need WIFI_MODE_FULL_HIGH_PERF, but P9 and Gnex might
+			//wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL, "WebCall:wifiLock");
+			wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "WebCall:wifiLockHigh");
 		}
 		if(wifiLock==null) {
 			Log.d(TAG,"fatal: no access to wifiLock");
@@ -417,7 +419,7 @@ public class WebCallService extends Service {
 				networkStateReceiver = new BroadcastReceiver() {
 					@Override
 					public void onReceive(Context context, Intent intent) {
-						//Log.d(TAG,"networkStateReceiver onReceive");
+						//Log.d(TAG,"networkStateReceiver onReceive ---------");
 						checkNetworkState(true);
 					}
 				};
@@ -447,7 +449,7 @@ public class WebCallService extends Service {
 							// most likely it will go to idle in about 30s
 							dozeIdle = false;
 							if(extendedLogsFlag) {
-								Log.d(TAG,"dozeStateReceiver awake "+(wsClient!=null)+" --------------");
+								Log.d(TAG,"dozeStateReceiver awake wsClient="+(wsClient!=null)+" ------");
 							}
 
 							if(wsClient!=null) {
@@ -1060,7 +1062,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 // TODO maybe if reconnectBusy is set, we should return something to make callee.js just wait?
 // or maybe we should just wait here for wsClient!=null?
 			if(reconnectBusy && wsClient!=null) {
-				Log.e(TAG,"wsOpen reconnectBusy return existing wsClient");
+				Log.d(TAG,"wsOpen reconnectBusy return existing wsClient");
 				return wsClient;
 			}
 			if(wsClient==null) {
@@ -1549,7 +1551,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			pingCounter++;
 			Date currentDate = new Date();
 			if(extendedLogsFlag) {
-				Log.d(TAG,"onWebsocketPing "+pingCounter+" "+BuildConfig.VERSION_NAME+" "+
+				Log.d(TAG,"onWebsocketPing "+pingCounter+" net="+haveNetworkInt+" "+
+					BuildConfig.VERSION_NAME+" "+
 					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(currentDate));
 			}
 			lastPingDate = currentDate;
@@ -1570,7 +1573,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			pendingAlarm = null;
 			alarmPendingDate = null;
 			if(extendedLogsFlag) {
-				Log.d(TAG,"alarmStateReceiver");
+				Log.d(TAG,"alarmStateReceiver net="+haveNetworkInt);
 			}
 			checkLastPing();
 
@@ -1605,19 +1608,23 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// and the server has given up on us: we need to start reconnecter
 			Date newDate = new Date();
 			long diffInMillies = Math.abs(newDate.getTime() - lastPingDate.getTime());
-			if(diffInMillies > serverPingPeriodPlus*1000 && !reconnectBusy) {
-// TODO we sometimes do NOT branch in here bc reconnectBusy is wrongly set
-				// lastPingDate is too old
-				Log.d(TAG,"checkLastPing diff="+diffInMillies+" TOO OLD ----------------");
+			if(diffInMillies > serverPingPeriodPlus*1000) {
+				// server pings have dropped, we need to start a reconnector
 				needKeepAwake = true;
-				// we only need to start a reconnecter if we are supposed to be connected
-				// but wsClose() will cancel alarms, so we won't get called if we shd be disconnected
 				needReconnecter = true;
+				Log.d(TAG,"checkLastPing diff="+diffInMillies+" TOO OLD ----------------");
 			} else {
 				if(extendedLogsFlag) {
 					Log.d(TAG,"checkLastPing diff="+diffInMillies+
 						" < "+(serverPingPeriodPlus*1000)+" ----------------");
 				}
+			}
+//			if(reconnectBusy && keepAwakeWakeLock.isHeld()) {
+			if(reconnectBusy && !reconnectWaitNetwork) {
+				// reconnector is active, do NOT start it again
+				needKeepAwake = false;
+				needReconnecter = false;
+				Log.d(TAG,"checkLastPing old reconnector still active -------------");
 			}
 		}
 		if(reconnectBusy) {
@@ -1814,6 +1821,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// loginUrl must be set before reconnecter is called
 			public void run() {
 				reconnectSchedFuture = null;
+				reconnectWaitNetwork = false;
 				if(wsClient!=null) {
 					Log.d(TAG,"reconnecter already connected");
 					reconnectCounter = 0;
@@ -1824,7 +1832,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					reconnectBusy = false;
 					return;
 				}
-				Log.d(TAG,"reconnecter start "+reconnectCounter+" "+
+				Log.d(TAG,"reconnecter start "+reconnectCounter+" net="+haveNetworkInt+" "+
 					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date()));
 				reconnectBusy = true;
 				wakeupTypeInt = -1;
@@ -1832,7 +1840,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				reconnectCounter++;
 
 				if(haveNetworkInt<=0) {
-					// it makes no sense to try to reconnect now - we have no network
+					// we have no network: it makes no sense to try to reconnect now
 					if(reconnectCounter < ReconnectCounterMax) {
 						// just wait for a new-network event via networkCallback or networkStateReceiver
 						// for this to work we keep reconnectBusy set, but we release keepAwakeWakeLock
@@ -1840,6 +1848,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							Log.d(TAG,"reconnecter waiting for net keepAwakeWakeLock.release -----------");
 							keepAwakeWakeLock.release();
 						}
+						// from here on we do nothing other than to wait (for networkState event or alarm)
+						// if reconnectWaitNetwork is set, checkLastPing() and checkNetworkState()
+						// will schedule a new reconnecter, even if reconnectBusy is set
+						reconnectWaitNetwork = true;
 						return;
 					}
 
@@ -1950,7 +1962,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						return;
 					}
 
-//					statusMessage("Connecting...",true,false);
 					String response = reader.readLine();
 					String[] tokens = response.split("\\|");
 					Log.d(TAG,"reconnecter response tokens length="+tokens.length);
@@ -1962,12 +1973,15 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							if(delaySecs>30) {
 								delaySecs=30;
 							}
-							Log.d(TAG,"reconnecter login fail '"+wsAddr+"' retry...");
+							Log.d(TAG,"reconnecter login fail '"+wsAddr+"' retry "+delaySecs+"...");
 							statusMessage("Login failed. Will try again...",true,false);
 							if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 								reconnectSchedFuture.cancel(false);	
 								reconnectSchedFuture = null;
 							}
+// TODO tmtmtm: on p9 in sleep this may not come back as planned (in 30s)
+// but maybe in 7m
+// and this despite keepAwakeWakeLock being acquire by onClose (and WIFI being back)
 							reconnectSchedFuture =
 								scheduler.schedule(reconnecter,delaySecs,TimeUnit.SECONDS);
 							return;
@@ -1984,7 +1998,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							runJS("offlineAction();",null);
 						}
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-							Log.d(TAG,"networkState keepAwakeWakeLock.release ----------------");
+							Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
 							keepAwakeWakeLock.release();
 						}
 						reconnectBusy = false;
@@ -2003,7 +2017,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							reconnectBusy = false;
 						}
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-							Log.d(TAG,"networkState keepAwakeWakeLock.release ----------------");
+							Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
 							keepAwakeWakeLock.release();
 						}
 						reconnectCounter = 0;
@@ -2092,7 +2106,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						} catch(Exception ex) {
 							Log.d(TAG, "reconnecter sleep ex="+ex);
 						}
-						Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
+						Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 ----------------");
 						keepAwakeWakeLock.release();
 					}
 					reconnectBusy = false;
@@ -2124,7 +2138,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							runJS("offlineAction();",null);
 						}
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-							Log.d(TAG,"networkState keepAwakeWakeLock.release ----------------");
+							Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
 							keepAwakeWakeLock.release();
 						}
 						reconnectBusy = false;
@@ -2318,8 +2332,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					// enable wifi lock
 					Log.d(TAG,"networkState wifiLock.acquire ----------------");
 					wifiLock.acquire();
+				} else {
+					Log.d(TAG,"networkState no wifiLock.acquire ----------------");
 				}
-				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && haveNetworkInt<=0) {
+//				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && haveNetworkInt<=0) {
+				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && reconnectWaitNetwork) {
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to wifi keepAwakeWakeLock.acquire ------------");
 						keepAwakeWakeLock.acquire(15 * 60 * 1000);
@@ -2338,6 +2355,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
 					}
 				}
+			} else {
+				Log.d(TAG,"networkState wsClient==null && !reconnectBusy ------------");
 			}
 			haveNetworkInt=2;
 
@@ -2355,7 +2374,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			if(wsClient!=null || reconnectBusy) {
 				// we don't like to wait for the scheduled reconnecter job
 				// let's cancel it and start it right away
-				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && haveNetworkInt<=0) { 
+//				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && haveNetworkInt<=0) { 
+				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && reconnectWaitNetwork) {
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to net keepAwakeWakeLock.acquire ------------");
 						keepAwakeWakeLock.acquire(15 * 60 * 1000);
@@ -2490,7 +2510,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		// in this case we want to call wakeUpFromDoze( to turn the screen on with the hope, that this
 		// will allow us to reconnect to server
 		if(extendedLogsFlag) {
-			Log.d(TAG,"wakeUpIfNeeded...");
+			Log.d(TAG,"wakeUpIfNeeded net="+haveNetworkInt+" ...");
 		}
 		if(haveNetworkInt<=0) {
 			if(reconnectCounter==ReconnectCounterBeep) {
