@@ -119,19 +119,19 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				boundService = true;
 				// immediately start our webview
 				Log.d(TAG, "onServiceConnected startWebView");
-				WebView webview = findViewById(R.id.webview);
-				webview.setBackgroundColor(Color.TRANSPARENT);
+				myWebView = findViewById(R.id.webview);
+				myWebView.setBackgroundColor(Color.TRANSPARENT);
 
 				String appCachePath = getCacheDir().getAbsolutePath();
 				if(extendedLogsFlag) {
 					Log.d(TAG, "onServiceConnected appCachePath "+appCachePath);
 				}
-				WebSettings webSettings = webview.getSettings();
+				WebSettings webSettings = myWebView.getSettings();
 				webSettings.setAppCachePath(appCachePath);
 				webSettings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
 				webSettings.setAppCacheEnabled(true);
 
-				webCallServiceBinder.startWebView(webview);
+				webCallServiceBinder.startWebView(myWebView);
 				if(activityStartNeeded) {
 					activityStart(); // may need to turn on screen, etc.
 					activityStartNeeded = false;
@@ -415,14 +415,23 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					//Log.d(TAG, "onCreate onTouch");
 					//lastUserInteraction = new Date();
 
+// not needed anymore since we set myWebView.clickable(false) when we wakeLockProximity.acquire()
+//					if(wakeLockProximity.isHeld()) {
+//						Log.d(TAG, "onTouch swallowed while in wakeLockProximity");
+//						// claim we have consumed the touch event, so no default action will be processed
+//						return true;
+//					}
+
 					final int pointerCount = ev.getPointerCount();
 					for(int p = 0; p < pointerCount; p++) {
 						//Log.d(TAG, "onCreate onTouch x="+ev.getX(p)+" y="+ev.getY(p));
 						touchX = (int)ev.getX(p);
 						touchY = (int)ev.getY(p);
 					}
+					Log.d(TAG,"onTouch "+touchX+"/"+touchY+" will be processed");
 
 					// undim screen
+// TODO each and every time? shd only be needed after "if(typeOfWakeup==1)"
 					mParams.screenBrightness = -1f;
 					getWindow().setAttributes(mParams);
 					view.performClick();
@@ -769,9 +778,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 								// callInProgress() is >0 on incoming call (ringing) or if in-call
 								if(webCallServiceBinder!=null && webCallServiceBinder.callInProgress()>0) {
 									// device is in-a-call: shut the screen on proximity
-									Log.d(TAG, "SensorEvent near dim screen");
+									//Log.d(TAG, "SensorEvent near dim screen");
 									if(!wakeLockProximity.isHeld()) {
-										wakeLockProximity.acquire(2000);
+										Log.d(TAG, "SensorEvent near wakeLockProximity.acquire");
+										wakeLockProximity.acquire(30*60*1000);
+										myWebView.setClickable(false);
 									}
 								} else {
 									//Log.d(TAG, "SensorEvent near but NO callInProgress");
@@ -779,7 +790,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							} else {
 								//Log.d(TAG, "SensorEvent away");
 								if(wakeLockProximity.isHeld()) {
+									Log.d(TAG, "SensorEvent away wakeLockProximity.release");
 									wakeLockProximity.release();
+									myWebView.setClickable(true);
 								}
 							}
 						}

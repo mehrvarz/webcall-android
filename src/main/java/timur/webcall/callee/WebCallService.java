@@ -844,6 +844,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					String msg = cm.message();
 					if(!msg.startsWith("showStatus")) {
 //						if(extendedLogsFlag) {
+							// TODO msg can be very long
 							Log.d(TAG,"console "+msg + " L"+cm.lineNumber());
 //						}
 					}
