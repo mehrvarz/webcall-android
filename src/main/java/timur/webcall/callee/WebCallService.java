@@ -184,6 +184,7 @@ public class WebCallService extends Service {
 	private AlarmManager alarmManager = null;
 	private WakeLock keepAwakeWakeLock = null; // PARTIAL_WAKE_LOCK (screen off)
 	private ConnectivityManager connectivityManager = null;
+	private DisplayManager displayManager = null;
 
 	private volatile String webviewCookies = null;
 	private volatile WakeLock wakeUpWakeLock = null; // for wakeup from doze, released by activity
@@ -252,6 +253,9 @@ public class WebCallService extends Service {
 		if(powerManager==null) {
 			Log.d(TAG,"fatal: no access to powerManager");
 			return 0;
+		}
+		if(displayManager==null) {
+			displayManager = (DisplayManager)context.getSystemService(Context.DISPLAY_SERVICE);
 		}
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
 			if(extendedLogsFlag) {
@@ -2488,6 +2492,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			Log.d(TAG, "runJS("+logstr+") but no webview");
 		} else if(!webviewMainPageLoaded && !str.equals("history.back()")) {
 			Log.d(TAG, "runJS("+logstr+") but no webviewMainPageLoaded");
+//		} else if(!isScreenOn()) {
+// TODO maybe we should NOT do this if the activity (or the device) is sleeping
+// aka if the screen is off
+//			Log.d(TAG, "runJS("+logstr+") but screen is off");
 		} else {
 			if(extendedLogsFlag && !logstr.startsWith("wsOnError") && !logstr.startsWith("showStatus")) {
 				Log.d(TAG, "runJS("+logstr+")");
@@ -2546,7 +2554,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			Log.d(TAG,"wakeUpIfNeeded check screen on");
 		}
 		// if we return false, the device will not be woken up for reconnect attempts
-		if(!isScreenOn(context)) {
+		if(!isScreenOn()) {
 			if(reconnectCounter==ReconnectCounterBeep) {
 				if(beepOnLostNetworkMode>0) {
 					playSoundNotification();
@@ -2574,9 +2582,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		return false;
 	}
 
-	private boolean isScreenOn(Context context) {
-		DisplayManager dm = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
-		for (Display display : dm.getDisplays()) {
+	private boolean isScreenOn() {
+//		DisplayManager displayManager = (DisplayManager)context.getSystemService(Context.DISPLAY_SERVICE);
+		for (Display display : displayManager.getDisplays()) {
 			//Log.d(TAG,"isScreenOff state="+display.getState());
 			// STATE_UNKNOWN = 0
 			// STATE_OFF = 1
@@ -2772,6 +2780,14 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			updateNotification("", msg, disconnected, important);
 		}
 		if(myWebView!=null && webviewMainPageLoaded) {
+// TODO maybe we should not do this when the activity (or the device) is sleeping
+// aka if the screen is off
+
+			if(!isScreenOn()) {
+				Log.d(TAG, "statusMessage("+msg+") but screen is off");
+				return;
+			}
+
 			if(disconnected) {
 				runJS("wsOnError2('"+msg+"');",null); // will remove green led
 			} else {

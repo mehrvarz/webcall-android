@@ -415,23 +415,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					//Log.d(TAG, "onCreate onTouch");
 					//lastUserInteraction = new Date();
 
-// not needed anymore since we set myWebView.clickable(false) when we wakeLockProximity.acquire()
-//					if(wakeLockProximity.isHeld()) {
-//						Log.d(TAG, "onTouch swallowed while in wakeLockProximity");
-//						// claim we have consumed the touch event, so no default action will be processed
-//						return true;
-//					}
-
 					final int pointerCount = ev.getPointerCount();
 					for(int p = 0; p < pointerCount; p++) {
 						//Log.d(TAG, "onCreate onTouch x="+ev.getX(p)+" y="+ev.getY(p));
 						touchX = (int)ev.getX(p);
 						touchY = (int)ev.getY(p);
 					}
-					Log.d(TAG,"onTouch "+touchX+"/"+touchY+" will be processed");
+					//Log.d(TAG,"onTouch "+touchX+"/"+touchY+" will be processed");
 
 					// undim screen
-// TODO each and every time? shd only be needed after "if(typeOfWakeup==1)"
+// TODO each and every time? shd only be needed once after "if(typeOfWakeup==1)"
 					mParams.screenBrightness = -1f;
 					getWindow().setAttributes(mParams);
 					view.performClick();
