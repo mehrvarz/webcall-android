@@ -156,7 +156,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private int menuStartOnBootOn = 7;
 	private int menuStartOnBootOff = 8;
 	private int menuCaptureLogs = 20;
-	private int menuExtendedLogs = 30;
+	private int menuExtendedLogsOn = 30;
+	private int menuExtendedLogsOff = 31;
 	private volatile boolean nearbyMode = false;
 
 	@Override
@@ -216,7 +217,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 			if(touchY<80) {
 				// extended functionality
-				menu.add(none,menuExtendedLogs,none,"# Extended logs");
+				if(webCallServiceBinder.extendedLogs(-1)) {
+					menu.add(none,menuExtendedLogsOff,none,R.string.msg_ext_logs_on);
+				} else {
+					menu.add(none,menuExtendedLogsOn,none,R.string.msg_ext_logs_off);
+				}
 			}
 		}
 		super.onCreateContextMenu(menu, view, menuInfo);
@@ -325,12 +330,17 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			//Toast.makeText(context, "Logs were captured", Toast.LENGTH_LONG).show();
 			return true;
 		}
-		if(selectedItem==menuExtendedLogs) {
-			Log.d(TAG, "onContextItemSelected extended logs");
-			if(webCallServiceBinder.extendedLogs()) {
+		if(selectedItem==menuExtendedLogsOn) {
+			Log.d(TAG, "onContextItemSelected extended logs On");
+			if(webCallServiceBinder.extendedLogs(1)) {
 				extendedLogsFlag = true;
 				Toast.makeText(context, "Extended logs are on", Toast.LENGTH_LONG).show();
-			} else {
+			}
+			return true;
+		}
+		if(selectedItem==menuExtendedLogsOff) {
+			Log.d(TAG, "onContextItemSelected extended logs Off");
+			if(!webCallServiceBinder.extendedLogs(0)) {
 				extendedLogsFlag = false;
 				Toast.makeText(context, "Extended logs are off", Toast.LENGTH_LONG).show();
 			}

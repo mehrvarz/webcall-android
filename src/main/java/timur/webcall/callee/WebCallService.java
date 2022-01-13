@@ -1022,11 +1022,12 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			saveSystemLogs();
 		}
 
-		public boolean extendedLogs() {
-			if(!extendedLogsFlag)
+		public boolean extendedLogs(int val) {
+			if(val>0 && !extendedLogsFlag) {
 				extendedLogsFlag = true;
-			else
+			} else if(val==0 && extendedLogsFlag) {
 				extendedLogsFlag = false;
+			}
 			return(extendedLogsFlag);
 		}
 
@@ -1422,6 +1423,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						} else {
 							loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
 							Log.d(TAG,"onClose re-login in 8s url="+loginUrl);
+							// hopefully network is avilable in 8s again
 							reconnectSchedFuture = scheduler.schedule(reconnecter,8,TimeUnit.SECONDS);
 						}
 					}
@@ -1624,7 +1626,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				// reconnector is active, do NOT start it again
 				needKeepAwake = false;
 				needReconnecter = false;
-				Log.d(TAG,"checkLastPing old reconnector still active -------------");
+				Log.d(TAG,"checkLastPing old reconnector currently active -------------");
 			}
 		}
 		if(reconnectBusy) {
@@ -2274,7 +2276,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						alarmPendingDate = new Date();
 					} else {
 						if(extendedLogsFlag) {
-							Log.d(TAG,"connectHost old alarm pending age="+diffInMillies+" -------------");
+							Log.d(TAG,"connectHost alarm pending age="+diffInMillies+" -------------");
 						}
 					}
 					return wsClient;

@@ -21,5 +21,7 @@
     <string name="msg_start_on_boot_on"        >Start on boot - Off</string>
     <string name="msg_start_on_boot_off"       >Start on boot - On</string>
     <string name="msg_capture_logs"            >Capture logs now</string>
+    <string name="msg_ext_logs_on"             ># Extended logs - Off</string>
+    <string name="msg_ext_logs_off"            ># Extended logs - On</string>
 </resources>
 
