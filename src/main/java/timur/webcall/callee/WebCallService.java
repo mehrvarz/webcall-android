@@ -709,7 +709,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						// uri is valid; continue below
 					} else {
 						// uri is NOT valid
-						Log.i(TAG, "handleUri uri is not valied");
+						Log.i(TAG, "handleUri uri not valied; forward to ext browser");
+						Intent intent = new Intent("webcall");
+						intent.putExtra("browse", uri.toString());
+						sendBroadcast(intent);
 						return true; // do not load this url
 					}
 

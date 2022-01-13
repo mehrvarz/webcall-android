@@ -440,13 +440,13 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			@Override
 			public void onReceive(Context context, Intent intent) {
 				String message = intent.getStringExtra("toast");
-				if(message!=null) {
+				if(message!=null && message!="") {
 					Log.d(TAG, "broadcastReceiver message "+message);
 	                Toast.makeText(context, message, Toast.LENGTH_LONG).show();
 					return;
 				}
 				String command = intent.getStringExtra("cmd");
-				if(command!=null) {
+				if(command!=null && command!="") {
 					Log.d(TAG, "broadcastReceiver command "+command);
 					if(command.equals("shutdown")) {
 						finish();
@@ -454,7 +454,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					return;
 				}
 				String url = intent.getStringExtra("browse");
-				if(url!=null) {
+				if(url!=null && url!=null) {
 					Log.d(TAG, "broadcastReceiver browse "+url);
 					Intent i = new Intent(Intent.ACTION_VIEW);
 					i.setData(Uri.parse(url));
@@ -462,7 +462,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					return;
 				}
 				String clipText = intent.getStringExtra("clip");
-				if(clipText!="") {
+				if(clipText!=null && clipText!="") {
 					Log.d(TAG, "broadcastReceiver clipText "+clipText);
 					ClipData clipData = ClipData.newPlainText(null,clipText);
 					ClipboardManager clipboard =
