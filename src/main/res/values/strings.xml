@@ -8,20 +8,20 @@
 -->
     <string name="msg_noopti2"                 >A permission is needed to make connection handling more reliable.\n\nThis is used less than 20 seconds per 24h (0.023% a day) on average. The effect on battery power is very low.</string>
 
-    <string name="msg_nfcconnect_on"           >NFC Connect - Off</string>
-    <string name="msg_nfcconnect_off"          >NFC Connect - On</string>
+    <string name="msg_nfcconnect_on"           >NFC Connect is Off</string>
+    <string name="msg_nfcconnect_off"          >NFC Connect is On</string>
 <!--
-    <string name="msg_nearby_on"               >Nearby Connect - Off</string>
-    <string name="msg_nearby_off"              >Nearby Connect - On</string>
+    <string name="msg_nearby_on"               >Nearby Connect is Off</string>
+    <string name="msg_nearby_off"              >Nearby Connect is On</string>
 -->
-    <string name="msg_ring_on_speaker_on"      >Ring on speaker - Off</string>
-    <string name="msg_ring_on_speaker_off"     >Ring on speaker - On</string>
-    <string name="msg_beep_on_lost_network_on" >Beep on no network - Off</string>
-    <string name="msg_beep_on_lost_network_off">Beep on no network - On</string>
-    <string name="msg_start_on_boot_on"        >Start on boot - Off</string>
-    <string name="msg_start_on_boot_off"       >Start on boot - On</string>
+    <string name="msg_ring_on_speaker_on"      >Ring on speaker is Off</string>
+    <string name="msg_ring_on_speaker_off"     >Ring on speaker is On</string>
+    <string name="msg_beep_on_lost_network_on" >Beep on no network is Off</string>
+    <string name="msg_beep_on_lost_network_off">Beep on no network is On</string>
+    <string name="msg_start_on_boot_on"        >Start on boot is Off</string>
+    <string name="msg_start_on_boot_off"       >Start on boot is On</string>
     <string name="msg_capture_logs"            >Capture logs now</string>
-    <string name="msg_ext_logs_on"             ># Extended logs - Off</string>
-    <string name="msg_ext_logs_off"            ># Extended logs - On</string>
+    <string name="msg_ext_logs_off"            ># Extended logs is Off</string>
+    <string name="msg_ext_logs_on"             ># Extended logs is On</string>
 </resources>
 

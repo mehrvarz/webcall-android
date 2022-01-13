@@ -218,8 +218,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			if(touchY<80) {
 				// extended functionality
 				if(webCallServiceBinder.extendedLogs(-1)) {
+					// offer to turn this off, bc it is on
 					menu.add(none,menuExtendedLogsOff,none,R.string.msg_ext_logs_on);
 				} else {
+					// offer to turn this on, bc it is off
 					menu.add(none,menuExtendedLogsOn,none,R.string.msg_ext_logs_off);
 				}
 			}

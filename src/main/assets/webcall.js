@@ -154,8 +154,7 @@ function submitFormDone(theForm) {
 	}
 
 	if(valueUsername=="") {
-		if(confirm("Do you want to register a new WebCall user-ID?\n\n"+
-			"If you do, please enter a password and click the generated link to continue.")) {
+		if(confirm("To register a new WebCall user-ID, please continue to the next page.")) {
 			Android.storePreference("username", "");
 			Android.wsClearCookies();
 

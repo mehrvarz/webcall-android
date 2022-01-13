@@ -691,8 +691,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					//final String scheme = uri.getScheme();
 					final String path = uri.getPath();
 					if(extendedLogsFlag) {
-						Log.i(TAG, "handleUri path="+path);
+						Log.i(TAG, "handleUri path="+path+" scheme="+uri.getScheme());
 					}
+
 					if(path.indexOf("/user/")>=0) {
 						// this is not a valid url. we store it in the clipboard
 						Log.i(TAG, "handleUri store uri in clipboard " + uri);
@@ -703,6 +704,15 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						sendBroadcast(intent);
 						return true; // do not load this url
 					}
+					if(uri.getScheme().startsWith("file") ||
+						(uri.getScheme().startsWith("http") && path.indexOf("/callee/")>=0)) {
+						// uri is valid; continue below
+					} else {
+						// uri is NOT valid
+						Log.i(TAG, "handleUri uri is not valied");
+						return true; // do not load this url
+					}
+
 					String username = prefs.getString("username", "");
 					if(extendedLogsFlag) {
 						Log.d(TAG, "handleUri username=("+username+")");
