@@ -402,7 +402,7 @@ public class WebCallService extends Service {
 						// call scheduler.schedule()
 						if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"networkState keepAwakeWakeLock.acquire --------");
-							keepAwakeWakeLock.acquire(15 * 60 * 1000);
+							keepAwakeWakeLock.acquire(30 * 60 * 1000);
 						}
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							// why wait for the scheduled reconnecter job
@@ -1418,7 +1418,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"onClose keepAwakeWakeLock.acquire ----------------");
-						keepAwakeWakeLock.acquire(15 * 60 * 1000);
+						keepAwakeWakeLock.acquire(30 * 60 * 1000);
 					}
 
 					wakeUpIfNeeded(context);
@@ -1666,7 +1666,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		if(needKeepAwake) {
 			if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 				Log.d(TAG,"checkLastPing keepAwakeWakeLock.acquire ----------------");
-				keepAwakeWakeLock.acquire(15 * 60 * 1000);
+				keepAwakeWakeLock.acquire(30 * 60 * 1000);
 			} else if(keepAwakeWakeLock!=null) {
 				Log.d(TAG,"checkLastPing keepAwakeWakeLock.isHeld ----------------");
 			} else {
@@ -2330,44 +2330,46 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		// if new network && reconnectBusy && restartReconnectOnNetwork && haveNetworkInt<=0
 		// 	 call scheduler.schedule()
 
+// the problem with checkNetworkState(): netActiveInfo==null despite wifi icon visible
+// the problem with checkNetworkState(): netTypeName=="WIFI" despite wifi icon NOT visible
 		NetworkInfo netActiveInfo = connectivityManager.getActiveNetworkInfo();
 		NetworkInfo wifiInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 		NetworkInfo mobileInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
-		if(netActiveInfo==null) {
-			// the problem with checkNetworkState(): netActiveInfo==null despite wifi icon visible
-			Log.d(TAG,"networkState netActiveInfo==null "+wsClient+" "+reconnectBusy+
-				" wifiInfo="+wifiInfo+" mobileInfo="+mobileInfo);
-			if(haveNetworkInt==0) {
-				return;
-			}
+		if(netActiveInfo==null && wifiInfo==null && mobileInfo==null) {
+			Log.d(TAG,"networkState netActiveInfo/wifiInfo/mobileInfo==null "+wsClient+" "+reconnectBusy);
 			haveNetworkInt=0;
 			statusMessage("No network",true,false);
 			return;
 		}
-		String netTypeName = netActiveInfo.getTypeName();
-		// the problem with checkNetworkState(): netTypeName=="WIFI" despite wifi icon NOT visible
-		Log.d(TAG,"networkState netActiveInfo!=null "+
-			wsClient+" "+reconnectBusy+" "+netTypeName+" !!!!!!");
-		if(netTypeName.equalsIgnoreCase("WIFI")) {
+
+		String netTypeName = "";
+		if(netActiveInfo!=null) {
+			netTypeName = netActiveInfo.getTypeName();
+		}
+		Log.d(TAG,"networkState netActiveInfo="+netActiveInfo+" "+wsClient+
+			" "+reconnectBusy+" "+netTypeName+" !!!!!!");
+		if((netTypeName!=null && netTypeName.equalsIgnoreCase("WIFI")) || wifiInfo!=null) {
 			// need wifi-lock ONLY if wifi is enabled && mobile is not connected
 			if(haveNetworkInt==2) {
 				return;
 			}
 			Log.d(TAG,"networkState connected to wifi");
-			if(wsClient!=null || reconnectBusy) {
+//			if(wsClient!=null || reconnectBusy) {
+			if(connectToSignalingServerIsWanted) {
 				// we are supposed to be connected to webcall server
 				if(wifiLock!=null && !wifiLock.isHeld()) {
 					// enable wifi lock
 					Log.d(TAG,"networkState wifiLock.acquire ----------------");
 					wifiLock.acquire();
 				} else {
+					// wifiLock is already held
 					Log.d(TAG,"networkState no wifiLock.acquire ----------------");
 				}
 //				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && haveNetworkInt<=0) {
 				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && reconnectWaitNetwork) {
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to wifi keepAwakeWakeLock.acquire ------------");
-						keepAwakeWakeLock.acquire(15 * 60 * 1000);
+						keepAwakeWakeLock.acquire(30 * 60 * 1000);
 					}
 					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 						// why wait for the scheduled reconnecter job
@@ -2384,11 +2386,12 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					}
 				}
 			} else {
-				Log.d(TAG,"networkState wsClient==null && !reconnectBusy ------------");
+//				Log.d(TAG,"networkState wsClient==null && !reconnectBusy ------------");
+				Log.d(TAG,"networkState wifi !connectToSignalingServerIsWanted ------------");
 			}
 			haveNetworkInt=2;
 
-		} else if(netActiveInfo.isConnected()) {
+		} else if((netActiveInfo!=null && netActiveInfo.isConnected()) || mobileInfo!=null) {
 			// no need for wifi-lock if connected via mobile (or whatever)
 			if(haveNetworkInt==1) {
 				return;
@@ -2399,14 +2402,15 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				Log.d(TAG,"networkState wifiLock.release");
 				wifiLock.release();
 			}
-			if(wsClient!=null || reconnectBusy) {
+//			if(wsClient!=null || reconnectBusy) {
+			if(connectToSignalingServerIsWanted) {
 				// we don't like to wait for the scheduled reconnecter job
 				// let's cancel it and start it right away
 //				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && haveNetworkInt<=0) { 
 				if(scheduler!=null && reconnectBusy && restartReconnectOnNetwork && reconnectWaitNetwork) {
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to net keepAwakeWakeLock.acquire ------------");
-						keepAwakeWakeLock.acquire(15 * 60 * 1000);
+						keepAwakeWakeLock.acquire(30 * 60 * 1000);
 					}
 					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 						// why wait for the scheduled reconnecter job
@@ -2422,6 +2426,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
 					}
 				}
+			} else {
+				Log.d(TAG,"networkState mobile !connectToSignalingServerIsWanted ------------");
 			}
 			haveNetworkInt=1;
 

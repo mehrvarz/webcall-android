@@ -154,6 +154,7 @@ function submitFormDone(theForm) {
 	}
 
 	if(valueUsername=="") {
+// TODO this confirm() dialog displays "file:// says", which is not nice
 		if(confirm("To register a new WebCall user-ID, please continue to the next page.")) {
 			Android.storePreference("username", "");
 			Android.wsClearCookies();
