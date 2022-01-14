@@ -334,7 +334,7 @@ public class WebCallService extends Service {
 				@Override
 				public void onLost(Network network) {
 					Log.d(TAG,"networkCallback default network lost");
-					if(haveNetworkInt==2) {
+					if(!connectToSignalingServerIsWanted) {
 						if(wifiLock!=null && wifiLock.isHeld()) {
 							// release wifi lock
 							Log.d(TAG,"networkCallback wifiLock.release --------------");
@@ -365,7 +365,8 @@ public class WebCallService extends Service {
 					} else {
 						newNetworkInt = 0; // ?
 					}
-					if(haveNetworkInt==2 && newNetworkInt!=2) {
+//					if(haveNetworkInt==2 && newNetworkInt!=2) {
+					if(haveNetworkInt==2 && newNetworkInt==1) {
 						// losing wifi
 						if(wifiLock!=null && wifiLock.isHeld()) {
 							// release wifi lock
@@ -1619,7 +1620,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					Log.d(TAG,"alarmStateReceiver alarm set ----------------");
 				}
 				alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-					SystemClock.elapsedRealtime() + 10*60*1000, pendingAlarm);
+					SystemClock.elapsedRealtime() + 6*60*1000, pendingAlarm);
 			}
 			alarmPendingDate = new Date();
 		}
@@ -2297,7 +2298,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 								Log.d(TAG,"connectHost alarm set ----------------");
 							}
 							alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-								SystemClock.elapsedRealtime() + 10*60*1000, pendingAlarm);
+								SystemClock.elapsedRealtime() + 6*60*1000, pendingAlarm);
 						}
 						alarmPendingDate = new Date();
 					} else {
@@ -2339,7 +2340,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// no network is connected
 			Log.d(TAG,"networkState netActiveInfo/wifiInfo/mobileInfo==null "+wsClient+" "+reconnectBusy);
 			statusMessage("No network",true,false);
-			if(wifiLock!=null && wifiLock.isHeld()) {
+			if(wifiLock!=null && wifiLock.isHeld() && !connectToSignalingServerIsWanted) {
 				// release wifi lock
 				Log.d(TAG,"networkState wifiLock.release");
 				wifiLock.release();
