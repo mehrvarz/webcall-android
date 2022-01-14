@@ -217,6 +217,7 @@ public class WebCallService extends Service {
 	private volatile PendingIntent pendingAlarm = null;
 	private volatile boolean soundNotificationPlayed = false;
 	private volatile boolean extendedLogsFlag = false;
+	private volatile boolean connectToSignalingServerIsWanted = false;
 
 	// section 1: android service methods
 	@Override
@@ -389,7 +390,15 @@ public class WebCallService extends Service {
 						}
 						statusMessage("Connecting via Wifi network",true,false);
 					}
-					if(newNetworkInt>0 && haveNetworkInt<=0 && reconnectBusy) {
+
+//					if(newNetworkInt>0 && haveNetworkInt<=0 && reconnectBusy && reconnectWaitNetwork) {
+// tmtmtm reconnectBusy && reconnectWaitNetwork is mayne not the best criteria here
+// if reconnecter gives up (say, after 40 mins), then reconnectBusy will be false and gaining wifi
+// will not trigger reconnect anymore
+// the correct criteria here would be: is goOnline activated
+// aka: goOnlineButton.disabled == true
+					if(newNetworkInt>0 && haveNetworkInt<=0 &&
+							connectToSignalingServerIsWanted && (!reconnectBusy || reconnectWaitNetwork)) {
 						// call scheduler.schedule()
 						if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"networkState keepAwakeWakeLock.acquire --------");
@@ -1080,6 +1089,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		public WebSocketClient wsOpen(String setWsAddr) {
 // TODO maybe if reconnectBusy is set, we should return something to make callee.js just wait?
 // or maybe we should just wait here for wsClient!=null?
+			connectToSignalingServerIsWanted = true;
 			if(reconnectBusy && wsClient!=null) {
 				Log.d(TAG,"wsOpen reconnectBusy return existing wsClient");
 				return wsClient;
@@ -1125,6 +1135,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		public void wsClose() {
 			// called by JS:goOffline()
 			Log.d(TAG,"wsClose");
+			connectToSignalingServerIsWanted = false;
+			reconnectWaitNetwork = false;
 			if(pendingAlarm!=null) {
 				alarmManager.cancel(pendingAlarm);
 				pendingAlarm = null;
@@ -1136,10 +1148,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				reconnectSchedFuture.cancel(false);	
 				reconnectSchedFuture = null;
 				statusMessage("Stopped reconnecting",true,false);
-			}
-			if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-				reconnectSchedFuture.cancel(false);
-				reconnectSchedFuture = null;
 			}
 			// this is needed for wakelock and wifilock to be released
 			reconnectBusy = false;
@@ -1621,6 +1629,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 	// section 5: private methods
 
 	private void checkLastPing() {
+		// this is now used only by Android <= 6
 		boolean needKeepAwake = false;
 		boolean needReconnecter = false;
 		if(lastPingDate!=null) {
@@ -1999,9 +2008,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 								reconnectSchedFuture.cancel(false);	
 								reconnectSchedFuture = null;
 							}
-// TODO tmtmtm: on p9 in sleep this may not come back as planned (in 30s)
-// but maybe in 7m
-// and this despite keepAwakeWakeLock being acquire by onClose (and WIFI being back)
+// tmtmtm: on p9 in sleep this may not come back as planned (in 30s) - but maybe in 7m
+// and this despite keepAwakeWakeLock being acquired by onClose (and WIFI being back)
 							reconnectSchedFuture =
 								scheduler.schedule(reconnecter,delaySecs,TimeUnit.SECONDS);
 							return;
