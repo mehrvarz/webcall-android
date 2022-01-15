@@ -1597,13 +1597,15 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			}
 
 			checkLastPing();
-
+/*
 			if(wifiLock!=null && wifiLock.isHeld()) {
-				Log.d(TAG,"alarmStateReceiver toggle wifiLock off/on");
+				if(extendedLogsFlag) {
+					Log.d(TAG,"alarmStateReceiver toggle wifiLock off/on");
+				}
 				wifiLock.release();
 				wifiLock.acquire();
 			}
-
+*/
 			// always request a followup alarm
 			pendingAlarm = PendingIntent.getBroadcast(context, 0, startAlarmIntent, 0);
 			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -1658,7 +1660,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		if(reconnectBusy) {
 			// if we are in a reconnect already (after a detected disconnect)
 			// get a KeepAwake wakelock (it will be released automatically)
-			Log.d(TAG,"checkLastPing reconnectBusy ----------------");
+			if(extendedLogsFlag) {
+				Log.d(TAG,"checkLastPing reconnectBusy ----------------");
+			}
 			needKeepAwake = true;
 		}
 
@@ -1677,7 +1681,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			if(wsClient!=null) {
 				WebSocketClient tmpWsClient = wsClient;
 				wsClient = null;
-				// closeBlocking() makes no sense here bc server has stopped sending pings (TODO?)
+				// closeBlocking() makes no sense here bc server has stopped sending pings
 				tmpWsClient.close();
 				statusMessage("Disconnected from WebCall server..",true,false);
 			}
@@ -2534,10 +2538,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			Log.d(TAG, "runJS("+logstr+") but no webview");
 		} else if(!webviewMainPageLoaded && !str.equals("history.back()")) {
 			Log.d(TAG, "runJS("+logstr+") but no webviewMainPageLoaded");
-//		} else if(!isScreenOn()) {
-// TODO maybe we should NOT do this if the activity (or the device) is sleeping
-// aka if the screen is off
-//			Log.d(TAG, "runJS("+logstr+") but screen is off");
 		} else {
 			if(extendedLogsFlag && !logstr.startsWith("wsOnError") && !logstr.startsWith("showStatus")) {
 				Log.d(TAG, "runJS("+logstr+")");
@@ -2824,11 +2824,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			updateNotification("", msg, disconnected, important);
 		}
 		if(myWebView!=null && webviewMainPageLoaded) {
-// TODO maybe we should not do this when the activity (or the device) is sleeping
-// aka if the screen is off
-
+			// skip runJS when the device is sleeping (when the screen is off)
 			if(!isScreenOn()) {
-				Log.d(TAG, "statusMessage("+msg+") but screen is off");
+				if(extendedLogsFlag) {
+					Log.d(TAG, "statusMessage("+msg+") but screen is off");
+				}
 				return;
 			}
 
