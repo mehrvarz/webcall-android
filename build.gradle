@@ -72,11 +72,11 @@ repositories {
 	}
 }
 dependencies {
-	implementation fileTree(dir: 'libs', include: ['*.jar'])
+	// implementation fileTree(dir: 'libs', include: ['*.jar'])
 	implementation 'androidx.appcompat:appcompat:1.4.0'
 
 	// TODO switch to 1.5.3 when possible
-	// see: https://search.maven.org/artifact/org.java-websocket/Java-WebSocket
+	// see: https://github.com/TooTallNate/Java-WebSocket
 	implementation 'org.java-websocket:Java-WebSocket:1.5.2'
 
 	//implementation 'com.android.volley:volley:1.1.1'

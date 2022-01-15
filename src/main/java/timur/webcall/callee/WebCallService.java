@@ -291,7 +291,9 @@ public class WebCallService extends Service {
 		if(wifiLock==null) {
 			// Note: N7 and N9 don't seem to need WIFI_MODE_FULL_HIGH_PERF, but P9 and Gnex might
 			//wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL, "WebCall:wifiLock");
-			wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "WebCall:wifiLockHigh");
+			wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+				//"WebCall:wifiLockHigh");
+				"LocationManagerService:wifiLockHigh"); // to avoid being killed on Huawei
 		}
 		if(wifiLock==null) {
 			Log.d(TAG,"fatal: no access to wifiLock");
@@ -1596,11 +1598,17 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 			checkLastPing();
 
+			if(wifiLock!=null && wifiLock.isHeld()) {
+				Log.d(TAG,"alarmStateReceiver toggle wifiLock off/on");
+				wifiLock.release();
+				wifiLock.acquire();
+			}
+
 			// always request a followup alarm
 			pendingAlarm = PendingIntent.getBroadcast(context, 0, startAlarmIntent, 0);
 			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 				if(extendedLogsFlag) {
-					Log.d(TAG,"alarmStateReceiver alarm setAndAllowWhileIdle ----------------");
+					Log.d(TAG,"alarmStateReceiver alarm setAndAllowWhileIdle");
 				}
 				alarmManager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
 					SystemClock.elapsedRealtime() + 10*60*1000, pendingAlarm);
@@ -1816,7 +1824,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		}
 		Log.d(TAG,"wakeUpFromDoze wakeUpWakeLock.acquire(20s) ----------------");
 		wakeUpWakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK|
-				PowerManager.ACQUIRE_CAUSES_WAKEUP, "WebCall:wakeUpWakeLock");
+				PowerManager.ACQUIRE_CAUSES_WAKEUP,
+				//"WebCall:wakeUpWakeLock");
+				"LocationManagerService:wakeUpWakeLock"); // to avoid being killed on Huawei
 		wakeUpWakeLock.acquire(20 * 1000); // 20s
 	}
 
@@ -1926,8 +1936,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 					int status=0;
 					try {
-						// in deep sleep (when device is not connected to power) this may hang
-						// this is why we wake the device up before
+// TODO in deep sleep (when device is not connected to power) this may hang for several minutes
+// for instance 7min on P9 after server was restarted
 						Log.d(TAG,"reconnecter con.connect()");
 						con.connect();
 						status = con.getResponseCode();
@@ -2267,10 +2277,13 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 					long diffInMillies = 0;
 					if(alarmPendingDate!=null) {
-						// if an alarm is already set, we don't want to setup another one
 						diffInMillies = Math.abs(new Date().getTime() - alarmPendingDate.getTime());
-						if(diffInMillies > 20*60*1000) {
-// TODO it might be better to cancel the old alarm, instead of not starting a new one?
+						if(diffInMillies > 18*60*1000) {
+							// an alarm is already set, but it is too old
+							if(pendingAlarm!=null) {
+								alarmManager.cancel(pendingAlarm);
+								pendingAlarm = null;
+							}
 							alarmPendingDate = null;
 						}
 					}
