@@ -433,7 +433,7 @@ public class WebCallService extends Service {
 				networkStateReceiver = new BroadcastReceiver() {
 					@Override
 					public void onReceive(Context context, Intent intent) {
-						//Log.d(TAG,"networkStateReceiver onReceive ---------");
+						Log.d(TAG,"networkStateReceiver onReceive ---------");
 						checkNetworkState(true);
 					}
 				};
@@ -1604,6 +1604,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			if(extendedLogsFlag) {
 				Log.d(TAG,"alarmStateReceiver net="+haveNetworkInt);
 			}
+
+			if(haveNetworkInt==0 && Build.VERSION.SDK_INT < Build.VERSION_CODES.N) { // <api24
+				checkNetworkState(false);
+			}
+
 			checkLastPing();
 
 			// always request a followup alarm
@@ -1619,6 +1624,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				if(extendedLogsFlag) {
 					Log.d(TAG,"alarmStateReceiver alarm set ----------------");
 				}
+				// 6*60*1000 will be very likely be ignored; P9 does minimal 16min
 				alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
 					SystemClock.elapsedRealtime() + 6*60*1000, pendingAlarm);
 			}
@@ -1630,7 +1636,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 	// section 5: private methods
 
 	private void checkLastPing() {
-		// this is now used only by Android <= 6
 		boolean needKeepAwake = false;
 		boolean needReconnecter = false;
 		if(lastPingDate!=null) {
@@ -2297,6 +2302,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							if(extendedLogsFlag) {
 								Log.d(TAG,"connectHost alarm set ----------------");
 							}
+							// 6*60*1000 will be very likely be ignored; P9 does minimal 16min
 							alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
 								SystemClock.elapsedRealtime() + 6*60*1000, pendingAlarm);
 						}
@@ -2323,7 +2329,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		return null;
 	}
 
-	// checkNetworkState() is for API <= 23 (Android 6); for higher API's we only use networkCallback
+	// checkNetworkState() is for API <= 23 (Android 6) only; for higher API's we use networkCallback
 	private void checkNetworkState(boolean restartReconnectOnNetwork) {
 		// sets haveNetworkInt = 0,1,2
 		// if wifi connected -> wifiLock.acquire(), otherwise -> wifiLock.release()
@@ -2388,13 +2394,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						if(reconnectSchedFuture.cancel(false)) {
 							// cancel successful - run reconnecter right away
 							Log.d(TAG,"networkState connected to wifi restart recon");
-//							reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
-							reconnecter.run();
+							reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
 						}
 					} else {
 						Log.d(TAG,"networkState connected to wifi restart recon");
-//						reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
-						reconnecter.run();
+						reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
 					}
 				}
 			} else {
@@ -2433,13 +2437,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						if(reconnectSchedFuture.cancel(false)) {
 							// cancel successful - run reconnecter right away
 							Log.d(TAG,"networkState connected to net restart recon");
-//							reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
-							reconnecter.run();
+							reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
 						}
 					} else {
 						Log.d(TAG,"networkState connected to net restart recon");
-//						reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
-						reconnecter.run();
+						reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
 					}
 				}
 			} else {

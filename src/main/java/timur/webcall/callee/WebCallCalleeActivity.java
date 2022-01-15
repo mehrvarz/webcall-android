@@ -469,7 +469,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
 					if(clipboard!=null) {
 						clipboard.setPrimaryClip(clipData);
-			            Toast.makeText(context, "Data copied to clipboard", Toast.LENGTH_LONG).show();
+			            Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_LONG).show();
 					}
 					return;
 				}
@@ -889,7 +889,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		    Log.d(TAG, "onBackPressed webviewUrl="+webviewUrl);
 			// we ONLY allow history.back(), if the user is NOT on the basepage or the mainpage
 			// except there is a '#' in webviewUrl
-			if(webviewUrl.indexOf("#")>=0 ||
+// TODO but on "/callee/register" we do need it
+			if(webviewUrl.indexOf("#")>=0 || webviewUrl.indexOf("/callee/register")>=0 ||
 					(webviewUrl.indexOf("/callee/")<0 && webviewUrl.indexOf("/android_asset/")<0)) {
 			    Log.d(TAG, "onBackPressed -> history.back()");
 				webCallServiceBinder.runJScode("history.back()");
