@@ -1205,18 +1205,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			Log.d(TAG,"rtcConnect()");
 			// making sure this is activated (if it is enabled)
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
-
-			// wake up activity
-			// TODO on Android 10+ we may need to use a notification channel instead
-			// see: NotificationChannel
-			// see: https://developer.android.com/guide/components/activities/background-starts
-			// see: https://developer.android.com/training/notify-user/time-sensitive
-			wakeupTypeInt = 2; // incoming call
-			Intent wakeIntent = new Intent(context, WebCallCalleeActivity.class);
-			wakeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
-				Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
-				Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-			context.startActivity(wakeIntent);
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1488,19 +1476,16 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				return;
 			}
 
-/*
 			if(message.startsWith("callerOffer|")) {
 				// incoming call!!
-// TODO this is too early in the process
-// if setting up the call fails, we have turned on the screen too early
-// moved to rtcConnect()
-				Log.d(TAG,"onMessage incoming call "+
-					new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date()));
-				// wake activity so that js code in webview can run
-
+				// wake activity so that js code in webview can run. if setting up the call fails,
+				// (no rtcConnect due to bromite) we have turned on the screen for nothing
+				// but devices often need to be awake to allow JS code in the webview to run
 				if(context==null) {
-					Log.e(TAG,"onMessage incoming call wakeup activity - no context");
+					Log.e(TAG,"onMessage incoming call, but no context to wake activity");
 				} else {
+					Log.d(TAG,"onMessage incoming call "+
+						new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date()));
 					// TODO on Android 10+ we may need to use a notification channel instead
 					// see: NotificationChannel
 					// see: https://developer.android.com/guide/components/activities/background-starts
@@ -1513,7 +1498,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					context.startActivity(wakeIntent);
 				}
 			}
-*/
+
 			if(myWebView!=null && webviewMainPageLoaded) {
 				String argStr = "wsOnMessage2('"+message+"');";
 				//Log.d(TAG,"onMessage runJS "+argStr);
