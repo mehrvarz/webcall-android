@@ -215,10 +215,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				menu.add(none,menuStartOnBootOff,none,R.string.msg_start_on_boot_off);
 			}
 
-			if(webCallServiceBinder.screenForWifi(-1)==0) {
-				menu.add(none,menuScreenForWifiOn,none,R.string.msg_screen_for_wifi_on);
-			} else {
-				menu.add(none,menuScreenForWifiOff,none,R.string.msg_screen_for_wifi_off);
+			if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
+				if(webCallServiceBinder.screenForWifi(-1)==0) {
+					menu.add(none,menuScreenForWifiOn,none,R.string.msg_screen_for_wifi_on);
+				} else {
+					menu.add(none,menuScreenForWifiOff,none,R.string.msg_screen_for_wifi_off);
+				}
 			}
 
 			menu.add(none,menuCaptureLogs,none,R.string.msg_capture_logs);
@@ -726,7 +728,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				// battery optimizations must be deactivated
 				// this allows us to use a wakelock against doze
 				// this may be needed for reconnecting after disconnect
-				disableOptimizations();
+				disableBattOptimizations();
 				return;
 			}
 		}
@@ -1035,7 +1037,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 	////////// private functions //////////////////////////////////////
 
-	private void disableOptimizations() {
+	private void disableBattOptimizations() {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
 			// deactivate battery optimizations
 			AlertDialog.Builder alertbox = new AlertDialog.Builder(context);

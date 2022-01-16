@@ -220,6 +220,7 @@ public class WebCallService extends Service {
 	private volatile boolean soundNotificationPlayed = false;
 	private volatile boolean extendedLogsFlag = false;
 	private volatile boolean connectToSignalingServerIsWanted = false;
+	private volatile long wakeUpFromDozeSecs = 0;
 
 	// section 1: android service methods
 	@Override
@@ -1667,7 +1668,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						" < "+(serverPingPeriodPlus*1000)+" ----------------");
 				}
 			}
-//			if(reconnectBusy && keepAwakeWakeLock.isHeld()) {
 			if(reconnectBusy && !reconnectWaitNetwork) {
 				// reconnector is active, do NOT start it again
 				needKeepAwake = false;
@@ -1695,6 +1695,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			}
 		}
 		if(needReconnecter) {
+			// last server ping is too old
 			Log.d(TAG,"checkLastPing schedule reconnecter ----------------");
 			if(wsClient!=null) {
 				WebSocketClient tmpWsClient = wsClient;
@@ -1705,6 +1706,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			}
 
 			if(screenForWifiMode>0) {
+// TODO only needed if last network was wifi?
 				if(wakeIfNoNet && haveNetworkInt==0) {
 					Log.d(TAG,"checkLastPing haveNoNetwork wakeUpFromDoze ----------------");
 					wakeUpFromDoze();
@@ -1726,7 +1728,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				reconnectSchedFuture.cancel(false);
 				reconnectSchedFuture = null;
 			}
-			reconnectSchedFuture = scheduler.schedule(reconnecter,1,TimeUnit.SECONDS);
+			reconnectSchedFuture = scheduler.schedule(reconnecter,2,TimeUnit.SECONDS);
 		}
 	}
 
@@ -1828,6 +1830,16 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 	}
 
 	private void wakeUpFromDoze() {
+		// prevent multiple calls
+		long nowSecs = new Date().getTime();
+		long sinceLastCallSecs = nowSecs - wakeUpFromDozeSecs;
+		if(sinceLastCallSecs < 3) {
+			// wakeUpFromDoze was executed less than 3secs ago
+			Log.d(TAG,"wakeUpFromDoze denied, was called "+sinceLastCallSecs+" secs ago");
+			return;
+		}
+		wakeUpFromDozeSecs = nowSecs;
+
 		// we use this to wake the device so we can establish NEW network connections for reconnect
 		// step 1a: bring webcall activity to front via intent
 		Log.d(TAG,"wakeUpFromDoze webcallToFrontIntent");
@@ -1916,7 +1928,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						reconnectWaitNetwork = true;
 
 						if(screenForWifiMode>0) {
-							Log.d(TAG,"reconnecter wakeUpFromDoze ----------------");
+// TODO only needed if last network was wifi?
+							Log.d(TAG,"reconnecter wakeUpFromDoze "+reconnectCounter+" -------------");
 							wakeUpFromDoze();
 						}
 						return;
