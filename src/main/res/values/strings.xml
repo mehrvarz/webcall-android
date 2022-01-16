@@ -20,6 +20,10 @@
     <string name="msg_beep_on_lost_network_off">Beep on no network is On</string>
     <string name="msg_start_on_boot_on"        >Start on boot is Off</string>
     <string name="msg_start_on_boot_off"       >Start on boot is On</string>
+
+    <string name="msg_screen_for_wifi_on"      >Screen for WIFI is Off</string>
+    <string name="msg_screen_for_wifi_off"     >Screen for WIFI is On</string>
+
     <string name="msg_capture_logs"            >Capture logs now</string>
     <string name="msg_ext_logs_off"            ># Extended logs is Off</string>
     <string name="msg_ext_logs_on"             ># Extended logs is On</string>

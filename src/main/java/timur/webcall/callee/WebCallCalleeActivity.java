@@ -155,6 +155,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private int menuBeepOnNoNetworkOff = 6;
 	private int menuStartOnBootOn = 7;
 	private int menuStartOnBootOff = 8;
+	private int menuScreenForWifiOn = 9;
+	private int menuScreenForWifiOff = 10;
 	private int menuCaptureLogs = 20;
 	private int menuExtendedLogsOn = 30;
 	private int menuExtendedLogsOff = 31;
@@ -211,6 +213,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				menu.add(none,menuStartOnBootOn,none,R.string.msg_start_on_boot_on);
 			} else {
 				menu.add(none,menuStartOnBootOff,none,R.string.msg_start_on_boot_off);
+			}
+
+			if(webCallServiceBinder.screenForWifi(-1)==0) {
+				menu.add(none,menuScreenForWifiOn,none,R.string.msg_screen_for_wifi_on);
+			} else {
+				menu.add(none,menuScreenForWifiOff,none,R.string.msg_screen_for_wifi_off);
 			}
 
 			menu.add(none,menuCaptureLogs,none,R.string.msg_capture_logs);
@@ -326,6 +334,20 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Toast.makeText(context, "Start-on-boot has been deactivated", Toast.LENGTH_LONG).show();
 			return true;
 		}
+
+		if(selectedItem==menuScreenForWifiOn) {
+			Log.d(TAG, "onContextItemSelected screenForWifiOn");
+			webCallServiceBinder.screenForWifi(1);
+			Toast.makeText(context, "Screen-for-WIFI has been activated", Toast.LENGTH_LONG).show();
+			return true;
+		}
+		if(selectedItem==menuStartOnBootOff) {
+			Log.d(TAG, "onContextItemSelected screenForWifiOff");
+			webCallServiceBinder.screenForWifi(0);
+			Toast.makeText(context, "Screen-for-WIFI has been deactivated", Toast.LENGTH_LONG).show();
+			return true;
+		}
+
 		if(selectedItem==menuCaptureLogs) {
 			Log.d(TAG, "onContextItemSelected captureLogs");
 			webCallServiceBinder.captureLogs();
@@ -1122,7 +1144,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			getWindow().setAttributes(mParams);
 			lastSetLowBrightness = System.currentTimeMillis();
 
-			// after 2s we release the WakeLock
+			// after 3s we release the WakeLock
+			// needs to be long enough for wifi to be lifted up
 			final Handler handler = new Handler(Looper.getMainLooper());
 			handler.postDelayed(new Runnable() {
 				@Override
@@ -1130,7 +1153,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Log.d(TAG, "activityStart releaseWakeUpWakeLock");
 					webCallServiceBinder.releaseWakeUpWakeLock();
 				}
-			}, 2000);
+			}, 3000);
 
 		} else {
 			if(extendedLogsFlag) {

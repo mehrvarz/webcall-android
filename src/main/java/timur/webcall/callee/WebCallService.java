@@ -185,6 +185,7 @@ public class WebCallService extends Service {
 	private WakeLock keepAwakeWakeLock = null; // PARTIAL_WAKE_LOCK (screen off)
 	private ConnectivityManager connectivityManager = null;
 	private DisplayManager displayManager = null;
+	private String userAgentString = null;
 
 	private volatile String webviewCookies = null;
 	private volatile WakeLock wakeUpWakeLock = null; // for wakeup from doze, released by activity
@@ -210,6 +211,7 @@ public class WebCallService extends Service {
 	private volatile boolean audioToSpeakerActive = false;
 	private volatile int beepOnLostNetworkMode = 0;         // preference persistens
 	private volatile int startOnBootMode = 0;               // preference persistens
+	private volatile int screenForWifiMode = 0;
 	private volatile long pingCounter = 0l;
 	private volatile Date lastPingDate = null;
 	private volatile boolean dozeIdle = false;
@@ -271,9 +273,10 @@ public class WebCallService extends Service {
 			// apps that are (partially) exempt from Doze and App Standby optimizations
 			// can hold partial wake locks to ensure that the CPU is running and for 
 			// the screen and keyboard backlight to be allowed to go off
-			keepAwakeWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
-				//"WebCall:keepAwakeWakeLock");
-				"LocationManagerService:keepAwakeWakeLock"); // to avoid being killed on Huawei (it works!)
+			String logKey = "WebCall:keepAwakeWakeLock";
+			if(userAgentString==null || userAgentString.indexOf("HUAWEI")>=0)
+				logKey = "LocationManagerService"; // to avoid being killed on Huawei
+			keepAwakeWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, logKey);
 		}
 		if(keepAwakeWakeLock==null) {
 			Log.d(TAG,"fatal: no access to keepAwakeWakeLock");
@@ -291,9 +294,10 @@ public class WebCallService extends Service {
 		if(wifiLock==null) {
 			// Note: N7 and N9 don't seem to need WIFI_MODE_FULL_HIGH_PERF, but P9 and Gnex might
 			//wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL, "WebCall:wifiLock");
-			wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF,
-				//"WebCall:wifiLockHigh");
-				"LocationManagerService:wifiLockHigh"); // to avoid being killed on Huawei
+			String logKey = "WebCall:keepAwakeWakeLock";
+			if(userAgentString==null || userAgentString.indexOf("HUAWEI")>=0)
+				logKey = "LocationManagerService"; // to avoid being killed on Huawei
+			wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, logKey);
 		}
 		if(wifiLock==null) {
 			Log.d(TAG,"fatal: no access to wifiLock");
@@ -472,7 +476,7 @@ public class WebCallService extends Service {
 								// if we are disconnected now but supposed to be connected,
 								// this is a good chance to start reconnecter
 								// this may be a lot quicker than waiting for the next alarm
-								checkLastPing();
+								checkLastPing(false);
 							}
 						}
 					}
@@ -491,6 +495,7 @@ public class WebCallService extends Service {
 			webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 			username = prefs.getString("username", "");
 			startOnBootMode = prefs.getInt("startOnBoot", 0);
+			screenForWifiMode =  prefs.getInt("screenForWifi", 0);
 		} catch(Exception ex) {
 			// ignore
 		}
@@ -610,7 +615,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			myWebView = (WebView)view;
 
 			WebSettings webSettings = myWebView.getSettings();
-			Log.d(TAG, "startWebView ua="+webSettings.getUserAgentString());
+			userAgentString = webSettings.getUserAgentString();
+			Log.d(TAG, "startWebView ua="+userAgentString);
 
 			webSettings.setJavaScriptEnabled(true);
 			webSettings.setAllowFileAccessFromFileURLs(true);
@@ -998,7 +1004,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		public void releaseWakeUpWakeLock() {
 			Log.d(TAG, "releaseWakeUpWakeLock()");
 			if(wakeUpWakeLock!=null && wakeUpWakeLock.isHeld()) {
-				Log.d(TAG, "releaseWakeUpWakeLock() wakeUpWakeLock.release() ----------------");
+				Log.d(TAG, "releaseWakeUpWakeLock() ----------------");
 				wakeUpWakeLock.release();
 			} 
 			wakeUpWakeLock = null;
@@ -1042,10 +1048,20 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				startOnBootMode = val;
 				SharedPreferences.Editor prefed = prefs.edit();
 				prefed.putInt("startOnBoot", startOnBootMode);
-				//prefed.apply();
 				prefed.commit();
 			}
 			return startOnBootMode;
+		}
+
+		public int screenForWifi(int val) {
+			if(val>=0) {
+				Log.d(TAG, "screenForWifi="+val);
+				screenForWifiMode = val;
+				SharedPreferences.Editor prefed = prefs.edit();
+				prefed.putInt("screenForWifi", screenForWifiMode);
+				prefed.commit();
+			}
+			return screenForWifiMode;
 		}
 
 		public void captureLogs() {
@@ -1407,6 +1423,14 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					// in deep sleep we cannot create new network connections
 					// in order to establish a new network connection, we need to bring device out of doze
 
+					if(screenForWifiMode>0) {
+						if(wifiLock!=null && wifiLock.isHeld()) {
+							Log.d(TAG,"onClose wifiLock release --------------");
+							wifiLock.release();
+						}
+						haveNetworkInt=0;
+					}
+
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"onClose keepAwakeWakeLock.acquire ----------------");
 						keepAwakeWakeLock.acquire(30 * 60 * 1000);
@@ -1591,21 +1615,12 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			if(extendedLogsFlag) {
 				Log.d(TAG,"alarmStateReceiver net="+haveNetworkInt);
 			}
-
-			if(haveNetworkInt==0 && Build.VERSION.SDK_INT < Build.VERSION_CODES.N) { // <api24
+			if(/*haveNetworkInt==0 &&*/ Build.VERSION.SDK_INT < Build.VERSION_CODES.N) { // <api24
 				checkNetworkState(false);
 			}
 
-			checkLastPing();
-/*
-			if(wifiLock!=null && wifiLock.isHeld()) {
-				if(extendedLogsFlag) {
-					Log.d(TAG,"alarmStateReceiver toggle wifiLock off/on");
-				}
-				wifiLock.release();
-				wifiLock.acquire();
-			}
-*/
+			checkLastPing(true);
+
 			// always request a followup alarm
 			pendingAlarm = PendingIntent.getBroadcast(context, 0, startAlarmIntent, 0);
 			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -1613,15 +1628,15 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					Log.d(TAG,"alarmStateReceiver alarm setAndAllowWhileIdle");
 				}
 				alarmManager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-					SystemClock.elapsedRealtime() + 10*60*1000, pendingAlarm);
+					SystemClock.elapsedRealtime() + 15*60*1000, pendingAlarm);
 			} else {
 				// for Android 5 and below:
 				if(extendedLogsFlag) {
 					Log.d(TAG,"alarmStateReceiver alarm set ----------------");
 				}
-				// 6*60*1000 will be very likely be ignored; P9 does minimal 16min
+				// 15*60*1000 will be very likely be ignored; P9 does minimal 16min
 				alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-					SystemClock.elapsedRealtime() + 6*60*1000, pendingAlarm);
+					SystemClock.elapsedRealtime() + 15*60*1000, pendingAlarm);
 			}
 			alarmPendingDate = new Date();
 		}
@@ -1630,7 +1645,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 	// section 5: private methods
 
-	private void checkLastPing() {
+	private void checkLastPing(boolean wakeIfNoNet) {
+		if(extendedLogsFlag) {
+			Log.d(TAG,"checkLastPing------");
+		}
 		boolean needKeepAwake = false;
 		boolean needReconnecter = false;
 		if(lastPingDate!=null) {
@@ -1684,6 +1702,13 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				// closeBlocking() makes no sense here bc server has stopped sending pings
 				tmpWsClient.close();
 				statusMessage("Disconnected from WebCall server..",true,false);
+			}
+
+			if(screenForWifiMode>0) {
+				if(wakeIfNoNet && haveNetworkInt==0) {
+					Log.d(TAG,"checkLastPing haveNoNetwork wakeUpFromDoze ----------------");
+					wakeUpFromDoze();
+				}
 			}
 
 			if(loginUrl==null) {
@@ -1815,7 +1840,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 		// step 1b: invoke FULL_WAKE_LOCK + ACQUIRE_CAUSES_WAKEUP 
 		//          to wake the device (+screen) from deep sleep
-		// NOTE: this is needed bc XHR may not work (in deep sleep)
+		// NOTE: this is needed bc XHR may not work in deep sleep - and bc wifi may not come back
 		//       ideally we would NOT need to wake the screen - but we have to
 		Log.d(TAG,"wakeUpFromDoze FULL_WAKE_LOCK + ACQUIRE_CAUSES_WAKEUP");
 		if(powerManager==null) {
@@ -1827,11 +1852,13 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			wakeUpWakeLock.release();
 		}
 		Log.d(TAG,"wakeUpFromDoze wakeUpWakeLock.acquire(20s) ----------------");
+		String logKey = "WebCall:keepAwakeWakeLock";
+		if(userAgentString==null || userAgentString.indexOf("HUAWEI")>=0)
+			logKey = "LocationManagerService"; // to avoid being killed on Huawei
 		wakeUpWakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK|
-				PowerManager.ACQUIRE_CAUSES_WAKEUP,
-				//"WebCall:wakeUpWakeLock");
-				"LocationManagerService:wakeUpWakeLock"); // to avoid being killed on Huawei
-		wakeUpWakeLock.acquire(20 * 1000); // 20s
+			PowerManager.ACQUIRE_CAUSES_WAKEUP, logKey);
+		wakeUpWakeLock.acquire(10 * 1000);
+		// will be released by activity after 3s by calling releaseWakeUpWakeLock()
 	}
 
 	private void clearCookies() {
@@ -1882,10 +1909,16 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							Log.d(TAG,"reconnecter waiting for net keepAwakeWakeLock.release -----------");
 							keepAwakeWakeLock.release();
 						}
+
 						// from here on we do nothing other than to wait (for networkState event or alarm)
 						// if reconnectWaitNetwork is set, checkLastPing() and checkNetworkState()
 						// will schedule a new reconnecter, even if reconnectBusy is set
 						reconnectWaitNetwork = true;
+
+						if(screenForWifiMode>0) {
+							Log.d(TAG,"reconnecter wakeUpFromDoze ----------------");
+							wakeUpFromDoze();
+						}
 						return;
 					}
 
@@ -2298,15 +2331,15 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 								Log.d(TAG,"connectHost alarm setAndAllowWhileIdle ----------------");
 							}
 							alarmManager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-								SystemClock.elapsedRealtime() + 10*60*1000, pendingAlarm);
+								SystemClock.elapsedRealtime() + 15*60*1000, pendingAlarm);
 						} else {
 							// for Android 5 and below only:
 							if(extendedLogsFlag) {
 								Log.d(TAG,"connectHost alarm set ----------------");
 							}
-							// 6*60*1000 will be very likely be ignored; P9 does minimal 16min
+							// 15*60*1000 will be very likely be ignored; P9 does minimal 16min
 							alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-								SystemClock.elapsedRealtime() + 6*60*1000, pendingAlarm);
+								SystemClock.elapsedRealtime() + 15*60*1000, pendingAlarm);
 						}
 						alarmPendingDate = new Date();
 					} else {
@@ -2339,6 +2372,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		// but checkNetworkState() is not reliable
 		// problem: wifi icon visible but netActiveInfo==null
 		// problem: wifi icon NOT visible but netTypeName=="WIFI"
+		if(extendedLogsFlag) {
+			Log.d(TAG,"checkNetworkState---");
+		}
 		NetworkInfo netActiveInfo = connectivityManager.getActiveNetworkInfo();
 		NetworkInfo wifiInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 		NetworkInfo mobileInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
@@ -2361,8 +2397,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		if(netActiveInfo!=null) {
 			netTypeName = netActiveInfo.getTypeName();
 		}
-		Log.d(TAG,"networkState netActiveInfo="+netActiveInfo+" "+wsClient+
-			" "+reconnectBusy+" "+netTypeName+" !!!!!!");
+		Log.d(TAG,"networkState netActiveInfo="+netActiveInfo+" "+(wsClient!=null) +
+			" "+reconnectBusy+" "+netTypeName);
 		if((netTypeName!=null && netTypeName.equalsIgnoreCase("WIFI")) ||
 				(wifiInfo!=null && wifiInfo.isConnected())) {
 			// wifi is connected: need wifi-lock
@@ -2396,11 +2432,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						if(reconnectSchedFuture.cancel(false)) {
 							// cancel successful - run reconnecter right away
 							Log.d(TAG,"networkState connected to wifi restart recon");
-							reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
+							reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
 						}
 					} else {
 						Log.d(TAG,"networkState connected to wifi restart recon");
-						reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
+						reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
 					}
 				}
 			} else {
@@ -2439,11 +2475,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						if(reconnectSchedFuture.cancel(false)) {
 							// cancel successful - run reconnecter right away
 							Log.d(TAG,"networkState connected to net restart recon");
-							reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
+							reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
 						}
 					} else {
 						Log.d(TAG,"networkState connected to net restart recon");
-						reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
+						reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
 					}
 				}
 			} else {
