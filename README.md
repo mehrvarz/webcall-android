@@ -22,9 +22,9 @@ WebCall for Android can play back the ringtone on the loud speaker, even if you 
 
 ### Low power use
 
-WebCall for Android has very low power requirements for what it does. It often uses less battery than a regular mobile browser running in parallel (doing nothing).
+When receiving calls in the background, WebCall for Android has very low power requirements. Especially for what it does. It often uses less battery than a regular mobile browser running in parallel (doing nothing).
 
-# Building the APK
+## Building the APK
 
 You need Java 11 and gradle 7.3.3. You can build this project by running: gradle build --info
 
@@ -35,13 +35,13 @@ RELEASE_KEY_ALIAS=...
 RELEASE_KEY_PASSWORD=...
 ```
 
-# License
+## License
 
 This program is Free Software: You can use, study share and improve it at your will. Specifically you can redistribute and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
 GPL3.0 - see: [LICENSE](LICENSE)
 
-## 3rd party
+### 3rd party
 
 - github.com/TooTallNate/Java-WebSocket, licensed under an MIT license
 - some icons made by Icomoon from Flaticon, licensed by Creative Commons BY 3.0
