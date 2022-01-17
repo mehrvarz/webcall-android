@@ -4,19 +4,19 @@
 
 # WebCall for Android
 
-[Webcall](https://github.com/mehrvarz/webcall) is a telephony server and a set of web applications for making and receive calls based on WebRTC. WebCall let's you create low latency audio connections with very high quality. You can add a video stream at any time during the call. And you can transfer files in both directions. All connections are encrypted over P2P and do not make use of 3rd party services. If you run your own WebCall server, you end up with the most private telephony solution possible.
+[Webcall](https://github.com/mehrvarz/webcall) is a telephony server and a set of web applications for making and receive calls based on WebRTC. WebCall let's you create low latency connections with very high audio quality (Opus 280kbps). You can add a video stream at any time during the call. And you can transfer files in both directions. All connections are encrypted and connect P2P. There is no use of 3rd party services. If you run your own WebCall server, you get the most private telephony solution there can be.
 
 [WebCall for Android](https://timur.mobi/webcall/android) offers additional features on top of the core package. 
 
-## NFC Connect
+### NFC Connect
 
 NFC Connect allows you to create phone calls by touching two devices. Once connected the two parties can walk apart and continue the call. The other device does not need any special software. It must support NFC, have a browser and an internet connection. So even if you use the Android version, you will benefit from the Web application, because anybody on the Web is able to call you. All they need to know is your WebCall link.
 
-## 24/7 Operation
+### 24/7 Operation
 
 WebCall for Android lets you receive calls when your device is in deep sleep mode. This is a feature the Web application can not offer. It makes WebCall for Android a better solution for 24/7 operation.
 
-## Ring on Speaker
+### Ring on Speaker
 
 WebCall for Android can play back the ringtone on the loud speaker, even if you have a headset connected to the device. This lets you receive calls quicker.
 
