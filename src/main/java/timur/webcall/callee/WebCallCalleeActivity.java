@@ -886,13 +886,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		    Log.d(TAG, "onBackPressed webviewUrl="+webviewUrl);
 			// we ONLY allow history.back() if the user is NOT on the basepage or the mainpage
 			// except there is a '#' in webviewUrl
-			if(webviewUrl.indexOf("#")>=0 || webviewUrl.indexOf("/callee/register")>=0 ||
+			if(webviewUrl!=null) {
+				if(webviewUrl.indexOf("#")>=0 || webviewUrl.indexOf("/callee/register")>=0 ||
 					(webviewUrl.indexOf("/callee/")<0 && webviewUrl.indexOf("/android_asset/")<0)) {
-			    Log.d(TAG, "onBackPressed -> history.back()");
-				webCallServiceBinder.runJScode("history.back()");
-				return;
+					Log.d(TAG, "onBackPressed -> history.back()");
+					webCallServiceBinder.runJScode("history.back()");
+					return;
+				}
 			}
-
 			// otherwise, if we are connected to webcall server, we move the activity to the back
 			int connectType = webCallServiceBinder.webcallConnectType();
 			if(connectType>0) {
