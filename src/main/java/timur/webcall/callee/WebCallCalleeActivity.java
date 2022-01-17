@@ -101,7 +101,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private final static int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 123;
 	private	Context context;
 	private NfcAdapter nfcAdapter;
-	//private Date lastUserInteraction = new Date();
 	private boolean startupFail = false;
 	private volatile int touchX, touchY;
 	private volatile boolean extendedLogsFlag = false;
@@ -138,7 +137,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			}
         }
-	    //Call this method when the service contact is interrupted
+
         @Override
         public void onServiceDisconnected(ComponentName name) {
 		    Log.d(TAG, "onServiceDisconnected");
@@ -410,20 +409,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
-/*
-		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		String lastUsedVersionName = prefs.getString("versionName", "");
-		if(!lastUsedVersionName.equals(BuildConfig.VERSION_NAME)) {
-			// the user has upgraded (or downgraded) the webcall apk
-// TODO show sprechblasen for "server domain" and "username"
-
-			// store new BuildConfig.VERSION_NAME in preference
-			SharedPreferences.Editor prefed = prefs.edit();
-			prefed.putString("versionName", BuildConfig.VERSION_NAME);
-			//prefed.apply();
-			prefed.commit();
-		}
-*/
 		activityStartNeeded = false;
 
 		if(powerManager==null) {
@@ -439,8 +424,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				@Override
 				public boolean onTouch(View view, MotionEvent ev) {
 					//Log.d(TAG, "onCreate onTouch");
-					//lastUserInteraction = new Date();
-
 					final int pointerCount = ev.getPointerCount();
 					for(int p = 0; p < pointerCount; p++) {
 						//Log.d(TAG, "onCreate onTouch x="+ev.getX(p)+" y="+ev.getY(p));
@@ -600,7 +583,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					startActivityForResult(chooserIntent, FILE_REQ_CODE);
 				}
 			}
-/*
+			/*
 			private File create_image() throws IOException{
 				//@SuppressLint("SimpleDateFormat") 
 				String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
@@ -617,7 +600,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				File sd_directory   = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
 				return File.createTempFile(new_name, ".3gp", sd_directory);
 			}
-*/
+			*/
 		};
 		registerReceiver(broadcastReceiver, new IntentFilter("webcall"));
 
@@ -642,7 +625,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			    // result of the request.
 			}
 		}
-
 
 		Intent serviceIntent = new Intent(this, WebCallService.class);
 		serviceIntent.putExtra("onstart", "donothing");
@@ -766,17 +748,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		} else if(powerManager==null) {
 			Log.d(TAG, "onResume powerManager fail");
 		} else {
-			int field = 0x00000020;
-			/* this is apparently not needed; can be removed
-			try {
-				field = PowerManager.class.getClass().getField(
-					"PROXIMITY_SCREEN_OFF_WAKE_LOCK").getInt(null);
-			} catch (Throwable ex) {
-				Log.d(TAG, "PROXIMITY_SCREEN_OFF_WAKE_LOCK fail "+ex);
-			}
-			*/
+			int proximityField = 0x00000020;
 			if(wakeLockProximity==null) {
-				wakeLockProximity = powerManager.newWakeLock(field, getLocalClassName());
+				wakeLockProximity = powerManager.newWakeLock(proximityField, getLocalClassName());
 			}
 			if(wakeLockProximity==null) {
 				Log.d(TAG, "onResume wakeLockProximity fail");
@@ -875,7 +849,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-		//lastUserInteraction = new Date();
 		if (keyCode != KeyEvent.KEYCODE_POWER) {
 			// any key other than power button will un-dim the screen (if it was dimmed)
 			mParams.screenBrightness = -1f;
@@ -895,7 +868,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public boolean onKeyLongPress(int keyCode, KeyEvent event) {
 	    Log.d(TAG, "onKeyLongPress");
-		//lastUserInteraction = new Date();
 		if (keyCode != KeyEvent.KEYCODE_POWER) {
 			// any key other than power will un-dim the screen (if it was dimmed)
 			mParams.screenBrightness = -1f;
@@ -909,13 +881,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
     public void onBackPressed() {
 	    Log.d(TAG, "onBackPressed");
-		//lastUserInteraction = new Date();
 		if(webCallServiceBinder!=null) {
 			String webviewUrl = webCallServiceBinder.getCurrentUrl();
 		    Log.d(TAG, "onBackPressed webviewUrl="+webviewUrl);
-			// we ONLY allow history.back(), if the user is NOT on the basepage or the mainpage
+			// we ONLY allow history.back() if the user is NOT on the basepage or the mainpage
 			// except there is a '#' in webviewUrl
-// TODO but on "/callee/register" we do need it
 			if(webviewUrl.indexOf("#")>=0 || webviewUrl.indexOf("/callee/register")>=0 ||
 					(webviewUrl.indexOf("/callee/")<0 && webviewUrl.indexOf("/android_asset/")<0)) {
 			    Log.d(TAG, "onBackPressed -> history.back()");
@@ -992,50 +962,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			webCallServiceBinder.fileSelect(results);
 		}
 	}
-/*
-	@Override
-	public boolean onDown(MotionEvent event) {
-		// triggers first for both single tap and long press
-	    Log.d(TAG, "onDown");
-		return true;
-	}
-
-	@Override
-	public boolean onSingleTapUp(MotionEvent event) {
-		// triggers after onDown only for single tap
-	    Log.d(TAG, "onSingleTapUp");
-		return true;
-	}
-
-	@Override
-	public void onLongPress(MotionEvent event) {
-		// triggers after onDown only for long press
-	    Log.d(TAG, "onLongPress");
-		super.onLongPress(event);
-	}
-
-	final GestureDetector gestureDetector = 
-			new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
-		public void onLongPress(MotionEvent e) {
-		    Log.d(TAG, "onLongPress");
-		}
-	});
-
-	@Override
-	public boolean onTouchEvent(MotionEvent event) {
-	    Log.d(TAG, "onTouchEvent");
-//		return gestureDetector.onTouchEvent(event);
-		return false;
-	};
-
-	@Override
-	public void onConfigurationChanged(final android.content.res.Configuration newConfig) {
-		super.onConfigurationChanged(newConfig);
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-	    Log.d(TAG, "onConfigurationChanged");
-    }
-*/
-
 
 	////////// private functions //////////////////////////////////////
 
@@ -1071,13 +997,13 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					context.startActivity(myIntent);
 				}
 			});
-/*
+			/*
 			alertbox.setNegativeButton("Close", new DialogInterface.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
 				}
 			});
-*/
+			*/
 			alertbox.show();
 		}
 	}
@@ -1256,14 +1182,13 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 	}
 */
-
 	private static final int PERMISSION_REQUEST_RW_EXTERNAL_STORAGE = 11141;
 
 	@Override
 	public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
 		Log.d(TAG, "onRequestPermissionsResult "+requestCode);
 		switch(requestCode) {
-/*
+			/*
 			case MY_PERMISSIONS_RECORD_AUDIO:
 				Log.d(TAG, "onRequestPermissionsResult MY_PERMISSIONS_RECORD_AUDIO");
 				if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -1274,7 +1199,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Log.d(TAG, "onRequestPermissionsResult Permissions denied");
 				}
 				return;
-*/
+			*/
 			case PERMISSION_REQUEST_RW_EXTERNAL_STORAGE:
 				Log.d(TAG, "onRequestPermissionsResult PERMISSION_REQUEST_RW_EXTERNAL_STORAGE");
 				if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
