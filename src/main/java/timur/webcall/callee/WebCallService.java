@@ -1198,6 +1198,13 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		}
 
 		@android.webkit.JavascriptInterface
+		public void menu() {
+			Intent intent = new Intent("webcall");
+			intent.putExtra("cmd", "menu");
+			sendBroadcast(intent);
+		}
+
+		@android.webkit.JavascriptInterface
 		public void wsClearCache() {
 			// used by WebCallAndroid
 			if(myWebView!=null) {
@@ -2236,6 +2243,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		try {
 			if(!setAddr.equals("")) {
 				wsAddr = setAddr;
+//				wsAddr += "&callerId="+callerId+"&name="+callerName;
 				wsClient = new WsClient(new URI(wsAddr));
 			}
 			if(wsClient==null) {

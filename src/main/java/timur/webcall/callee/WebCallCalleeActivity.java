@@ -474,6 +474,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Log.d(TAG, "broadcastReceiver command "+command);
 					if(command.equals("shutdown")) {
 						finish();
+					} else if(command.equals("menu")) {
+						openContextMenu(mainView);
 					}
 					return;
 				}
