@@ -6,7 +6,7 @@
 
 [WebCall](https://github.com/mehrvarz/webcall) is a telephony server and a set of web applications for making and receiving calls. It is based on WebRTC 1.0. WebCall let's you create low latency P2P connections with very high audio quality (Opus 280kbps). You can also add video streams at any time during the call. WebCall also lets you transfer files in both directions. Connections are always e2e encrypted. WebCall is selfcontaned. There is no use of 3rd party services at any time. If you run a WebCall server yourself, you will get a very private telephony solution.
 
-[WebCall for Android](https://timur.mobi/webcall/android) offers all of the functionality of the core WebCall clients. It also offers a list of extended functionality listed below. [APK Download.](https://timur.mobi/webcall/android/#download)
+[WebCall for Android](https://timur.mobi/webcall/android) offers the same functionality as the core WebCall clients do. Listed below are some of the extended functionality offered by the Android client. [APK Download.](https://timur.mobi/webcall/android/#download)
 
 ### NFC Connect
 
