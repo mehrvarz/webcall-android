@@ -199,8 +199,9 @@ public class WebCallService extends Service {
 	private volatile String currentUrl = null;
 	private volatile boolean webviewMainPageLoaded = false; // is the main page loaded?
 	private volatile String wsAddr = "";
-	private volatile boolean callPickedUpFlag;
-	private volatile boolean peerConnectFlag;
+	private volatile boolean callPickedUpFlag = false;
+	private volatile boolean peerConnectFlag = false;
+	private volatile boolean peerDisconnnectFlag = false;
 	private volatile boolean sendRtcMessagesAfterInit;
 	private volatile boolean reconnectBusy = false;
 	private volatile boolean reconnectWaitNetwork = false;
@@ -1235,6 +1236,26 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			Log.d(TAG,"rtcConnect()");
 			// making sure this is activated (if it is enabled)
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
+			peerDisconnnectFlag = false;
+
+			// while phone is still ringing, keep sending wakeIntent to bringActivityToFront
+			final Runnable bringActivityToFront = new Runnable() {
+				public void run() {
+					if(!callPickedUpFlag && !peerConnectFlag && !peerDisconnnectFlag) {
+						Log.d(TAG,"rtcConnect() bringActivityToFront loop");
+						wakeupTypeInt = 2; // incoming call
+						Intent wakeIntent = new Intent(context, WebCallCalleeActivity.class);
+						wakeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
+							Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
+							Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+						context.startActivity(wakeIntent);
+						scheduler.schedule(this, 3, TimeUnit.SECONDS);
+					} else {
+						Log.d(TAG,"rtcConnect() bringActivityToFront abort");
+					}
+				}
+			};
+			scheduler.schedule(bringActivityToFront, 0, TimeUnit.SECONDS);
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1257,9 +1278,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 		@android.webkit.JavascriptInterface
 		public void peerDisConnect() {
+			// called by endWebRtcSession()
 			Log.d(TAG,"peerDisConnect()");
 			peerConnectFlag=false;
 			callPickedUpFlag=false;
+			peerDisconnnectFlag=true;
 			// route audio to the speaker, even if a headset is connected)
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
 		}
