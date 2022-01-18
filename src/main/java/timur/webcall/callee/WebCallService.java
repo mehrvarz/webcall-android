@@ -501,7 +501,8 @@ public class WebCallService extends Service {
 			webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 			username = prefs.getString("username", "");
 			startOnBootMode = prefs.getInt("startOnBoot", 0);
-			screenForWifiMode =  prefs.getInt("screenForWifi", 0);
+			screenForWifiMode = prefs.getInt("screenForWifi", 0);
+			keepAwakeWakeLockMS = prefs.getLong("keepAwakeWakeLockMS", 0);
 		} catch(Exception ex) {
 			// ignore
 		}
@@ -753,10 +754,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							username = path.substring(idxCallee+8);
 							if(!username.startsWith("register")) {
 								Log.d(TAG, "handleUri store username=("+username+")");
-								SharedPreferences.Editor prefed = prefs.edit();
-								prefed.putString("username",username);
-								//prefed.apply();
-								prefed.commit();
+								storePrefsString("username",username);
 							}
 						}
 					}
@@ -799,10 +797,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					currentUrl = url;
 					webviewMainPageLoaded = false;
 					webviewCookies = CookieManager.getInstance().getCookie(url);
-					SharedPreferences.Editor prefed = prefs.edit();
-					prefed.putString("cookies", webviewCookies);
-					//prefed.apply();
-					prefed.commit();
+
+					storePrefsString("cookies", webviewCookies);
 					//Log.d(TAG, "onPageFinished webviewCookies=" + webviewCookies);
 
 					// if page sends "init|" when sendRtcMessagesAfterInit is set true
@@ -1040,10 +1036,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			if(val>=0) {
 				Log.d(TAG, "beepOnLostNetwork="+val);
 				beepOnLostNetworkMode = val;
-				SharedPreferences.Editor prefed = prefs.edit();
-				prefed.putInt("beepOnLostNetwork", beepOnLostNetworkMode);
-				//prefed.apply();
-				prefed.commit();
+				storePrefsInt("beepOnLostNetwork", beepOnLostNetworkMode);
 			}
 			return beepOnLostNetworkMode;
 		}
@@ -1052,9 +1045,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			if(val>=0) {
 				Log.d(TAG, "startOnBoot="+val);
 				startOnBootMode = val;
-				SharedPreferences.Editor prefed = prefs.edit();
-				prefed.putInt("startOnBoot", startOnBootMode);
-				prefed.commit();
+				storePrefsInt("startOnBoot", startOnBootMode);
 			}
 			return startOnBootMode;
 		}
@@ -1063,9 +1054,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			if(val>=0) {
 				Log.d(TAG, "screenForWifi="+val);
 				screenForWifiMode = val;
-				SharedPreferences.Editor prefed = prefs.edit();
-				prefed.putInt("screenForWifi", screenForWifiMode);
-				prefed.commit();
+				storePrefsInt("screenForWifi", screenForWifiMode);
 			}
 			return screenForWifiMode;
 		}
@@ -1345,12 +1334,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		@android.webkit.JavascriptInterface
 		public void storePreference(String pref, String str) {
 			// used by WebCallAndroid
-			SharedPreferences.Editor prefed = prefs.edit();
-			prefed.putString(pref,str);
-			//prefed.apply();
-			prefed.commit();
-			// TODO how can we flush this
-			// (at least) on android 5 this is not stored, if the app later crashes, or is killed
+			storePrefsString(pref,str);
 			if(extendedLogsFlag) {
 				Log.d(TAG, "storePreference "+pref+" "+str+" stored");
 			}
@@ -1361,7 +1345,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// used by WebCallAndroid
 			SharedPreferences.Editor prefed = prefs.edit();
 			prefed.putBoolean(pref,bool);
-			//prefed.apply();
 			prefed.commit();
 			if(extendedLogsFlag) {
 				Log.d(TAG, "storePreferenceBool "+pref+" "+bool+" stored");
@@ -1521,9 +1504,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					reconnectBusy = false;
 					if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState keepAwakeWakeLock.release ----------------");
-						keepAwakeWakeLock.release();
 						long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 						keepAwakeWakeLockMS += wakeMS;
+						storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+						keepAwakeWakeLock.release();
 					}
 				}
 				Log.d(TAG,"onClose done");
@@ -1606,10 +1590,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// a pong from the server in response to our ping
 			// note: if doze mode is active, many of our ws-pings (by Timer) do not execute
 			// and then we also don't receive the acompaning server-pongs
-//			if(extendedLogsFlag) {
-				Log.d(TAG,"onWebsocketPong "+
-					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date()));
-//			}
+			Log.d(TAG,"onWebsocketPong "+
+				new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date()));
 			super.onWebsocketPong(conn,f); // without calling this we crash (at least on P9)
 		}
 
@@ -1634,7 +1616,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			int currentMinuteOfDay = ((hours * 60) + minutes);
 			if(extendedLogsFlag) {
 				if(currentMinuteOfDay<lastMinuteOfDay) {
+					Log.d(TAG,"onWebsocketPing clear old keepAwakeWakeLockMS "+keepAwakeWakeLockMS);
 					keepAwakeWakeLockMS = 0;
+					storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
 				}
 
 				Log.d(TAG,"onWebsocketPing "+pingCounter+" net="+haveNetworkInt+" "+keepAwakeWakeLockMS+
@@ -1966,9 +1950,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						// for this to work we keep reconnectBusy set, but we release keepAwakeWakeLock
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"reconnecter waiting for net keepAwakeWakeLock.release -----------");
-							keepAwakeWakeLock.release();
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 							keepAwakeWakeLockMS += wakeMS;
+							storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+							keepAwakeWakeLock.release();
 						}
 
 						// from here on we do nothing other than to wait (for networkState event or alarm)
@@ -2075,9 +2060,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						}
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
-							keepAwakeWakeLock.release();
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 							keepAwakeWakeLockMS += wakeMS;
+							storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+							keepAwakeWakeLock.release();
 						}
 						reconnectCounter = 0;
 						return;
@@ -2129,9 +2115,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						}
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
-							keepAwakeWakeLock.release();
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 							keepAwakeWakeLockMS += wakeMS;
+							storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+							keepAwakeWakeLock.release();
 						}
 						reconnectBusy = false;
 						reconnectCounter = 0;
@@ -2150,9 +2137,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						}
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
-							keepAwakeWakeLock.release();
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 							keepAwakeWakeLockMS += wakeMS;
+							storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+							keepAwakeWakeLock.release();
 						}
 						reconnectCounter = 0;
 						return;
@@ -2241,9 +2229,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							Log.d(TAG, "reconnecter sleep ex="+ex);
 						}
 						Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 ----------------");
-						keepAwakeWakeLock.release();
 						long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 						keepAwakeWakeLockMS += wakeMS;
+						storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+						keepAwakeWakeLock.release();
 					}
 					reconnectBusy = false;
 					reconnectCounter = 0;
@@ -2275,9 +2264,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						}
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
-							keepAwakeWakeLock.release();
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 							keepAwakeWakeLockMS += wakeMS;
+							storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+							keepAwakeWakeLock.release();
 						}
 						reconnectBusy = false;
 					}
@@ -2595,9 +2585,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			if(!reconnectBusy) {
 				if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 					Log.d(TAG,"networkState keepAwakeWakeLock.release ----------------");
-					keepAwakeWakeLock.release();
 					long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 					keepAwakeWakeLockMS += wakeMS;
+					storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+					keepAwakeWakeLock.release();
 				}
 				if(wifiLock!=null && wifiLock.isHeld()) {
 					// release wifi lock
@@ -2800,7 +2791,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				Log.d(TAG,"audioToSpeakerSet setForceUse "+set);
 				SharedPreferences.Editor prefed = prefs.edit();
 				prefed.putInt("audioToSpeaker", audioToSpeakerMode);
-				//prefed.apply();
 				prefed.commit();
 			} catch(Exception ex) {
 				Log.d(TAG,"audioToSpeakerSet "+set+" ex="+ex);
@@ -2808,9 +2798,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				intent.putExtra("toast", "Ring on speaker non-functional");
 				sendBroadcast(intent);
 				audioToSpeakerMode = 0;
+
 				SharedPreferences.Editor prefed = prefs.edit();
 				prefed.putInt("audioToSpeaker", audioToSpeakerMode);
-				//prefed.apply();
 				prefed.commit();
 			}
 		} else {
@@ -3013,6 +3003,30 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		// kill the service itself
 		Log.d(TAG,"exitService stopSelf()");
 		stopSelf();
+	}
+
+	private void storePrefsString(String key, String value) {
+		SharedPreferences.Editor prefed = prefs.edit();
+		prefed.putString(key, value);
+		prefed.commit();
+	}
+
+	private void storePrefsBoolean(String key, boolean value) {
+		SharedPreferences.Editor prefed = prefs.edit();
+		prefed.putBoolean(key, value);
+		prefed.commit();
+	}
+
+	private void storePrefsInt(String key, int value) {
+		SharedPreferences.Editor prefed = prefs.edit();
+		prefed.putInt(key, value);
+		prefed.commit();
+	}
+
+	private void storePrefsLong(String key, long value) {
+		SharedPreferences.Editor prefed = prefs.edit();
+		prefed.putLong(key, value);
+		prefed.commit();
 	}
 }
 
