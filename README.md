@@ -4,7 +4,7 @@
 
 # WebCall for Android
 
-[WebCall](https://github.com/mehrvarz/webcall) is a telephony server and a set of web applications for making and receiving calls based on WebRTC. WebCall let's you create low latency connections with very high audio quality (Opus 280kbps). You can add a video stream at any time during the call. And you can transfer files in both directions. All connections are encrypted and connect P2P. There is no use of 3rd party services. If you run your own WebCall server, you get the most private telephony solution there can be.
+[WebCall](https://github.com/mehrvarz/webcall) is a telephony server and a set of web applications for making and receiving calls. It is based on WebRTC 1.0. WebCall let's you create low latency P2P connections with very high audio quality (Opus 280kbps). You can also add video streams at any time during the call. WebCall lets you transfer files in both directions. All connections are e2e encrypted. WebCall is selfcontaned. There is no use of 3rd party services. If you run your own WebCall server, you will have a very private telephony solution.
 
 [WebCall for Android](https://timur.mobi/webcall/android) offers all of the functionality of the core package, as well as the extended listed below. [Download the APK here.](https://timur.mobi/webcall/android/#download)
 
@@ -48,7 +48,7 @@ GPL3.0 - see: [LICENSE](LICENSE)
 
 ### 3rd party artwork
 
-- Uri Herrera, KDE Visual Design, GNU Lesser General Public License
+- Uri Herrera, KDE Visual Design, GNU Lesser General Public
 - Timothy Miller, Public domain
-- BadPiggies, licensed under Creative Commons Attribution-Share Alike 4.0
+- BadPiggies, Creative Commons Attribution-Share Alike 4.0
 
