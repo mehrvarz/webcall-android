@@ -220,9 +220,9 @@ public class WebCallService extends Service {
 	private volatile boolean soundNotificationPlayed = false;
 	private volatile boolean extendedLogsFlag = false;
 	private volatile boolean connectToSignalingServerIsWanted = false;
-	private volatile long wakeUpFromDozeSecs = 0;
+	private volatile long wakeUpFromDozeSecs = 0; // last wakeUpFromDoze() time
 	private volatile long keepAwakeWakeLockStartTime = 0;
-	private volatile long keepAwakeWakeLockSecs = 0;
+	private volatile long keepAwakeWakeLockMS = 0; // sum of MS where keepAwakeWakeLock was held
 	private volatile int lastMinuteOfDay = 0;
 
 	// section 1: android service methods
@@ -1499,8 +1499,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState keepAwakeWakeLock.release ----------------");
 						keepAwakeWakeLock.release();
-						long wakeSecs = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-						keepAwakeWakeLockSecs += wakeSecs;
+						long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+						keepAwakeWakeLockMS += wakeMS;
 					}
 				}
 				Log.d(TAG,"onClose done");
@@ -1611,10 +1611,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			int currentMinuteOfDay = ((hours * 60) + minutes);
 			if(extendedLogsFlag) {
 				if(currentMinuteOfDay<lastMinuteOfDay) {
-					keepAwakeWakeLockSecs = 0;
+					keepAwakeWakeLockMS = 0;
 				}
 
-				Log.d(TAG,"onWebsocketPing "+pingCounter+" net="+haveNetworkInt+" "+keepAwakeWakeLockSecs+
+				Log.d(TAG,"onWebsocketPing "+pingCounter+" net="+haveNetworkInt+" "+keepAwakeWakeLockMS+
 					" "+BuildConfig.VERSION_NAME+" "+
 					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(currentDate));
 			}
@@ -1944,8 +1944,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"reconnecter waiting for net keepAwakeWakeLock.release -----------");
 							keepAwakeWakeLock.release();
-							long wakeSecs = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-							keepAwakeWakeLockSecs += wakeSecs;
+							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+							keepAwakeWakeLockMS += wakeMS;
 						}
 
 						// from here on we do nothing other than to wait (for networkState event or alarm)
@@ -2053,8 +2053,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
 							keepAwakeWakeLock.release();
-							long wakeSecs = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-							keepAwakeWakeLockSecs += wakeSecs;
+							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+							keepAwakeWakeLockMS += wakeMS;
 						}
 						reconnectCounter = 0;
 						return;
@@ -2107,8 +2107,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
 							keepAwakeWakeLock.release();
-							long wakeSecs = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-							keepAwakeWakeLockSecs += wakeSecs;
+							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+							keepAwakeWakeLockMS += wakeMS;
 						}
 						reconnectBusy = false;
 						reconnectCounter = 0;
@@ -2128,8 +2128,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
 							keepAwakeWakeLock.release();
-							long wakeSecs = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-							keepAwakeWakeLockSecs += wakeSecs;
+							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+							keepAwakeWakeLockMS += wakeMS;
 						}
 						reconnectCounter = 0;
 						return;
@@ -2219,8 +2219,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						}
 						Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 ----------------");
 						keepAwakeWakeLock.release();
-						long wakeSecs = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-						keepAwakeWakeLockSecs += wakeSecs;
+						long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+						keepAwakeWakeLockMS += wakeMS;
 					}
 					reconnectBusy = false;
 					reconnectCounter = 0;
@@ -2253,8 +2253,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"reconnecter keepAwakeWakeLock.release ----------------");
 							keepAwakeWakeLock.release();
-							long wakeSecs = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-							keepAwakeWakeLockSecs += wakeSecs;
+							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+							keepAwakeWakeLockMS += wakeMS;
 						}
 						reconnectBusy = false;
 					}
@@ -2573,8 +2573,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 					Log.d(TAG,"networkState keepAwakeWakeLock.release ----------------");
 					keepAwakeWakeLock.release();
-					long wakeSecs = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-					keepAwakeWakeLockSecs += wakeSecs;
+					long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+					keepAwakeWakeLockMS += wakeMS;
 				}
 				if(wifiLock!=null && wifiLock.isHeld()) {
 					// release wifi lock
