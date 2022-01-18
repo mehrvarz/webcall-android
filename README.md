@@ -44,6 +44,11 @@ GPL3.0 - see: [LICENSE](LICENSE)
 
 ### 3rd party code
 
-- github.com/TooTallNate/Java-WebSocket, licensed under an MIT license
-- some icons made by Icomoon from Flaticon, licensed by Creative Commons BY 3.0
+- github.com/TooTallNate/Java-WebSocket, MIT license
+
+### 3rd party artwork
+
+- Uri Herrera, KDE Visual Design, GNU Lesser General Public License
+- Timothy Miller, Public domain
+- BadPiggies, licensed under Creative Commons Attribution-Share Alike 4.0
 
