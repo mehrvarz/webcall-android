@@ -28,7 +28,6 @@ window.onload = function() {
 		versionName = Android.getVersionName();
 		var lastUsedVersionName = Android.readPreference("versionName");
 		console.log("versionName "+versionName);
-//		if(lastUsedVersionName!=versionName) {
 		if(lastUsedVersionName=="") {
 			// the user has upgraded (or downgraded) the webcall apk
 			console.log("upgrade from lastUsedVersionName "+lastUsedVersionName);
@@ -82,7 +81,10 @@ window.onload = function() {
 			}
 			container.appendChild(bubbleElement);
 			},300);
-
+		}
+		if(lastUsedVersionName!=versionName) {
+			if(clearCache)
+				clearCache.checked = true;
 			// store the new versionName, so that the speech bubbles do not appear next time
 			console.log("store versionName "+versionName);
 			Android.storePreference("versionName", versionName);
@@ -154,16 +156,12 @@ function submitFormDone(theForm) {
 	}
 
 	if(valueUsername=="") {
-// TODO this confirm() dialog displays "file:// says", which is not nice
-//		if(confirm("To register a new WebCall user-ID, please continue to the next page.")) {
-			Android.storePreference("username", "");
-			Android.wsClearCookies();
+		Android.storePreference("username", "");
+		Android.wsClearCookies();
 
-			let url = "https://"+valueDomain+"/callee/register";
-			console.log('load register page='+url);
-//			window.location.replace(url);
-			window.location.href = url;
-//		}
+		let url = "https://"+valueDomain+"/callee/register";
+		console.log('load register page='+url);
+		window.location.href = url;
 		return;
 	}
 
