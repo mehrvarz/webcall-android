@@ -186,6 +186,7 @@ public class WebCallService extends Service {
 	private ConnectivityManager connectivityManager = null;
 	private DisplayManager displayManager = null;
 	private String userAgentString = null;
+	private AudioManager audioManager = null;
 
 	private volatile String webviewCookies = null;
 	private volatile WakeLock wakeUpWakeLock = null; // for wakeup from doze, released by activity
@@ -206,8 +207,6 @@ public class WebCallService extends Service {
 	private volatile boolean reconnectBusy = false;
 	private volatile boolean reconnectWaitNetwork = false;
 	private volatile int reconnectCounter = 0;
-	//private boolean ringOnSpeaker = false;
-	//private AudioManager audioManager = null;
 	private volatile int audioToSpeakerMode = 0;            // preference persistens
 	private volatile boolean audioToSpeakerActive = false;
 	private volatile int beepOnLostNetworkMode = 0;         // preference persistens
@@ -259,12 +258,26 @@ public class WebCallService extends Service {
 			powerManager = (PowerManager)context.getSystemService(Context.POWER_SERVICE);
 		}
 		if(powerManager==null) {
-			Log.d(TAG,"fatal: no access to powerManager");
+			Log.d(TAG,"fatal: no access to PowerManager");
 			return 0;
 		}
+
 		if(displayManager==null) {
 			displayManager = (DisplayManager)context.getSystemService(Context.DISPLAY_SERVICE);
 		}
+		if(displayManager==null) {
+			Log.d(TAG,"fatal: no access to DisplayManager");
+			return 0;
+		}
+
+		if(audioManager==null) {
+			audioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+		}
+		if(audioManager==null) {
+			Log.d(TAG,"fatal: no access to AudioManager");
+			return 0;
+		}
+
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
 			if(extendedLogsFlag) {
 				// check with isIgnoringBatteryOptimizations()
@@ -467,6 +480,9 @@ public class WebCallService extends Service {
 				dozeStateReceiver = new BroadcastReceiver() {
 					//@RequiresApi(api = Build.VERSION_CODES.M)
 					@Override public void onReceive(Context context, Intent intent) {
+// NOTE: when dozeStateReceiver is called, we already have or we are about to lose the netw connection
+// dozeState will be activated bc without a connected network, there is no need to keep the app interactive
+
 						if(powerManager.isDeviceIdleMode()) {
 						    // the device is now in doze mode
 							dozeIdle = true;
@@ -476,7 +492,38 @@ public class WebCallService extends Service {
 								keepAwakeWakeLock.acquire(30 * 60 * 1000);
 								keepAwakeWakeLockStartTime = (new Date()).getTime();
 							}
-							checkLastPing(true,0);
+// calling checkLastPing() here is mostly useless
+// bc 'dozeStateReceiver idle' usually occurs shortly after the last ping
+							//checkLastPing(true,0);
+// lets send a ping instead
+							// this is a good time to send a ping
+							// if the connection is bad we will know much quicker
+							try {
+								wsClient.sendPing();
+							} catch(Exception ex) {
+								Log.d(TAG,"dozeStateReceiver idle sendPing ex="+ex);
+// TODO let's go straight to reconnecter
+								statusMessage("Disconnected from WebCall server...",true,true);
+
+								if(reconnectSchedFuture==null) {
+									// if no reconnecter is scheduled at this time...
+									// schedule a new reconnecter right away
+									String webcalldomain = 
+									 prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+									String username = prefs.getString("username", "");
+									if(webcalldomain.equals("")) {
+										Log.d(TAG,"dozeStateReceiver idle no webcalldomain");
+									} else if(username.equals("")) {
+										Log.d(TAG,"dozeStateReceiver idle no username");
+									} else {
+										loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
+										Log.d(TAG,"dozeStateReceiver idle re-login now url="+loginUrl);
+										// hopefully network is avilable
+										reconnectSchedFuture =
+											scheduler.schedule(reconnecter,0,TimeUnit.SECONDS);
+									}
+								}
+							}
 
 						} else if(powerManager.isInteractive()) {
 							// the device just woke up from doze mode
@@ -1301,6 +1348,14 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// making sure this is activated (if it is enabled)
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
 			peerDisconnnectFlag = false;
+
+			// make sure ringtone volume is not too low
+			int maxvol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+			int vol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+			if(vol<maxvol/3) {
+//				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 30, AudioManager.FLAG_SHOW_UI);
+				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxvol/3, 0);
+			}
 
 			// while phone is still ringing, keep sending wakeIntent to bringActivityToFront
 			final Runnable bringActivityToFront = new Runnable() {
