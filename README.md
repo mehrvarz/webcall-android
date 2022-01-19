@@ -12,15 +12,15 @@
 
 NFC Connect lets you to establish phone calls by touching two devices. Once connected the two parties can walk apart and continue the call. The other device does not need any special software. It needs to support NFC, have a 2020+ web browser and an internet connection (mobile, wifi, whatever). So even if you are using the Android version, you do benefit from the Web application, because anybody on the Web can call you. All they need to know is your WebCall link (your "phone number").
 
-### 24/7 Operation
-
-WebCall for Android lets you receive calls when the device is in sleep mode. This is a feature the Web application can not offer. It makes the Android variant a better solution for all day operations.
-
 ### Ring on Speaker
 
 WebCall for Android can play back the ringtone on the loud speaker, even if you have a headset connected to the device. This lets you receive calls quicker.
 
-### Low power use
+### 24/7 Operation
+
+WebCall for Android lets you receive calls when the device is in sleep mode. This is a feature the Web application can not offer. It makes the Android variant a better solution for all day operations.
+
+### Low power requirements
 
 WebCall for Android has very low power requirements when receiving calls in the background. It often uses less battery than a regular mobile browser running in parallel in complete idle mode.
 
