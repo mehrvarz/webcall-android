@@ -172,7 +172,7 @@ public class WebCallService extends Service {
 	private BroadcastReceiver dozeStateReceiver = null;
 	private BroadcastReceiver alarmReceiver = null;
 	private PowerManager powerManager = null;
-	private WifiManager wm = null;
+	private WifiManager wifiManager = null;
 	private WifiManager.WifiLock wifiLock = null; // if connected and haveNetworkInt=2
 	private Queue stringMessageQueue = new LinkedList<String>();
 	private ScheduledExecutorService scheduler = null;
@@ -288,21 +288,22 @@ public class WebCallService extends Service {
 			return 0;
 		}
 
-		if(wm==null) {
-			wm = (WifiManager)context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+		if(wifiManager==null) {
+			wifiManager = (WifiManager)
+				context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
 		}
-		if(wm==null) {
-			Log.d(TAG,"fatal: no access to wifiManager");
+		if(wifiManager==null) {
+			Log.d(TAG,"fatal: no access to WifiManager");
 			return 0;
 		}
 
 		if(wifiLock==null) {
 			// Note: N7 and N9 don't seem to need WIFI_MODE_FULL_HIGH_PERF, but P9 and Gnex might
-			//wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL, "WebCall:wifiLock");
+			//wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL, "WebCall:wifiLock");
 			String logKey = "WebCall:keepAwakeWakeLock";
 			if(userAgentString==null || userAgentString.indexOf("HUAWEI")>=0)
 				logKey = "LocationManagerService"; // to avoid being killed on Huawei
-			wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, logKey);
+			wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, logKey);
 		}
 		if(wifiLock==null) {
 			Log.d(TAG,"fatal: no access to wifiLock");
@@ -1945,6 +1946,12 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 	}
 
 	private void wakeUpFromDoze() {
+		if(wifiManager.isWifiEnabled()==false) {
+			// this is for wakeing up WIFI; if wifi is switched off, doing this does not make sense
+			Log.d(TAG,"wakeUpFromDoze denied, wifi is not enabled");
+			return;
+		}
+
 		// prevent multiple calls
 		long nowSecs = new Date().getTime();
 		long sinceLastCallSecs = nowSecs - wakeUpFromDozeSecs;
