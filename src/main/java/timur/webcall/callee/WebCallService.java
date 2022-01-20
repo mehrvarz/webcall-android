@@ -224,6 +224,7 @@ public class WebCallService extends Service {
 	private volatile long keepAwakeWakeLockStartTime = 0;
 	private volatile long keepAwakeWakeLockMS = 0; // sum of MS where keepAwakeWakeLock was held
 	private volatile int lastMinuteOfDay = 0;
+	private volatile int origvol = 0;
 
 	// section 1: android service methods
 	@Override
@@ -480,8 +481,9 @@ public class WebCallService extends Service {
 				dozeStateReceiver = new BroadcastReceiver() {
 					//@RequiresApi(api = Build.VERSION_CODES.M)
 					@Override public void onReceive(Context context, Intent intent) {
-// NOTE: when dozeStateReceiver is called, we already have or we are about to lose the netw connection
-// dozeState will be activated bc without a connected network, there is no need to keep the app interactive
+						// NOTE: when dozeStateReceiver strikes, we have already lost (or are about
+						// to lose) our connection. dozeState is being activated BECAUSE without a
+						// connected network, there is no need to keep the process interactive.
 
 						if(powerManager.isDeviceIdleMode()) {
 						    // the device is now in doze mode
@@ -492,17 +494,19 @@ public class WebCallService extends Service {
 								keepAwakeWakeLock.acquire(30 * 60 * 1000);
 								keepAwakeWakeLockStartTime = (new Date()).getTime();
 							}
-// calling checkLastPing() here is mostly useless
-// bc 'dozeStateReceiver idle' usually occurs shortly after the last ping
-							//checkLastPing(true,0);
-// lets send a ping instead
-							// this is a good time to send a ping
+							// this is a good opportunity to send a ping
 							// if the connection is bad we will know much quicker
-							try {
-								wsClient.sendPing();
-							} catch(Exception ex) {
-								Log.d(TAG,"dozeStateReceiver idle sendPing ex="+ex);
-// TODO let's go straight to reconnecter
+							if(wsClient!=null) {
+								try {
+									Log.d(TAG,"dozeStateReceiver idle sendPing");
+									wsClient.sendPing();
+								} catch(Exception ex) {
+									Log.d(TAG,"dozeStateReceiver idle sendPing ex="+ex);
+									wsClient = null;
+								}
+							}
+							if(wsClient==null) {
+								// let's go straight to reconnecter
 								statusMessage("Disconnected from WebCall server...",true,true);
 
 								if(reconnectSchedFuture==null) {
@@ -528,16 +532,6 @@ public class WebCallService extends Service {
 						} else if(powerManager.isInteractive()) {
 							// the device just woke up from doze mode
 							// most likely it will go to idle in about 30s
-// on N9 this is a sure sign that the connection was lost
-// it seem to happen after the server sends a ping (which may arrive) but our pong doesn't make it back
-// so server hangs up. but instead of the ws-layer telling us this, we receive "dozeStateReceiver awake"
-// this is why we are sending a ping here: we want to know if the connection is still alive
-// checkLastPing() is mostly useless bc this is called right on disconnect (last ping is not very old)
-// TODO maybe we should use our time (30s) wisely and try to reconnect right away?
-// tmtmtm
-// interestingly the ping is responded to by the server - and this is the last thing happening
-// in other words: we get "dozeStateReceiver awake" RIGHT BEFORE the big sleep
-
 							dozeIdle = false;
 
 							if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
@@ -549,22 +543,6 @@ public class WebCallService extends Service {
 							wakeUpIfNeeded(context);
 
 							if(wsClient!=null) {
-/*
-								Log.d(TAG,"dozeStateReceiver awake wsClient set");
-								// this is a good time to send a ping
-								// if the connection is bad we will know much quicker
-								try {
-									wsClient.sendPing();
-								} catch(Exception ex) {
-									Log.d(TAG,"dozeStateReceiver sendPing ex="+ex);
-// TODO no need to call checkLastPing(), let's go straight to reconnecter
-								}
-
-								// we are supposed to be connected, but if we are disconnected now,
-								// this is a good chance to start reconnecter
-								// this will a lot quicker than waiting for the next alarm
-								checkLastPing(true,2);
-*/
 								Log.d(TAG,"dozeStateReceiver awake wsClient.closeBlocking()...");
 								WebSocketClient tmpWsClient = wsClient;
 								wsClient = null;
@@ -573,7 +551,6 @@ public class WebCallService extends Service {
 								} catch(Exception ex) {
 									Log.d(TAG,"dozeStateReceiver awake closeBlocking ex="+ex);
 								}
-
 							} else {
 								Log.d(TAG,"dozeStateReceiver awake wsClient==null");
 							}
@@ -1123,11 +1100,13 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		}
 
 		public void releaseWakeUpWakeLock() {
-			Log.d(TAG, "releaseWakeUpWakeLock()");
 			if(wakeUpWakeLock!=null && wakeUpWakeLock.isHeld()) {
-				Log.d(TAG, "releaseWakeUpWakeLock()");
+				// this will let the screen time out
 				wakeUpWakeLock.release();
-			} 
+				Log.d(TAG, "releaseWakeUpWakeLock() released");
+			} else {
+				Log.d(TAG, "releaseWakeUpWakeLock() not held");
+			}
 			wakeUpWakeLock = null;
 		}
 
@@ -1353,9 +1332,16 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			int maxvol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
 			int vol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
 			if(vol<maxvol/3) {
-//				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 30, AudioManager.FLAG_SHOW_UI);
-				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxvol/3, 0);
+				origvol = vol;
+				int setvol = maxvol/3;
+				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, setvol, 0);
+				Log.d(TAG,"rtcConnect() setStreamVolume "+setvol+" from "+vol);
+			} else {
+				// no need to change vol back after call;
+				origvol = 0;
 			}
+// TODO after call (or better: after ringing is done):
+// if(origvol>0) audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, origvol, 0);
 
 			// while phone is still ringing, keep sending wakeIntent to bringActivityToFront
 			final Runnable bringActivityToFront = new Runnable() {
@@ -1783,10 +1769,16 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			if(haveNetworkInt>0) {
 				// this is a good time to send a ping
 				// if the connection is bad we will know much quicker
-				try {
-					wsClient.sendPing();
-				} catch(Exception ex) {
-					Log.d(TAG,"alarmStateReceiver sendPing ex="+ex);
+				if(wsClient!=null) {
+					try {
+						Log.d(TAG,"alarmStateReceiver sendPing");
+						wsClient.sendPing();
+					} catch(Exception ex) {
+						Log.d(TAG,"alarmStateReceiver sendPing ex="+ex);
+						wsClient = null;
+					}
+				}
+				if(wsClient==null) {
 // TODO no need to call checkLastPing(), let's go straight to reconnecter
 				}
 			}
@@ -3005,10 +2997,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					String dumpStr = strbld.toString();
 					Log.d(TAG,"saveSystemLogs store "+dumpStr.length()+" bytes");
 					storeByteArrayToFile(dumpStr.getBytes(),logFileName);
-
-					Intent intent = new Intent("webcall");
-					intent.putExtra("toast", "Log stored to "+logFileName+" in Download folder");
-					sendBroadcast(intent);
+//					Intent intent = new Intent("webcall");
+//					intent.putExtra("toast", "Log stored to "+logFileName+" in Download folder");
+//					sendBroadcast(intent);
 				}
 				catch(IOException ex) {
 					ex.printStackTrace();
