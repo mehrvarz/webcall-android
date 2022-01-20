@@ -533,7 +533,12 @@ public class WebCallService extends Service {
 						} else if(powerManager.isInteractive()) {
 							// the device just woke up from doze mode
 							// most likely it will go to idle in about 30s
+							boolean screenOn = isScreenOn();
+							Log.d(TAG,"dozeStateReceiver awake screenOn="+screenOn+" doze="+dozeIdle);
 							dozeIdle = false;
+							if(screenOn) {
+								return;
+							}
 
 							if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 								Log.d(TAG,"dozeStateReceiver awake keepAwakeWakeLock.acquire");
@@ -544,6 +549,7 @@ public class WebCallService extends Service {
 							wakeUpIfNeeded(context);
 
 							if(wsClient!=null) {
+// TODO if 'dozeStateReceiver awake' happens without a disconnect coming, it is us now disconnecting
 								Log.d(TAG,"dozeStateReceiver awake wsClient.closeBlocking()...");
 								WebSocketClient tmpWsClient = wsClient;
 								wsClient = null;
@@ -579,8 +585,8 @@ public class WebCallService extends Service {
 							}
 
 						} else if(powerManager.isPowerSaveMode()) {
+							// dozeIdle = ??? TODO this never comes
 							Log.d(TAG,"dozeStateReceiver powerSave mode");
-							// dozeIdle = ??? TODO
 						}
 					}
 				};
@@ -893,7 +899,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						//Log.d(TAG, "onPageFinished baseCurrentUrl=" + baseCurrentUrl);
 						if(url.startsWith(baseCurrentUrl)) {
 							// url is just a hashchange; does not need onPageFinished processing
-							Log.d(TAG, "onPageFinished url is just a hashchange");
+							if(extendedLogsFlag) {
+								Log.d(TAG, "onPageFinished set currentUrl="+url+" (just a hashchange)");
+							}
 							// no need to execute onPageFinished() on hashchange or history back
 							//Log.d(TAG, "onPageFinished skip url=" + url);
 							currentUrl = url;
@@ -904,7 +912,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					// if the url has changed (beyond a hashchange)
 					// and if we ARE connected already -> call js:wakeGoOnline()
 					if(extendedLogsFlag) {
-						Log.d(TAG, "onPageFinished process url=" + url);
+						Log.d(TAG, "onPageFinished process set currentUrl=" + url);
 					}
 					currentUrl = url;
 					webviewMainPageLoaded = false;
@@ -1229,7 +1237,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			if(wsClient==null) {
 				Log.d(TAG,"wsOpen "+setWsAddr);
 				WebSocketClient wsCli = connectHost(setWsAddr);
-				Log.d(TAG,"wsOpen wsCli "+wsCli);
+				Log.d(TAG,"wsOpen wsClient="+(wsCli!=null));
 				if(wsCli!=null) {
 					updateNotification("","Online. Waiting for calls.",false,false);
 				}
@@ -1526,10 +1534,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		public void onOpen(ServerHandshake handshakedata) {
 			// connection  was opened, so we tell JS code
 			if(myWebView!=null && webviewMainPageLoaded) {
-				Log.d(TAG,"WsClient onOpen -> js:wsOnOpen");
+				//Log.d(TAG,"WsClient onOpen -> js:wsOnOpen");
 				runJS("wsOnOpen()",null);
 			} else {
-				Log.d(TAG,"WsClient onOpen");
+				//Log.d(TAG,"WsClient onOpen");
 			}
 		}
 
@@ -1728,8 +1736,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// note: if doze mode is active, many of our ws-pings (by Timer) do not execute
 			// and then we also don't receive the acompaning server-pongs
 			if(extendedLogsFlag) {
-				Log.d(TAG,"onWebsocketPong "+
-					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date()));
+				Log.d(TAG,"onWebsocketPong "+currentDateTimeString());
 			}
 			super.onWebsocketPong(conn,f); // without calling this we crash (at least on P9)
 		}
@@ -1741,8 +1748,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// maybe we should use the AlarmManager to wake ourself up (every 15m)
 			if(wsClient==null) {
 				// apparently this never happens
-				Log.d(TAG,"onWebsocketPing wsClient==null "+
-					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date()));
+				Log.d(TAG,"onWebsocketPing wsClient==null "+currentDateTimeString());
 				// don't pong back
 				return;
 			}
@@ -1778,13 +1784,12 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// we do so to check if we are still receiving pings from the server
 			if(pendingAlarm==null) {
 // TODO if pendingAlarm==null already we should abort right now
-				Log.w(TAG,"alarmStateReceiver pendingAlarm==null !!!");
+				Log.w(TAG,"pendingAlarm==null !!!");
 			}
 			pendingAlarm = null;
 			alarmPendingDate = null;
-			//if(extendedLogsFlag) {
-				Log.d(TAG,"alarmStateReceiver net="+haveNetworkInt+" keepAwakeMS="+keepAwakeWakeLockMS);
-			//}
+			Log.d(TAG,"net="+haveNetworkInt+" keepAwakeMS="+keepAwakeWakeLockMS+" "+ 
+				currentDateTimeString());
 			if(/*haveNetworkInt==0 &&*/ Build.VERSION.SDK_INT < Build.VERSION_CODES.N) { // <api24
 				checkNetworkState(false);
 			}
@@ -1794,11 +1799,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				if(wsClient!=null) {
 					try {
 						if(extendedLogsFlag) {
-							Log.d(TAG,"alarmStateReceiver sendPing");
+							Log.d(TAG,"sendPing");
 						}
 						wsClient.sendPing();
 					} catch(Exception ex) {
-						Log.d(TAG,"alarmStateReceiver sendPing ex="+ex);
+						Log.d(TAG,"sendPing ex="+ex);
 						wsClient = null;
 					}
 				}
@@ -1813,14 +1818,14 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			pendingAlarm = PendingIntent.getBroadcast(context, 0, startAlarmIntent, 0);
 			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 				if(extendedLogsFlag) {
-					Log.d(TAG,"alarmStateReceiver alarm setAndAllowWhileIdle");
+					Log.d(TAG,"alarm setAndAllowWhileIdle");
 				}
 				alarmManager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
 					SystemClock.elapsedRealtime() + 15*60*1000, pendingAlarm);
 			} else {
 				// for Android 5 and below:
 				if(extendedLogsFlag) {
-					Log.d(TAG,"alarmStateReceiver alarm set");
+					Log.d(TAG,"alarm set");
 				}
 				// 15*60*1000 will be very likely be ignored; P9 does minimal 16min
 				alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
@@ -2099,7 +2104,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					return;
 				}
 				Log.d(TAG,"reconnecter start "+reconnectCounter+" net="+haveNetworkInt+" "+
-					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date()));
+					currentDateTimeString());
 				reconnectBusy = true;
 				wakeupTypeInt = -1;
 				wakeUpIfNeeded(context);
@@ -2386,6 +2391,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 						String username = prefs.getString("username", "");
 						currentUrl = "https://"+webcalldomain+"/callee/"+username;
+						if(extendedLogsFlag) {
+							Log.d(TAG,"reconnecter set currentUrl="+currentUrl);
+						}
 					}
 					if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 						// we need to delay keepAwakeWakeLock.release() a bit, 
@@ -2495,7 +2503,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							hostName = hostName.substring(0,idxColon);
 						}
 					}
-					Log.d(TAG,"connectHost hostName "+hostName);
+					//Log.d(TAG,"connectHost hostName "+hostName);
 					if(!hv.verify(hostName, s)) {
 						Log.d(TAG,"connectHost self-hostVerify fail on "+s.getPeerPrincipal());
 						hostVerifySuccess = false;
@@ -2512,6 +2520,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 						String username = prefs.getString("username", "");
 						currentUrl = "https://"+webcalldomain+"/callee/"+username;
+						if(extendedLogsFlag) {
+							Log.d(TAG,"connectHost set currentUrl="+currentUrl);
+						}
 					}
 
 					if(currentUrl!=null) {
@@ -3183,6 +3194,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		SharedPreferences.Editor prefed = prefs.edit();
 		prefed.putLong(key, value);
 		prefed.commit();
+	}
+
+	private String currentDateTimeString() {
+		return new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date());
 	}
 }
 
