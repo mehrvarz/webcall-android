@@ -831,7 +831,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 		if(webCallServiceBinder!=null) {
 			// tell our service that the activity is being destroyed
-			// this sets webviewPageLoaded to false, needed for next incoming call
 			webCallServiceBinder.activityDestroyed();
 			if(serviceConnection!=null && !startupFail) {
 				Log.d(TAG, "onDestroy unbindService");

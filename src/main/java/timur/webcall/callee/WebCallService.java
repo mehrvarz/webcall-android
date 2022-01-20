@@ -236,6 +236,12 @@ public class WebCallService extends Service {
 	}
 
 	@Override
+	public void onRebind(Intent arg0) {
+		Log.d(TAG,"onRebind "+BuildConfig.VERSION_NAME);
+		context = this;
+	}
+
+	@Override
 	public void onCreate() {
 		Log.d(TAG,"onCreate "+BuildConfig.VERSION_NAME);
 		alarmReceiver = new AlarmReceiver();
@@ -348,13 +354,13 @@ public class WebCallService extends Service {
 			return 0;
 		}
 
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) { // >=api24
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) { // >=api24
 			// this code (networkCallback) fully replaces checkNetworkState()
 			connectivityManager.registerDefaultNetworkCallback(new ConnectivityManager.NetworkCallback() {
 				@Override
 				public void onAvailable(Network network) {
 		            super.onAvailable(network);
-					Log.d(TAG, "networkCallback gaining access to new network...");
+					//Log.d(TAG, "networkCallback gaining access to new network...");
 				}
 
 				@Override
@@ -418,12 +424,8 @@ public class WebCallService extends Service {
 						statusMessage("Connecting via Wifi network",true,false);
 					}
 
-//					if(newNetworkInt>0 && haveNetworkInt<=0 && reconnectBusy && reconnectWaitNetwork) {
-// tmtmtm reconnectBusy && reconnectWaitNetwork is mayne not the best criteria here
-// if reconnecter gives up (say, after 40 mins), then reconnectBusy will be false and gaining wifi
-// will not trigger reconnect anymore
-// the correct criteria here would be: is goOnline activated
-// aka: goOnlineButton.disabled == true
+					// the criteria here should be: is goOnline activated
+					// aka: goOnlineButton.disabled == true
 					if(newNetworkInt>0 && haveNetworkInt<=0 &&
 							connectToSignalingServerIsWanted && (!reconnectBusy || reconnectWaitNetwork)) {
 						// call scheduler.schedule()
@@ -474,7 +476,6 @@ public class WebCallService extends Service {
 				return 0;
 			}
 		}
-
 
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 			if(dozeStateReceiver==null) {
@@ -564,9 +565,9 @@ public class WebCallService extends Service {
 								String webcalldomain = 
 									prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 								String username = prefs.getString("username", "");
-								if(webcalldomain.equals("")) {
+								if(webcalldomain==null || webcalldomain.equals("")) {
 									Log.d(TAG,"dozeStateReceiver awake cannot reconnect no webcalldomain");
-								} else if(username.equals("")) {
+								} else if(username==null || username.equals("")) {
 									Log.d(TAG,"dozeStateReceiver awake cannot reconnect no username");
 								} else {
 									loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
@@ -603,7 +604,12 @@ public class WebCallService extends Service {
 			// ignore
 		}
 
-		if(wsClient==null && !reconnectBusy) {
+		if(wsClient!=null) {
+			Log.d(TAG,"onStartCommand got wsClient");
+		} else if(reconnectBusy) {
+			Log.d(TAG,"onStartCommand got reconnectBusy");
+		} else {
+			Log.d(TAG,"onStartCommand not connected to server");
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
 				// create notificationChannel to start service in foreground
 				startForeground(NOTIF_ID,buildFgServiceNotification("","",false));
@@ -614,22 +620,26 @@ public class WebCallService extends Service {
 				Bundle extras = intent.getExtras();
 				if(extras!=null) {
 					String extraCommand = extras.getString("onstart");
-					if(!extraCommand.equals("") && !extraCommand.equals("donothing")) {
-						Log.d(TAG,"onStartCommand extraCommand="+extraCommand);
-					}
-					if(extraCommand!=null && extraCommand.equals("connect")) {
-						if(!webcalldomain.equals("") && !username.equals("")) {
-							loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
-							Log.d(TAG, "onStartCommand loginUrl="+loginUrl);
-							if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-								Log.d(TAG,"onStartCommand cancel reconnectSchedFuture");
-								reconnectSchedFuture.cancel(false);	
-								reconnectSchedFuture = null;
+					if(extraCommand!=null) {
+						if(!extraCommand.equals("") && !extraCommand.equals("donothing")) {
+							Log.d(TAG,"onStartCommand extraCommand="+extraCommand);
+						}
+						if(extraCommand.equals("connect")) {
+							if(webcalldomain!=null && !webcalldomain.equals("") &&
+									username!=null && !username.equals("")) {
+								loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
+								Log.d(TAG, "onStartCommand loginUrl="+loginUrl);
+								if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+									Log.d(TAG,"onStartCommand cancel reconnectSchedFuture");
+									reconnectSchedFuture.cancel(false);
+									reconnectSchedFuture = null;
+								}
+								// NOTE: if we wait less than 15secs, our connection may establish
+								// but will then be quickly disconnected - not sure why
+								statusMessage("Going to login...",true,false);
+								reconnectSchedFuture =
+									scheduler.schedule(reconnecter, 16, TimeUnit.SECONDS);
 							}
-							// NOTE: if we wait less than 15secs, our connection may establish
-							// but will then be quickly disconnected - not sure why
-							statusMessage("Going to login...",true,false);
-							reconnectSchedFuture = scheduler.schedule(reconnecter, 16, TimeUnit.SECONDS);
 						}
 					}
 				}
@@ -661,7 +671,7 @@ public class WebCallService extends Service {
 	@Override
 	public boolean onUnbind(Intent intent) {
 		Log.d(TAG, "onUnbind");
-		return true;
+		return true; // true: call onRebind(Intent) later when new clients bind
 	}
 
 	@Override
@@ -673,16 +683,21 @@ public class WebCallService extends Service {
 
 	@Override
 	public void onTaskRemoved(Intent rootIntent) {
+		// activity killed
 		super.onTaskRemoved(rootIntent);
 		Log.d(TAG, "onTaskRemoved");
+
+/* tmtmtm
+		// we don't need to do this the service does not get killed
 		PendingIntent service = PendingIntent.getService(
 			context.getApplicationContext(),
 			1001,
 			new Intent(context.getApplicationContext(), WebCallService.class),
 			PendingIntent.FLAG_ONE_SHOT);
 		alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, 1000, service);
+*/
 	}
-
+/*
 private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.UncaughtExceptionHandler() {
 
 	@Override
@@ -700,6 +715,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		System.exit(2);
 	}
 };
+*/
 
 
 	// section 2: class WebCallServiceBinder with exposed methodes: 
@@ -841,7 +857,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					if(extendedLogsFlag) {
 						Log.d(TAG, "handleUri username=("+username+")");
 					}
-					if(username.equals("")) {
+					if(username==null || username.equals("")) {
 						// the username is not yet stored in the prefs
 						Log.d(TAG, "handleUri empty username=("+username+")");
 						int idxCallee = path.indexOf("/callee/");
@@ -1112,11 +1128,15 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 		public void activityDestroyed() {
 			// activity is telling us that it is being destroyed
-			Log.d(TAG, "activityDestroyed");
-			// hangup peercon, reset webview, clear callPickedUpFlag
-			endPeerConAndWebView();
-			if(wsClient==null && !reconnectBusy) {
+// TODO this should set webviewPageLoaded=false, needed for next incoming call ???
+			if(wsClient!=null) {
+				Log.d(TAG, "activityDestroyed got wsClient");
+				endPeerConAndWebView();
+			} else if(reconnectBusy) {
+				// do nothing
+			} else {
 				Log.d(TAG, "activityDestroyed exitService()");
+				// hangup peercon, reset webview, clear callPickedUpFlag
 				exitService();
 			}
 		}
@@ -1707,8 +1727,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// a pong from the server in response to our ping
 			// note: if doze mode is active, many of our ws-pings (by Timer) do not execute
 			// and then we also don't receive the acompaning server-pongs
-			Log.d(TAG,"onWebsocketPong "+
-				new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date()));
+			if(extendedLogsFlag) {
+				Log.d(TAG,"onWebsocketPong "+
+					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date()));
+			}
 			super.onWebsocketPong(conn,f); // without calling this we crash (at least on P9)
 		}
 
@@ -1771,7 +1793,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				// if the connection is bad we will know much quicker
 				if(wsClient!=null) {
 					try {
-						Log.d(TAG,"alarmStateReceiver sendPing");
+						if(extendedLogsFlag) {
+							Log.d(TAG,"alarmStateReceiver sendPing");
+						}
 						wsClient.sendPing();
 					} catch(Exception ex) {
 						Log.d(TAG,"alarmStateReceiver sendPing ex="+ex);
@@ -2599,8 +2623,10 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		if(netActiveInfo!=null) {
 			netTypeName = netActiveInfo.getTypeName();
 		}
-		Log.d(TAG,"networkState netActiveInfo="+netActiveInfo+" "+(wsClient!=null) +
-			" "+reconnectBusy+" "+netTypeName);
+		if(extendedLogsFlag) {
+			Log.d(TAG,"networkState netActiveInfo="+netActiveInfo+" "+(wsClient!=null) +
+				" "+reconnectBusy+" "+netTypeName);
+		}
 		if((netTypeName!=null && netTypeName.equalsIgnoreCase("WIFI")) ||
 				(wifiInfo!=null && wifiInfo.isConnected())) {
 			// wifi is connected: need wifi-lock
