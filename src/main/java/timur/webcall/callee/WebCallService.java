@@ -161,7 +161,7 @@ public class WebCallService extends Service {
 	// we do up to ReconnectCounterMax loops when we try to reconnect
 	// loops are done in ca. 30s intervals; so 40 loops will take up close to 20min
 	private final static int ReconnectCounterBeep = 6;    // make a beep after x reconnect loops
-	private final static int ReconnectCounterScreen = 20; // turn the screen on after x reconnect loops
+	private final static int ReconnectCounterScreen = 20; // turn screen on after x reconnect loops
 	private final static int ReconnectCounterMax = 40;    // max number of reconnect loops
 
 	private Context context = null;
@@ -513,8 +513,8 @@ public class WebCallService extends Service {
 								if(reconnectSchedFuture==null) {
 									// if no reconnecter is scheduled at this time...
 									// schedule a new reconnecter right away
-									String webcalldomain = 
-									 prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+									String webcalldomain = prefs.getString("webcalldomain", "")
+										.toLowerCase(Locale.getDefault());
 									String username = prefs.getString("username", "");
 									if(webcalldomain.equals("")) {
 										Log.d(TAG,"dozeStateReceiver idle no webcalldomain");
@@ -546,7 +546,7 @@ public class WebCallService extends Service {
 								keepAwakeWakeLockStartTime = (new Date()).getTime();
 							}
 
-							wakeUpIfNeeded(context);
+							wakeUpOnLoopCount(context);
 
 							if(wsClient!=null) {
 // TODO if 'dozeStateReceiver awake' happens without a disconnect coming, it is us now disconnecting
@@ -1597,7 +1597,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						keepAwakeWakeLockStartTime = (new Date()).getTime();
 					}
 
-					wakeUpIfNeeded(context);
+					wakeUpOnLoopCount(context);
 
 					// close prev connection
 					if(wsClient!=null) {
@@ -2107,7 +2107,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					currentDateTimeString());
 				reconnectBusy = true;
 				wakeupTypeInt = -1;
-				wakeUpIfNeeded(context);
+				wakeUpOnLoopCount(context);
 				reconnectCounter++;
 
 				if(haveNetworkInt<=0) {
@@ -2837,77 +2837,37 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		}
 	}
 
-	private boolean wakeUpIfNeeded(Context context) {
-		// we consider to be in DozeMode if we have done 20 unsuccessful reconnect loops and now one of
-		// these is true: no network, powerManager.isDeviceIdleMode, screen is off, running on battery
-		// in this case we want to call wakeUpFromDoze( to turn the screen on with the hope, that this
-		// will allow us to reconnect to server
-		if(extendedLogsFlag) {
-			Log.d(TAG,"wakeUpIfNeeded net="+haveNetworkInt+" ...");
-		}
+	private void wakeUpOnLoopCount(Context context) {
+		// when reconnecter keeps looping without getting connected we are probably in doze mode
+		// at loop number ReconnectCounterBeep we want to create a beep
+		// at loop number ReconnectCounterScreen we want to try wakeUpFromDoze()
+		boolean probablyInDoze = false;
 		if(haveNetworkInt<=0) {
+			probablyInDoze = true;
+		} else if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.M && powerManager.isDeviceIdleMode()) {
+			probablyInDoze = true;
+		} else if(!isScreenOn()) {
+			probablyInDoze = true;
+		} else if(!isPowerConnected(context)) {
+			probablyInDoze = true;
+		}
+
+		if(extendedLogsFlag) {
+			Log.d(TAG,"wakeUpOnLoopCount net="+haveNetworkInt+" inDoze="+probablyInDoze);
+		}
+		if(probablyInDoze) {
 			if(reconnectCounter==ReconnectCounterBeep) {
 				if(beepOnLostNetworkMode>0) {
 					playSoundNotification();
 				}
 			} else if(reconnectCounter==ReconnectCounterScreen) {
-				Log.d(TAG,"wakeUpIfNeeded true (no network + reconnectCounter==ReconnectCounterScreen)");
+				Log.d(TAG,"wakeUpOnLoopCount (no net + reconnectCounter==ReconnectCounterScreen)");
 				wakeUpFromDoze();
-				return true;
 			}
 		}
-		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >= 23
-			if(extendedLogsFlag) {
-				Log.d(TAG,"wakeUpIfNeeded api "+Build.VERSION.SDK_INT+">=23");
-			}
-			if(powerManager.isDeviceIdleMode()) {
-				if(reconnectCounter==ReconnectCounterBeep) {
-					if(beepOnLostNetworkMode>0) {
-						playSoundNotification();
-					}
-				} else if(reconnectCounter==ReconnectCounterScreen) {
-					Log.d(TAG,"wakeUpIfNeeded true deviceIdle reconnectCounter==ReconScreen");
-					wakeUpFromDoze();
-					return true;
-				}
-			}
-		}
-		if(extendedLogsFlag) {
-			Log.d(TAG,"wakeUpIfNeeded check screen on/off");
-		}
-		if(!isScreenOn()) {
-			if(reconnectCounter==ReconnectCounterBeep) {
-				if(beepOnLostNetworkMode>0) {
-					playSoundNotification();
-				}
-			}
-			if(reconnectCounter==ReconnectCounterScreen) {
-				Log.d(TAG,"wakeUpIfNeeded true (screen==off reconnectCounter==ReconnectCounterScreen)");
-				wakeUpFromDoze();
-				return true;
-			}
-		}
-		if(!isPowerConnected(context)) {
-			if(reconnectCounter==ReconnectCounterBeep) {
-				if(beepOnLostNetworkMode>0) {
-					playSoundNotification();
-				}
-			}
-			if(reconnectCounter==ReconnectCounterScreen) {
-				Log.d(TAG,"wakeUpIfNeeded true (power connected + reconnectCounter==ReconCounterScreen)");
-				wakeUpFromDoze();
-				return true;
-			}
-		}
-		// if we return false, the device will not be woken up for reconnect attempts
-		if(extendedLogsFlag) {
-			Log.d(TAG,"wakeUpIfNeeded false");
-		}
-		return false;
 	}
 
 	private boolean isScreenOn() {
-//		DisplayManager displayManager = (DisplayManager)context.getSystemService(Context.DISPLAY_SERVICE);
 		for (Display display : displayManager.getDisplays()) {
 			//Log.d(TAG,"isScreenOff state="+display.getState());
 			// STATE_UNKNOWN = 0
@@ -2925,7 +2885,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 	}
 
 	private boolean isPowerConnected(Context context) {
-		Intent intent = context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+		Intent intent = context.registerReceiver(null,
+			new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
 		int plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
 		return plugged == BatteryManager.BATTERY_PLUGGED_AC ||
 				plugged == BatteryManager.BATTERY_PLUGGED_USB;
