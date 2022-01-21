@@ -1766,8 +1766,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
 				}
 
-				Log.d(TAG,"onWebsocketPing "+pingCounter+" net="+haveNetworkInt+" "+keepAwakeWakeLockMS+
-					" "+BuildConfig.VERSION_NAME+" "+
+				Log.d(TAG,"onWebsocketPing "+pingCounter+" net="+haveNetworkInt+" "+
+					keepAwakeWakeLockMS+" "+BuildConfig.VERSION_NAME+" "+
 					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(currentDate));
 			}
 			lastPingDate = currentDate;
@@ -1788,8 +1788,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			}
 			pendingAlarm = null;
 			alarmPendingDate = null;
-			Log.d(TAG,"net="+haveNetworkInt+" keepAwakeMS="+keepAwakeWakeLockMS+" "+ 
-				currentDateTimeString());
+			Log.d(TAG,"net="+haveNetworkInt+" "+BuildConfig.VERSION_NAME+
+				" keepAwakeMS="+keepAwakeWakeLockMS+" "+currentDateTimeString());
 			if(/*haveNetworkInt==0 &&*/ Build.VERSION.SDK_INT < Build.VERSION_CODES.N) { // <api24
 				checkNetworkState(false);
 			}
@@ -1807,12 +1807,13 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						wsClient = null;
 					}
 				}
-				if(wsClient==null) {
-// TODO no need to call checkLastPing(), let's go straight to reconnecter
-				}
 			}
 
-			checkLastPing(true,0);
+			if(wsClient!=null) {
+				checkLastPing(true,0);
+			} else {
+				startReconnecter(true,0);
+			}
 
 			// always request a followup alarm
 			pendingAlarm = PendingIntent.getBroadcast(context, 0, startAlarmIntent, 0);
@@ -1837,6 +1838,45 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 
 	// section 5: private methods
+
+	private void startReconnecter(boolean wakeIfNoNet, int reconnectDelaySecs) {
+		// last server ping is too old
+		Log.d(TAG,"checkLastPing schedule reconnecter");
+		if(wsClient!=null) {
+			WebSocketClient tmpWsClient = wsClient;
+			wsClient = null;
+			// closeBlocking() makes no sense here bc server has stopped sending pings
+			tmpWsClient.close();
+			statusMessage("Disconnected from WebCall server..",true,false);
+		}
+
+		if(screenForWifiMode>0) {
+// TODO only needed if last network was wifi?
+			if(wakeIfNoNet && haveNetworkInt==0) {
+				Log.d(TAG,"checkLastPing haveNoNetwork wakeUpFromDoze");
+				wakeUpFromDoze();
+			}
+		}
+
+		if(loginUrl==null) {
+			// if this service was NOT started by system boot
+			// and there was NO prev reconnect caused by 1006
+			// then we will need to construct loginUrl before we call reconnecter
+			String webcalldomain;
+			String username;
+			webcalldomain = prefs.getString("webcalldomain", "")
+				.toLowerCase(Locale.getDefault());
+			username = prefs.getString("username", "");
+			loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
+		}
+
+		if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+			reconnectSchedFuture.cancel(false);
+			reconnectSchedFuture = null;
+		}
+		reconnectSchedFuture = scheduler.schedule(reconnecter,
+			reconnectDelaySecs,TimeUnit.SECONDS);
+	}
 
 	private void checkLastPing(boolean wakeIfNoNet, int reconnectDelaySecs) {
 		if(extendedLogsFlag) {
@@ -1887,40 +1927,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			}
 		}
 		if(needReconnecter) {
-			// last server ping is too old
-			Log.d(TAG,"checkLastPing schedule reconnecter");
-			if(wsClient!=null) {
-				WebSocketClient tmpWsClient = wsClient;
-				wsClient = null;
-				// closeBlocking() makes no sense here bc server has stopped sending pings
-				tmpWsClient.close();
-				statusMessage("Disconnected from WebCall server..",true,false);
-			}
-
-			if(screenForWifiMode>0) {
-// TODO only needed if last network was wifi?
-				if(wakeIfNoNet && haveNetworkInt==0) {
-					Log.d(TAG,"checkLastPing haveNoNetwork wakeUpFromDoze");
-					wakeUpFromDoze();
-				}
-			}
-
-			if(loginUrl==null) {
-				// if this service was NOT started by system boot
-				// and there was NO prev reconnect caused by 1006
-				// then we will need to construct loginUrl before we call reconnecter
-				String webcalldomain;
-				String username;
-				webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-				username = prefs.getString("username", "");
-				loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
-			}
-//tmtmtm
-			if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-				reconnectSchedFuture.cancel(false);
-				reconnectSchedFuture = null;
-			}
-			reconnectSchedFuture = scheduler.schedule(reconnecter,reconnectDelaySecs,TimeUnit.SECONDS);
+			startReconnecter(wakeIfNoNet,reconnectDelaySecs);
 		}
 	}
 
