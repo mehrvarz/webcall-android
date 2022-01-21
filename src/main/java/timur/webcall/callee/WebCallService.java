@@ -1759,13 +1759,13 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			int hours = calNow.get(Calendar.HOUR_OF_DAY);
 			int minutes = calNow.get(Calendar.MINUTE);
 			int currentMinuteOfDay = ((hours * 60) + minutes);
-			if(extendedLogsFlag) {
-				if(currentMinuteOfDay<lastMinuteOfDay) {
-					Log.d(TAG,"onWebsocketPing clear old keepAwakeWakeLockMS "+keepAwakeWakeLockMS);
-					keepAwakeWakeLockMS = 0;
-					storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
-				}
+			if(currentMinuteOfDay<lastMinuteOfDay) {
+				Log.d(TAG,"new day clear old keepAwakeWakeLockMS "+keepAwakeWakeLockMS);
+				keepAwakeWakeLockMS = 0;
+				storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+			}
 
+			if(extendedLogsFlag) {
 				Log.d(TAG,"onWebsocketPing "+pingCounter+" net="+haveNetworkInt+" "+
 					keepAwakeWakeLockMS+" "+BuildConfig.VERSION_NAME+" "+
 					new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(currentDate));
