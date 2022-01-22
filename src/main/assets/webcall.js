@@ -88,6 +88,7 @@ window.onload = function() {
 			// store the new versionName, so that the speech bubbles do not appear next time
 			console.log("store versionName "+versionName);
 			Android.storePreference("versionName", versionName);
+			Android.storePreferenceLong("keepAwakeWakeLockMS", 0);
 		}
 	}
 	if(domain=="") {

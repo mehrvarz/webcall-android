@@ -745,12 +745,12 @@ public class WebCallService extends Service {
 
 	@Override
 	public void onTaskRemoved(Intent rootIntent) {
-		// activity killed
+		// activity and service killed
 		super.onTaskRemoved(rootIntent);
 		Log.d(TAG, "onTaskRemoved");
 
 /* tmtmtm
-		// we don't need to do this the service does not get killed
+// TODO if we want to do this, we may also need to re-login
 		PendingIntent service = PendingIntent.getService(
 			context.getApplicationContext(),
 			1001,
@@ -759,7 +759,9 @@ public class WebCallService extends Service {
 		alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, 1000, service);
 */
 	}
+
 /*
+// TODO if we want to do this, we may also need to re-login
 private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.UncaughtExceptionHandler() {
 
 	@Override
@@ -1530,21 +1532,39 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		}
 
 		@android.webkit.JavascriptInterface
+		public long readPreferenceLong(String pref) {
+			long val = prefs.getLong(pref, 0);
+			if(extendedLogsFlag) {
+				Log.d(TAG, "readPreferenceLong "+pref+" = "+val);
+			}
+			return val;
+		}
+
+		@android.webkit.JavascriptInterface
 		public void storePreference(String pref, String str) {
 			// used by WebCallAndroid
 			storePrefsString(pref,str);
-			if(extendedLogsFlag) {
+			//if(extendedLogsFlag) {
 				Log.d(TAG, "storePreference "+pref+" "+str+" stored");
-			}
+			//}
 		}
 
 		@android.webkit.JavascriptInterface
 		public void storePreferenceBool(String pref, boolean bool) {
 			// used by WebCallAndroid
 			storePrefsBoolean(pref,bool);
-			if(extendedLogsFlag) {
+			//if(extendedLogsFlag) {
 				Log.d(TAG, "storePreferenceBool "+pref+" "+bool+" stored");
-			}
+			//}
+		}
+
+		@android.webkit.JavascriptInterface
+		public void storePreferenceLong(String pref, long val) {
+			// used by WebCallAndroid
+			storePrefsLong(pref,val);
+			//if(extendedLogsFlag) {
+				Log.d(TAG, "storePreferenceLong "+pref+" "+val+" stored");
+			//}
 		}
 
 		@android.webkit.JavascriptInterface
