@@ -180,7 +180,6 @@ public class WebCallService extends Service {
 	private SharedPreferences prefs;
 	private ValueCallback<Uri[]> filePath; // for file selector
 	private String blobFilename = null;
-	private String loginUrl = null;
 	private AlarmManager alarmManager = null;
 	private WakeLock keepAwakeWakeLock = null; // PARTIAL_WAKE_LOCK (screen off)
 	private ConnectivityManager connectivityManager = null;
@@ -188,43 +187,99 @@ public class WebCallService extends Service {
 	private String userAgentString = null;
 	private AudioManager audioManager = null;
 
-	private volatile String webviewCookies = null;
-	private volatile WakeLock wakeUpWakeLock = null; // for wakeup from doze, released by activity
-													 // FULL_WAKE_LOCK|ACQUIRE_CAUSES_WAKEUP (screen on)
-	private volatile ScheduledFuture<?> reconnectSchedFuture = null;
-	private volatile WebSocketClient wsClient = null;
-	private volatile int connectTypeInt = 0; // >0 = connected to webcall server (if wsClient!=null)
-	private volatile int wakeupTypeInt = -1; // 1=disconnected, 2=incoming call
-	private volatile int haveNetworkInt = -1; // 0=noNet, 2=wifi, 1=other
-	private volatile WebView myWebView = null;
-	private volatile String currentUrl = null;
-	private volatile boolean webviewMainPageLoaded = false; // is the main page loaded?
+
+	// wakeUpWakeLock used for wakeup from doze: FULL_WAKE_LOCK|ACQUIRE_CAUSES_WAKEUP (screen on)
+	// wakeUpWakeLock is released by activity
+	private volatile WakeLock wakeUpWakeLock = null; 
+
+	// the websocket URL provided by the login service
 	private volatile String wsAddr = "";
-	private volatile boolean callPickedUpFlag = false;
+
+	// all ws-communications with and from the signalling server go through wsClient
+	private volatile WebSocketClient wsClient = null;
+
+	// connectTypeInt >0 (if wsClient!=null) means we are connected to webcall server
+	private volatile int connectTypeInt = 0;
+
+	// wakeupTypeInt describes why we wake the activity: 1=got disconnected, 2=incoming call
+	private volatile int wakeupTypeInt = -1;
+
+	// haveNetworkInt describes the type of network cur in use: 0=noNet, 2=wifi, 1=other
+	private volatile int haveNetworkInt = -1;
+
+	private volatile WebView myWebView = null;
+
+	// currentUrl contains the currently loaded URL
+	private volatile String currentUrl = null;
+
+	// webviewMainPageLoaded is set true if currentUrl is pointing to the main page
+	private volatile boolean webviewMainPageLoaded = false;
+
+	// callPickedUpFlag is set from pickup until peerConnect, activates proximitySensor
+	private volatile boolean callPickedUpFlag = false; 
+
+	// peerConnectFlag set if full mediaConnect is established
 	private volatile boolean peerConnectFlag = false;
+
+	// peerDisconnnectFlag is set when call is ended by endWebRtcSession() -> peerDisConnect()
+	// peerDisconnnectFlag will get cleard by rtcConnect() of the next call
+	// peerDisconnnectFlag is used to detect 'ringing' state
+	// !callPickedUpFlag && !peerConnectFlag && !peerDisconnnectFlag = ringing
+	// !callPickedUpFlag && !peerConnectFlag && peerDisconnnectFlag  = not ringing
 	private volatile boolean peerDisconnnectFlag = false;
+
+	// sendRtcMessagesAfterInit is used to decide if processWebRtcMessages() should be called
 	private volatile boolean sendRtcMessagesAfterInit;
+
+	// reconnectSchedFuture holds the currently scheduled reconnecter task
+	private volatile ScheduledFuture<?> reconnectSchedFuture = null;
+
+	// reconnectBusy is set true while reconnecter is running
+	// reconnectBusy can be set false to abort reconnecter
 	private volatile boolean reconnectBusy = false;
+
+	// reconnectWaitNetwork is set true if reconnecter is running but idle waiting for some network
 	private volatile boolean reconnectWaitNetwork = false;
+
+	// reconnectCounter is the reconnecter loop counter
 	private volatile int reconnectCounter = 0;
-	private volatile int audioToSpeakerMode = 0;            // preference persistens
+
+	// audioToSpeakerActive holds the current state of audioToSpeakerMode
 	private volatile boolean audioToSpeakerActive = false;
-	private volatile int beepOnLostNetworkMode = 0;         // preference persistens
-	private volatile int startOnBootMode = 0;               // preference persistens
-	private volatile int screenForWifiMode = 0;
+
+	// loginUrl will be constructed from webcalldomain + "/rtcsig/login"
+	private volatile String loginUrl = null;
+
+	// pingCounter is the number of server pings received and processed
 	private volatile long pingCounter = 0l;
+
+	// lastPingDate used by checkLastPing() to calculated seconds since last received ping
 	private volatile Date lastPingDate = null;
+
+	// dozeIdle is set by dozeStateReceiver isDeviceIdleMode() and isInteractive()
 	private volatile boolean dozeIdle = false;
+
+	// alarmPendingDate holds the last time a (pending) alarm was scheduled
 	private volatile Date alarmPendingDate = null;
 	private volatile PendingIntent pendingAlarm = null;
+
+	private volatile String webviewCookies = null;
 	private volatile boolean soundNotificationPlayed = false;
 	private volatile boolean extendedLogsFlag = false;
 	private volatile boolean connectToSignalingServerIsWanted = false;
 	private volatile long wakeUpFromDozeSecs = 0; // last wakeUpFromDoze() time
 	private volatile long keepAwakeWakeLockStartTime = 0;
-	private volatile long keepAwakeWakeLockMS = 0; // sum of MS where keepAwakeWakeLock was held
 	private volatile int lastMinuteOfDay = 0;
 	private volatile int origvol = 0;
+
+	// below are variables backed by preference persistens
+	private volatile int beepOnLostNetworkMode = 0;
+	private volatile int startOnBootMode = 0;
+	private volatile int audioToSpeakerMode = 0;
+	private volatile int screenForWifiMode = 0;
+	// keepAwakeWakeLockMS holds the sum of MS while keepAwakeWakeLock was held since midnight
+	private volatile long keepAwakeWakeLockMS = 0;
+
 
 	// section 1: android service methods
 	@Override
@@ -427,7 +482,8 @@ public class WebCallService extends Service {
 					// the criteria here should be: is goOnline activated
 					// aka: goOnlineButton.disabled == true
 					if(newNetworkInt>0 && haveNetworkInt<=0 &&
-							connectToSignalingServerIsWanted && (!reconnectBusy || reconnectWaitNetwork)) {
+							connectToSignalingServerIsWanted && 
+							(!reconnectBusy || reconnectWaitNetwork)) {
 						// call scheduler.schedule()
 						if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"networkState keepAwakeWakeLock.acquire");
@@ -489,9 +545,9 @@ public class WebCallService extends Service {
 						if(powerManager.isDeviceIdleMode()) {
 						    // the device is now in doze mode
 							dozeIdle = true;
-							Log.d(TAG,"dozeStateReceiver idle");
+							Log.d(TAG,"dozeState idle");
 							if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
-								Log.d(TAG,"dozeStateReceiver idle keepAwakeWakeLock.acquire");
+								Log.d(TAG,"dozeState idle keepAwakeWakeLock.acquire");
 								keepAwakeWakeLock.acquire(30 * 60 * 1000);
 								keepAwakeWakeLockStartTime = (new Date()).getTime();
 							}
@@ -499,10 +555,10 @@ public class WebCallService extends Service {
 							// if the connection is bad we will know much quicker
 							if(wsClient!=null) {
 								try {
-									Log.d(TAG,"dozeStateReceiver idle sendPing");
+									Log.d(TAG,"dozeState idle sendPing");
 									wsClient.sendPing();
 								} catch(Exception ex) {
-									Log.d(TAG,"dozeStateReceiver idle sendPing ex="+ex);
+									Log.d(TAG,"dozeState idle sendPing ex="+ex);
 									wsClient = null;
 								}
 							}
@@ -517,12 +573,12 @@ public class WebCallService extends Service {
 										.toLowerCase(Locale.getDefault());
 									String username = prefs.getString("username", "");
 									if(webcalldomain.equals("")) {
-										Log.d(TAG,"dozeStateReceiver idle no webcalldomain");
+										Log.d(TAG,"dozeState idle no webcalldomain");
 									} else if(username.equals("")) {
-										Log.d(TAG,"dozeStateReceiver idle no username");
+										Log.d(TAG,"dozeState idle no username");
 									} else {
 										loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
-										Log.d(TAG,"dozeStateReceiver idle re-login now url="+loginUrl);
+										Log.d(TAG,"dozeState idle re-login now url="+loginUrl);
 										// hopefully network is avilable
 										reconnectSchedFuture =
 											scheduler.schedule(reconnecter,0,TimeUnit.SECONDS);
@@ -534,14 +590,14 @@ public class WebCallService extends Service {
 							// the device just woke up from doze mode
 							// most likely it will go to idle in about 30s
 							boolean screenOn = isScreenOn();
-							Log.d(TAG,"dozeStateReceiver awake screenOn="+screenOn+" doze="+dozeIdle);
+							Log.d(TAG,"dozeState awake screenOn="+screenOn+" doze="+dozeIdle);
 							dozeIdle = false;
 							if(screenOn) {
 								return;
 							}
 
 							if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
-								Log.d(TAG,"dozeStateReceiver awake keepAwakeWakeLock.acquire");
+								Log.d(TAG,"dozeState awake keepAwakeWakeLock.acquire");
 								keepAwakeWakeLock.acquire(30 * 60 * 1000);
 								keepAwakeWakeLockStartTime = (new Date()).getTime();
 							}
@@ -549,35 +605,35 @@ public class WebCallService extends Service {
 							wakeUpOnLoopCount(context);
 
 							if(wsClient!=null) {
-// TODO if 'dozeStateReceiver awake' happens without a disconnect coming, it is us now disconnecting
-								Log.d(TAG,"dozeStateReceiver awake wsClient.closeBlocking()...");
+// TODO if 'dozeState awake' happens without a disconnect coming, it is us now disconnecting
+								Log.d(TAG,"dozeState awake wsClient.closeBlocking()...");
 								WebSocketClient tmpWsClient = wsClient;
 								wsClient = null;
 								try {
 									tmpWsClient.closeBlocking();
 								} catch(Exception ex) {
-									Log.d(TAG,"dozeStateReceiver awake closeBlocking ex="+ex);
+									Log.d(TAG,"dozeState awake closeBlocking ex="+ex);
 								}
 							} else {
-								Log.d(TAG,"dozeStateReceiver awake wsClient==null");
+								Log.d(TAG,"dozeState awake wsClient==null");
 							}
 
 							statusMessage("Disconnected from WebCall server...",true,true);
 
 							if(reconnectSchedFuture==null) {
-								// if no reconnecter is scheduled at this time (say, by checkLastPing())
+								// if no reconnecter is scheduled at this time (by checkLastPing())
 								// then schedule a new reconnecter
-								// schedule in 8s to give server some time to detect the discon
-								String webcalldomain = 
-									prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+								// in 8s to give server some time to detect the discon
+								String webcalldomain = prefs.getString("webcalldomain", "")
+									.toLowerCase(Locale.getDefault());
 								String username = prefs.getString("username", "");
 								if(webcalldomain==null || webcalldomain.equals("")) {
-									Log.d(TAG,"dozeStateReceiver awake cannot reconnect no webcalldomain");
+									Log.d(TAG,"dozeState awake cannot reconnect no webcalldomain");
 								} else if(username==null || username.equals("")) {
-									Log.d(TAG,"dozeStateReceiver awake cannot reconnect no username");
+									Log.d(TAG,"dozeState awake cannot reconnect no username");
 								} else {
 									loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
-									Log.d(TAG,"dozeStateReceiver awake re-login in 2s url="+loginUrl);
+									Log.d(TAG,"dozeState awake re-login in 2s url="+loginUrl);
 									// hopefully network is avilable in 8s again
 									reconnectSchedFuture =
 										scheduler.schedule(reconnecter,2,TimeUnit.SECONDS);
@@ -586,7 +642,7 @@ public class WebCallService extends Service {
 
 						} else if(powerManager.isPowerSaveMode()) {
 							// dozeIdle = ??? TODO this never comes
-							Log.d(TAG,"dozeStateReceiver powerSave mode");
+							Log.d(TAG,"dozeState powerSave mode");
 						}
 					}
 				};
@@ -1396,9 +1452,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			Log.d(TAG,"callPickedUp()");
 			// route audio to it's normal destination (to headset if connected)
 			audioToSpeakerSet(false,false);
-			// this activates proximitySensor
-			// callPickedUpFlag will be cleared when the ringing stops (by pickup or hangup)
-			callPickedUpFlag=true;
+			callPickedUpFlag=true; // no peerConnect yet, this activates proximitySensor
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1788,8 +1842,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			}
 			pendingAlarm = null;
 			alarmPendingDate = null;
-			Log.d(TAG,"net="+haveNetworkInt+" "+BuildConfig.VERSION_NAME+
-				" keepAwakeMS="+keepAwakeWakeLockMS+" "+currentDateTimeString());
+			Log.d(TAG,"net="+haveNetworkInt+ " awakeMS="+keepAwakeWakeLockMS+
+				" pings="+pingCounter+ " "+BuildConfig.VERSION_NAME+ 
+				" "+currentDateTimeString());
 			if(/*haveNetworkInt==0 &&*/ Build.VERSION.SDK_INT < Build.VERSION_CODES.N) { // <api24
 				checkNetworkState(false);
 			}
@@ -2200,7 +2255,15 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							Log.d(TAG,"reconnecter status="+status+" fail");
 						} else {
 							Log.d(TAG,"reconnecter status="+status+" OK");
-							reader = new BufferedReader(new InputStreamReader(con.getInputStream()));
+							try {
+								reader = new BufferedReader(
+									new InputStreamReader(con.getInputStream()));
+							} catch(Exception ex) {
+								// for instance java.net.SocketTimeoutException
+								Log.d(TAG,"reconnecter con.getInputStream() retry ex="+ex);
+								reader = new BufferedReader(
+									new InputStreamReader(con.getInputStream()));
+							}
 						}
 					} catch(Exception ex) {
 						status = 0;
