@@ -227,7 +227,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 
 			menu.add(none,menuCaptureLogs,none,R.string.msg_capture_logs);
-			menu.add(none,menuOpenLogs,none,R.string.msg_open_logs);
+			if(lastLogfileName!=null) {
+				menu.add(none,menuOpenLogs,none,R.string.msg_open_logs);
+			}
 
 			if(touchY<80) {
 				// extended functionality
