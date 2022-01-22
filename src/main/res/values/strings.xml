@@ -25,6 +25,7 @@
     <string name="msg_screen_for_wifi_off"     >Screen for WIFI is On</string>
 
     <string name="msg_capture_logs"            >Capture logs now</string>
+    <string name="msg_open_logs"               >Open log file</string>
     <string name="msg_ext_logs_off"            ># Extended logs is Off</string>
     <string name="msg_ext_logs_on"             ># Extended logs is On</string>
 </resources>

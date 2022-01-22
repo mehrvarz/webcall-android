@@ -7,8 +7,8 @@ android {
 		applicationId "timur.webcall.callee"
 		minSdkVersion 21
 		targetSdkVersion 31
-		versionCode 49
-		versionName "0.9.49"
+		versionCode 50
+		versionName "0.9.50"
 	}
 
 	signingConfigs {
@@ -60,20 +60,21 @@ buildscript {
         }
 	}
 	dependencies {
-		//classpath fileTree(include: ['*.jar'], dir: 'libs')
-		classpath 'com.android.tools.build:gradle:4.1.3'
-		//classpath 'com.android.tools.build:gradle:7.3.3'
+		//classpath 'com.android.tools.build:gradle:4.1.3'
+		classpath 'com.android.tools.build:gradle:7.0.4'
 	}
 }
 repositories { 
-    mavenCentral()
-    maven {
-      url 'https://maven.google.com'
+	mavenCentral()
+	maven {
+		url 'https://maven.google.com'
 	}
 }
 dependencies {
-	// implementation fileTree(dir: 'libs', include: ['*.jar'])
+	//implementation fileTree(dir: 'libs', include: ['*.jar'])
+	//implementation fileTree(dir: 'libs', include: ['*.aar'])
 	implementation 'androidx.appcompat:appcompat:1.4.0'
+	//implementation 'com.nbsp:materialfilepicker:1.9.1'
 
 	// TODO switch to 1.5.3 when possible
 	// see: https://github.com/TooTallNate/Java-WebSocket

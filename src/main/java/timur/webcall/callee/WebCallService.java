@@ -1241,8 +1241,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			return screenForWifiMode;
 		}
 
-		public void captureLogs() {
-			saveSystemLogs();
+		public String captureLogs() {
+			return saveSystemLogs();
 		}
 
 		public boolean extendedLogs(int val) {
@@ -1987,7 +1987,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 	}
 
 	private void storeByteArrayToFile(byte[] blobAsBytes, String filename) {
-		String androidFolder = Environment.DIRECTORY_DOWNLOADS; // DIRECTORY_DCIM
+		String androidFolder = Environment.DIRECTORY_DOWNLOADS;
 		String mimeType = URLConnection.guessContentTypeFromName(filename);
 		String filenameLowerCase = filename.toLowerCase(Locale.getDefault());
 		if(filenameLowerCase.endsWith(".jpg") ||
@@ -3020,7 +3020,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		}
 	}
 
-	private void saveSystemLogs() {
+	private String saveSystemLogs() {
 		final String logFileName = "webcall-log-"+
 				new SimpleDateFormat("yyyy-MM-dd-HH-mm", Locale.US).format(new Date()) + ".txt";
 		Log.d(TAG,"saveSystemLogs fileName="+logFileName);
@@ -3085,9 +3085,11 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			new Thread(new ProcessTestRunnable(p)).start();
 			//Log.d(TAG,"saveSystemLogs p.waitFor()");
 			p.waitFor();
+			return logFileName;
 		}
 		catch(Exception ex) {
 			ex.printStackTrace();
+			return null;
 		}
 	}
 

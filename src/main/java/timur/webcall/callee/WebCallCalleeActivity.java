@@ -68,6 +68,7 @@ import android.nfc.NdefRecord;
 import android.nfc.NdefMessage;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 
 import java.util.Date;
 import java.util.Locale;
@@ -98,12 +99,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private volatile boolean activityStartNeeded = false;
 	private WakeLock wakeLockScreen = null;
     private final static int FILE_REQ_CODE = 1341;
-	private final static int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 123;
+	private final static int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 1342;
+//	private final static int LOG_FILE_SHOW = 1343;
 	private	Context context;
 	private NfcAdapter nfcAdapter;
 	private boolean startupFail = false;
 	private volatile int touchX, touchY;
 	private volatile boolean extendedLogsFlag = false;
+	private volatile String lastLogfileName = null;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -157,6 +160,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private int menuScreenForWifiOn = 9;
 	private int menuScreenForWifiOff = 10;
 	private int menuCaptureLogs = 20;
+	private int menuOpenLogs = 21;
 	private int menuExtendedLogsOn = 30;
 	private int menuExtendedLogsOff = 31;
 	private volatile boolean nearbyMode = false;
@@ -223,6 +227,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 
 			menu.add(none,menuCaptureLogs,none,R.string.msg_capture_logs);
+			menu.add(none,menuOpenLogs,none,R.string.msg_open_logs);
 
 			if(touchY<80) {
 				// extended functionality
@@ -351,8 +356,45 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 		if(selectedItem==menuCaptureLogs) {
 			Log.d(TAG, "onContextItemSelected captureLogs");
-			webCallServiceBinder.captureLogs();
+			lastLogfileName = webCallServiceBinder.captureLogs();
+			Log.d(TAG, "onContextItemSelected captureLogs ("+lastLogfileName+")");
 			//Toast.makeText(context, "Logs were captured", Toast.LENGTH_LONG).show();
+			return true;
+		}
+		if(selectedItem==menuOpenLogs) {
+			Log.d(TAG, "onContextItemSelected menuOpenLogs");
+/*
+			Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+			//intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+			intent.addCategory(Intent.CATEGORY_OPENABLE);
+			intent.setType("text/plain");
+//			startActivityForResult(Intent.createChooser(intent, "Open file with"),LOG_FILE_SHOW);
+			startActivityForResult(intent, LOG_FILE_SHOW);
+*/
+
+/*
+			new MaterialFilePicker()
+				.withActivity(this)
+				.withCloseMenu(true)
+				.withFilter(Pattern.compile(".*\\.(txt)$"))
+				.withFilterDirectories(false)
+				.withTitle("Choose File")
+				.withRequestCode(LOG_FILE_SHOW)
+				.start();
+*/
+
+			if(lastLogfileName!=null) {
+				File file = new File(Environment.getExternalStorageDirectory() + "/" +
+					Environment.DIRECTORY_DOWNLOADS + "/"+ lastLogfileName);
+				Uri fileUri = FileProvider.getUriForFile(context,
+					context.getApplicationContext().getPackageName() + ".provider", file);
+				Log.d(TAG, "onContextItemSelected menuOpenLogs "+fileUri);
+				Intent intent = new Intent(Intent.ACTION_VIEW);
+				//intent.addCategory(Intent.CATEGORY_OPENABLE);
+				intent.setDataAndType(fileUri, "text/plain");
+				intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+				startActivity(intent);
+			}
 			return true;
 		}
 		if(selectedItem==menuExtendedLogsOn) {
@@ -915,8 +957,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
     }
 
 	@Override
-	public void onActivityResult(int requestCode, int resultCode, Intent intent) {
-        super.onActivityResult(requestCode, resultCode, intent);
+	public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
 	    Log.d(TAG, "onActivityResult "+requestCode+" "+resultCode);
 		if(requestCode==FILE_REQ_CODE) {
 			Uri[] results = null;
@@ -924,8 +966,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				ClipData clipData;
 				String stringData;
 				try {
-					clipData = intent.getClipData();
-					stringData = intent.getDataString();
+					clipData = data.getClipData();
+					stringData = data.getDataString();
 				}catch (Exception e){
 					clipData = null;
 					stringData = null;
@@ -941,14 +983,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				} else {
 					Log.d(TAG, "onActivityResult stringData="+stringData);
 					try {
-						Bitmap cam_photo = (Bitmap) intent.getExtras().get("data");
+						Bitmap cam_photo = (Bitmap) data.getExtras().get("data");
 						ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 						cam_photo.compress(Bitmap.CompressFormat.JPEG, 100, bytes);
 						stringData = MediaStore.Images.Media.insertImage(
 							getContentResolver(), cam_photo, null, null);
 					} catch (Exception ignored){ }
 					/* checking extra data
-					Bundle bundle = intent.getExtras();
+					Bundle bundle = data.getExtras();
 					if (bundle != null) {
 						for (String key : bundle.keySet()) {
 							Log.w("ExtraData",
@@ -960,6 +1002,34 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			}
 			webCallServiceBinder.fileSelect(results);
+/*
+		} else if(requestCode==LOG_FILE_SHOW) {
+//	        String filePath = data.getStringExtra(FilePickerActivity.RESULT_FILE_PATH);
+//			Log.d(TAG, "onActivityResult LOG_FILE_SHOW="+filePath);
+			Log.d(TAG, "onActivityResult LOG_FILE_SHOW "+data);
+
+			Uri uri = null;
+			if(data!=null) {
+				if(data.getClipData() != null) {
+					//for(int i = 0; i < data.getClipData().getItemCount(); i++) {
+						uri = data.getClipData().getItemAt(0).getUri();
+					//}
+				} else {
+					uri = data.getData();
+				}
+			}
+
+//			Uri uri = Uri.fromFile();
+//			Uri uri = intent.getData();
+//			Uri uri = (Uri)intent.getExtras().get("raw");
+			Log.d(TAG, "onActivityResult LOG_FILE_SHOW uri="+uri);
+			if(uri!=null) {
+				Intent intent = new Intent(Intent.ACTION_VIEW);
+				intent.setDataAndType(uri, "text/plain");
+				intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+				context.startActivity(intent);
+			}
+*/
 		}
 	}
 

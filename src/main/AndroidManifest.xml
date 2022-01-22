@@ -42,6 +42,7 @@
             android:label="@string/app_name"
 			android:configChanges="orientation|keyboardHidden|screenSize"
 			android:theme="@android:style/Theme.Material.NoActionBar"
+			android:exported="true"
             android:launchMode="singleInstance">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -51,7 +52,8 @@
 
 		<service android:name=".WebCallService"
 			android:foregroundServiceType="microphone|camera" />
-		<receiver android:name=".WebCallServiceReceiver">
+		<receiver android:name=".WebCallServiceReceiver"
+			android:exported="true">
 			<intent-filter>
 				<action android:name="android.intent.action.BOOT_COMPLETED" />
 			</intent-filter>
