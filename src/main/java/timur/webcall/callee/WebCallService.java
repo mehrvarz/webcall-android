@@ -1807,6 +1807,15 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				return;
 			}
 
+			// in case keepAwakeWakeLock was acquired by "dozeStateReceiver idle"
+			if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+				Log.d(TAG,"onWebsocketPing keepAwakeWakeLock.release");
+				long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+				keepAwakeWakeLockMS += wakeMS;
+				storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+				keepAwakeWakeLock.release();
+			}
+
 			pingCounter++;
 			Date currentDate = new Date();
 			Calendar calNow = Calendar.getInstance();
