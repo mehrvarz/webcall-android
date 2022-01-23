@@ -158,6 +158,9 @@ public class WebCallService extends Service {
 	// after serverPingPeriodPlus secs we consider the pings from the server have stopped
 	private final static int serverPingPeriodPlus = 60+20;
 
+// TODO testing, especially for HUAWEI
+//	private final static int keepAwakeExtraSchedule = 10;
+
 	// we do up to ReconnectCounterMax loops when we try to reconnect
 	// loops are done in ca. 30s intervals; so 40 loops will take up close to 20min
 	private final static int ReconnectCounterBeep = 6;    // make a beep after x reconnect loops
@@ -1877,8 +1880,17 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				return;
 			}
 
-			// in case keepAwakeWakeLock was acquired by "dozeStateReceiver idle"
+			pingCounter++;
+// TODO testing tmtmtm
+//			if(keepAwakeExtraSchedule>0 && pingCounter%keepAwakeExtraSchedule==0) {
+//				if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
+//					Log.d(TAG,"onWebsocketPing keepAwakeExtraSchedule keepAwakeWakeLock.acquire");
+//					keepAwakeWakeLock.acquire(30 * 60 * 1000);
+//					keepAwakeWakeLockStartTime = (new Date()).getTime();
+//				}
+//			} else
 			if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+				// in case keepAwakeWakeLock was acquired before, say, by "dozeStateReceiver idle"
 				long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 				Log.d(TAG,"onWebsocketPing keepAwakeWakeLock.release +"+wakeMS);
 				keepAwakeWakeLockMS += wakeMS;
@@ -1886,7 +1898,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				keepAwakeWakeLock.release();
 			}
 
-			pingCounter++;
 			Date currentDate = new Date();
 			Calendar calNow = Calendar.getInstance();
 			int hours = calNow.get(Calendar.HOUR_OF_DAY);
@@ -2803,6 +2814,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			if(connectToSignalingServerIsWanted && (!reconnectBusy || reconnectWaitNetwork)) {
 				// we are supposed to be connected to webcall server
 				if(restartReconnectOnNetwork) {
+					reconnectWaitNetwork = false; // set false will prevent another reconnecter being started
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to wifi keepAwakeWakeLock.acquire");
 						keepAwakeWakeLock.acquire(30 * 60 * 1000);
@@ -2843,6 +2855,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				// we don't like to wait for the scheduled reconnecter job
 				// let's cancel it and start it right away
 				if(restartReconnectOnNetwork) {
+					reconnectWaitNetwork = false; // set false will prevent another reconnecter being started
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to net keepAwakeWakeLock.acquire");
 						keepAwakeWakeLock.acquire(30 * 60 * 1000);
