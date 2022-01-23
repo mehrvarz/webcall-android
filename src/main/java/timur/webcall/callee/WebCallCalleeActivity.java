@@ -157,8 +157,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private int menuBeepOnNoNetworkOff = 6;
 	private int menuStartOnBootOn = 7;
 	private int menuStartOnBootOff = 8;
-	private int menuScreenForWifiOn = 9;
-	private int menuScreenForWifiOff = 10;
+	private int menuWifiLockOn = 9;
+	private int menuWifiLockOff = 10;
+	private int menuScreenForWifiOn = 11;
+	private int menuScreenForWifiOff = 12;
 	private int menuCaptureLogs = 20;
 	private int menuOpenLogs = 21;
 	private int menuExtendedLogsOn = 30;
@@ -176,9 +178,13 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG,"onCreateContextMenu url="+webviewUrl+" touchY="+touchY);
 		}
 		if(webviewUrl.indexOf("/callee/")<0) {
-			Log.d(TAG,"onCreateContextMenu user is not on mainpage");
+			if(extendedLogsFlag) {
+				Log.d(TAG,"onCreateContextMenu user is not on mainpage");
+			}
 		} else {
-			Log.d(TAG,"onCreateContextMenu user is on mainpage");
+			if(extendedLogsFlag) {
+				Log.d(TAG,"onCreateContextMenu user is on mainpage");
+			}
 			menu.setHeaderTitle("WebCall Android "+BuildConfig.VERSION_NAME);
 			if(!nearbyMode) {
 				if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // <=9 <=api28
@@ -218,6 +224,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				menu.add(none,menuStartOnBootOff,none,R.string.msg_start_on_boot_off);
 			}
 
+			if(webCallServiceBinder.setWifiLock(-1)==0) {
+				menu.add(none,menuWifiLockOn,none,R.string.msg_wifi_lock_is_on);
+			} else {
+				menu.add(none,menuWifiLockOff,none,R.string.msg_wifi_lock_is_off);
+			}
+
 			if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
 				if(webCallServiceBinder.screenForWifi(-1)==0) {
 					menu.add(none,menuScreenForWifiOn,none,R.string.msg_screen_for_wifi_on);
@@ -247,7 +259,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 	@Override
 	public boolean onContextItemSelected(MenuItem item) {
-		Log.d(TAG, "onContextItemSelected");
+		if(extendedLogsFlag) {
+			Log.d(TAG, "onContextItemSelected");
+		}
 		AdapterContextMenuInfo info = (AdapterContextMenuInfo)item.getMenuInfo();
 		int selectedItem = item.getItemId();
 		if(selectedItem==menuNearbyOn) {
@@ -340,6 +354,19 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onContextItemSelected turn startOnBoot Off");
 			webCallServiceBinder.startOnBoot(0);
 			Toast.makeText(context, "Start-on-boot has been deactivated", Toast.LENGTH_LONG).show();
+			return true;
+		}
+
+		if(selectedItem==menuWifiLockOn) {
+			Log.d(TAG, "onContextItemSelected turn WifiLock On");
+			webCallServiceBinder.setWifiLock(1);
+			Toast.makeText(context, "WifiLock has been activated", Toast.LENGTH_LONG).show();
+			return true;
+		}
+		if(selectedItem==menuWifiLockOff) {
+			Log.d(TAG, "onContextItemSelected turn WifiLock Off");
+			webCallServiceBinder.setWifiLock(0);
+			Toast.makeText(context, "WifiLock has been deactivated", Toast.LENGTH_LONG).show();
 			return true;
 		}
 

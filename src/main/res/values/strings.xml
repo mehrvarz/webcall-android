@@ -21,8 +21,11 @@
     <string name="msg_start_on_boot_on"        >Start on boot is Off</string>
     <string name="msg_start_on_boot_off"       >Start on boot is On</string>
 
-    <string name="msg_screen_for_wifi_on"      >Screen for WIFI is Off</string>
-    <string name="msg_screen_for_wifi_off"     >Screen for WIFI is On</string>
+    <string name="msg_wifi_lock_is_on"         >Wifi preferred is Off</string>
+    <string name="msg_wifi_lock_is_off"        >Wifi preferred is On</string>
+
+    <string name="msg_screen_for_wifi_on"      >Screen for Wifi is Off</string>
+    <string name="msg_screen_for_wifi_off"     >Screen for Wifi is On</string>
 
     <string name="msg_capture_logs"            >Capture logs now</string>
     <string name="msg_open_logs"               >Open log file</string>
