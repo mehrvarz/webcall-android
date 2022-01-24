@@ -13,7 +13,7 @@ WebCall for Android offers the following features on top of the core WebCall pac
 
 WebCall for Android offers all WebRTC 1.0 based audio/video telephony features as provided by the core WebCall client. This includes low latency E2E-encrypted P2P communications and very high audio quality using the Opus codec (two-way 20-280kbp/s). Find out more about [Core WebCall.](https://github.com/mehrvarz/webcall/) Learn how you can run your own selfcontaned [WebCall server.](https://timur.mobi/webcall/install/)
 
-Even if you use WebCall for Android exclusively, you still benefit from Core WebCall, as it allows anybody on the Web to call you. To give you a call, others only need to know your personal WebCall link (your WebCall "phone number").
+When you run WebCall, anybody can give you a call. They only need to know your personal WebCall link (your WebCall "phone number").
 
 ### NFC Connect
 
