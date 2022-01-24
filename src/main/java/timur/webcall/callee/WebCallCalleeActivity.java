@@ -18,20 +18,10 @@ import android.view.WindowManager;
 import android.view.MotionEvent;
 import android.view.MenuItem;
 import android.view.ContextMenu;
-//import android.view.GestureDetector;
-//import android.view.GestureDetector.SimpleOnGestureListener;
-//import android.view.View.OnLongClickListener;
 import android.view.MenuInflater;
 import android.graphics.Color;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-//import android.webkit.WebViewClient;
-//import android.webkit.HttpAuthHandler;
-//import android.webkit.PermissionRequest;
-//import android.webkit.WebChromeClient;
-//import android.webkit.ConsoleMessage;
-//import android.webkit.CookieManager;
-//import android.webkit.CookieSyncManager;
 import android.util.Log;
 import android.content.Context;
 import android.content.IntentFilter;
@@ -100,7 +90,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private WakeLock wakeLockScreen = null;
     private final static int FILE_REQ_CODE = 1341;
 	private final static int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 1342;
-//	private final static int LOG_FILE_SHOW = 1343;
 	private	Context context;
 	private NfcAdapter nfcAdapter;
 	private boolean startupFail = false;
@@ -392,26 +381,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 		if(selectedItem==menuOpenLogs) {
 			Log.d(TAG, "onContextItemSelected menuOpenLogs");
-/*
-			Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-			//intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-			intent.addCategory(Intent.CATEGORY_OPENABLE);
-			intent.setType("text/plain");
-//			startActivityForResult(Intent.createChooser(intent, "Open file with"),LOG_FILE_SHOW);
-			startActivityForResult(intent, LOG_FILE_SHOW);
-*/
-
-/*
-			new MaterialFilePicker()
-				.withActivity(this)
-				.withCloseMenu(true)
-				.withFilter(Pattern.compile(".*\\.(txt)$"))
-				.withFilterDirectories(false)
-				.withTitle("Choose File")
-				.withRequestCode(LOG_FILE_SHOW)
-				.start();
-*/
-
 			if(lastLogfileName!=null) {
 				File file = new File(Environment.getExternalStorageDirectory() + "/" +
 					Environment.DIRECTORY_DOWNLOADS + "/"+ lastLogfileName);
@@ -463,8 +432,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Toast.LENGTH_LONG).show();
 				return;
 			}
-			// on LOLLIPOP and below getCurrentWebViewPackageInfo() doesn't work
-			// so instead we may see an exception (if no webview is installed) in the next line
 		} else {
 		    Log.d(TAG, "onCreate webview "+packageInfo.packageName+" "+packageInfo.versionName);
 		}
@@ -504,7 +471,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					//Log.d(TAG,"onTouch "+touchX+"/"+touchY+" will be processed");
 
 					// undim screen
-// TODO each and every time? shd only be needed once after "if(typeOfWakeup==1)"
+					// TODO do this every time? shd only be needed once after "if(typeOfWakeup==1)"
 					mParams.screenBrightness = -1f;
 					getWindow().setAttributes(mParams);
 					view.performClick();
@@ -567,111 +534,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
 					chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
 					chooserIntent.putExtra(Intent.EXTRA_TITLE, "File chooser");
-					/*
-					Intent takePictureIntent = null;
-					Intent takeVideoIntent = null;
-					boolean includeVideo = false;
-					boolean includePhoto = false;
-
-					// checking the accept parameter to determine which intent(s) to include
-					paramCheck:
-					for (String acceptTypes : fileChooserParams.getAcceptTypes()) {
-						String[] splitTypes = acceptTypes.split(", ?+"); 
-						// although it's an array, it still seems to be the whole value; 
-						// split it out into chunks so that we can detect multiple values
-						for (String acceptType : splitTypes) {
-							switch (acceptType) {
-							    case "* /*":
-							        includePhoto = true;
-							        includeVideo = true;
-							        break paramCheck;
-							    case "image/*":
-							        includePhoto = true;
-							        break;
-							    case "video/*":
-							        includeVideo = true;
-							        break;
-							}
-						}
-					}
-
-					if (fileChooserParams.getAcceptTypes().length == 0) {
-						//no `accept` parameter was specified, allow both photo and video
-						includePhoto = true;
-						includeVideo = true;
-					}
-
-					if (includePhoto) {
-						takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-						if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-							File photoFile = null;
-							try {
-							    photoFile = create_image();
-							    takePictureIntent.putExtra("PhotoPath", cam_file_data);
-							} catch (IOException ex) {
-							    Log.e(TAG, "Image file creation failed", ex);
-							}
-							if (photoFile != null) {
-							    cam_file_data = "file:" + photoFile.getAbsolutePath();
-							    takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT,
-									Uri.fromFile(photoFile));
-							} else {
-							    cam_file_data = null;
-							    takePictureIntent = null;
-							}
-						}
-					}
-					if (includeVideo) {
-						takeVideoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
-						if (takeVideoIntent.resolveActivity(getPackageManager()) != null) {
-							File videoFile = null;
-							try {
-							    videoFile = create_video();
-							} catch (IOException ex) {
-							    Log.e(TAG, "Video file creation failed", ex);
-							}
-							if (videoFile != null) {
-							    cam_file_data = "file:" + videoFile.getAbsolutePath();
-							    takeVideoIntent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(videoFile));
-							} else {
-							    cam_file_data = null;
-							    takeVideoIntent = null;
-							}
-						}
-					}
-					Intent[] intentArray;
-					if (takePictureIntent != null && takeVideoIntent != null) {
-						intentArray = new Intent[]{takePictureIntent, takeVideoIntent};
-					} else if (takePictureIntent != null) {
-						intentArray = new Intent[]{takePictureIntent};
-					} else if (takeVideoIntent != null) {
-						intentArray = new Intent[]{takeVideoIntent};
-					} else {
-						intentArray = new Intent[0];
-					}
-					chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
-					*/
 					startActivityForResult(chooserIntent, FILE_REQ_CODE);
 				}
 			}
-			/*
-			private File create_image() throws IOException{
-				//@SuppressLint("SimpleDateFormat") 
-				String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
-				String imageFileName = "img_"+timeStamp+"_";
-				File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-				return File.createTempFile(imageFileName,".jpg",storageDir);
-			}
-
-			private File create_video() throws IOException {
-				//@SuppressLint("SimpleDateFormat")
-// TODO yyyy_mm_ss ???
-				String file_name    = new SimpleDateFormat("yyyy_mm_ss", Locale.US).format(new Date());
-				String new_name     = "file_"+file_name+"_";
-				File sd_directory   = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-				return File.createTempFile(new_name, ".3gp", sd_directory);
-			}
-			*/
 		};
 		registerReceiver(broadcastReceiver, new IntentFilter("webcall"));
 
@@ -691,7 +556,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			    ActivityCompat.requestPermissions(this,
 			            new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
 			            MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
-			    // MY_PERMISSIONS_REQUEST_READ_CONTACTS is an
+			    // MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE is an
 			    // app-defined int constant. The callback method gets the
 			    // result of the request.
 			}
@@ -1031,34 +896,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			}
 			webCallServiceBinder.fileSelect(results);
-/*
-		} else if(requestCode==LOG_FILE_SHOW) {
-//	        String filePath = data.getStringExtra(FilePickerActivity.RESULT_FILE_PATH);
-//			Log.d(TAG, "onActivityResult LOG_FILE_SHOW="+filePath);
-			Log.d(TAG, "onActivityResult LOG_FILE_SHOW "+data);
-
-			Uri uri = null;
-			if(data!=null) {
-				if(data.getClipData() != null) {
-					//for(int i = 0; i < data.getClipData().getItemCount(); i++) {
-						uri = data.getClipData().getItemAt(0).getUri();
-					//}
-				} else {
-					uri = data.getData();
-				}
-			}
-
-//			Uri uri = Uri.fromFile();
-//			Uri uri = intent.getData();
-//			Uri uri = (Uri)intent.getExtras().get("raw");
-			Log.d(TAG, "onActivityResult LOG_FILE_SHOW uri="+uri);
-			if(uri!=null) {
-				Intent intent = new Intent(Intent.ACTION_VIEW);
-				intent.setDataAndType(uri, "text/plain");
-				intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-				context.startActivity(intent);
-			}
-*/
 		}
 	}
 
@@ -1143,11 +980,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					newKeyguardLock(KEYGUARD_SERVICE);
 				lock.disableKeyguard();
 			}
-			// looks like this is NOT needed, bc the screen is already on
-			//			getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
-			//		        | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
-			//		        | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-			//		        | WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON);
 
 			// we release wakeLockScreen with a small delay
 			// bc the screen is now on and the normal screen-off timer shall take over

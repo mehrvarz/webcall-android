@@ -90,11 +90,8 @@ import android.media.Ringtone;
 import android.media.ToneGenerator;
 import android.media.AudioManager;
 import android.annotation.SuppressLint;
-//import android.Manifest;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.FileProvider;
-//import androidx.core.app.ActivityCompat;
-//import androidx.core.content.ContextCompat;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ScheduledExecutorService;
@@ -106,8 +103,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.HashMap;
 import java.util.Map;
-//import java.util.concurrent.atomic.AtomicBoolean;
-//import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Date;
 import java.util.function.Consumer;
 import java.util.function.BiConsumer;
@@ -158,8 +153,8 @@ public class WebCallService extends Service {
 	// after serverPingPeriodPlus secs we consider the pings from the server have stopped
 	private final static int serverPingPeriodPlus = 60+20;
 
-// TODO testing, especially for HUAWEI
-//	private final static int keepAwakeExtraSchedule = 10;
+	// TODO testing, especially for HUAWEI
+	//	private final static int keepAwakeExtraSchedule = 10;
 
 	// we do up to ReconnectCounterMax loops when we try to reconnect
 	// loops are done in ca. 30s intervals; so 40 loops will take up close to 20min
@@ -515,7 +510,6 @@ public class WebCallService extends Service {
 					} else {
 						newNetworkInt = 0; // ?
 					}
-//					if(haveNetworkInt==2 && newNetworkInt!=2) {
 					if(haveNetworkInt==2 && newNetworkInt==1) {
 						// losing wifi
 						if(wifiLock!=null && wifiLock.isHeld()) {
@@ -786,37 +780,37 @@ public class WebCallService extends Service {
 		super.onTaskRemoved(rootIntent);
 		Log.d(TAG, "onTaskRemoved");
 
-/*
-// TODO if we want to do this, we may also need to re-login
-		PendingIntent service = PendingIntent.getService(
-			context.getApplicationContext(),
-			1001,
-			new Intent(context.getApplicationContext(), WebCallService.class),
-			PendingIntent.FLAG_ONE_SHOT);
-		alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, 1000, service);
-*/
+		/*
+		// TODO if we want to do this, we may also need to re-login
+				PendingIntent service = PendingIntent.getService(
+					context.getApplicationContext(),
+					1001,
+					new Intent(context.getApplicationContext(), WebCallService.class),
+					PendingIntent.FLAG_ONE_SHOT);
+				alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, 1000, service);
+		*/
 	}
 
-/*
-// TODO if we want to do this, we may also need to re-login
-private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.UncaughtExceptionHandler() {
+	/*
+	// TODO if we want to do this, we may also need to re-login
+	private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.UncaughtExceptionHandler() {
 
-	@Override
-	public void uncaughtException(Thread thread, Throwable ex) {
-		Log.d(TAG, "Uncaught exception start!");
-		ex.printStackTrace();
+		@Override
+		public void uncaughtException(Thread thread, Throwable ex) {
+			Log.d(TAG, "Uncaught exception start!");
+			ex.printStackTrace();
 
-		//Same as done in onTaskRemoved()
-		PendingIntent service = PendingIntent.getService(
-			context.getApplicationContext(),
-			1001,
-			new Intent(context.getApplicationContext(), WebCallService.class),
-			PendingIntent.FLAG_ONE_SHOT);
-		alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, 1000, service);
-		System.exit(2);
-	}
-};
-*/
+			//Same as done in onTaskRemoved()
+			PendingIntent service = PendingIntent.getService(
+				context.getApplicationContext(),
+				1001,
+				new Intent(context.getApplicationContext(), WebCallService.class),
+				PendingIntent.FLAG_ONE_SHOT);
+			alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, 1000, service);
+			System.exit(2);
+		}
+	};
+	*/
 
 
 	// section 2: class WebCallServiceBinder with exposed methodes: 
@@ -881,7 +875,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						// file will be stored in getBase64FromBlobData()
 					} else {
 						DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-// TODO userAgent???
+						// TODO userAgent???
 						String cookies = CookieManager.getInstance().getCookie(userAgent);
 						request.addRequestHeader("cookie",cookies);
 						request.addRequestHeader("User-Agent",userAgent);
@@ -1024,36 +1018,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					if(url.indexOf("/callee/")>=0 && url.indexOf("/callee/register")<0) {
 						// webview has just finished loading the main page
 						if(wsClient==null) {
-/*
-							// we are NOT yet connected to webcall server
-							// we now try to auto-connect (goOnline)
-							// but NOT if service has started activity in response to a 1006
-							if(wakeupTypeInt!=1) {
-								Log.d(TAG, "onPageFinished main page: auto-connect to server");
-								// this only works if a pw-cookie is available
-								// first: let callee.js do start() -> enumerateDevices() -> gotDevices()
-								// then:  after a short delay we call goOnline()
-								final Runnable runnable2 = new Runnable() {
-									public void run() {
-										// processWebRtcMessages() will be called after "init|" was sent
-										sendRtcMessagesAfterInit=true;
-										Log.d(TAG, "onPageFinished goOnline()");
-										runJS("goOnline()",null);
-										// page is now loaded
-										webviewMainPageLoaded = true;
-										Log.d(TAG, "onPageFinished page loaded (after auto connect)");
-									}
-								};
-								if(scheduler==null) {
-									scheduler = Executors.newScheduledThreadPool(3);
-								}
-								// 1s delay is not enough bc callee.js is busy with:
-								// checkServerMode(), getStream()
-								scheduler.schedule(runnable2, 1, TimeUnit.SECONDS);
-							} else {
-								webviewMainPageLoaded = true;
-							}
-*/
 							webviewMainPageLoaded = true;
 						} else {
 							// we are already connected to server (probably from before activity start)
@@ -1158,7 +1122,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 			// render the base html file
 			String myUrl = "file:///android_asset/index.html";
-//TODO for some reason wsClient==null despite service being logged in
+			//TODO for some reason wsClient==null despite service being logged in
 			if(wsClient!=null) {
 				username = prefs.getString("username", "");
 				String webcalldomain = 
@@ -1229,7 +1193,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 		public void activityDestroyed() {
 			// activity is telling us that it is being destroyed
-// TODO this should set webviewPageLoaded=false, needed for next incoming call ???
+			// TODO this should set webviewPageLoaded=false, needed for next incoming call ???
 			if(wsClient!=null) {
 				Log.d(TAG, "activityDestroyed got wsClient");
 				endPeerConAndWebView();
@@ -1340,8 +1304,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 		@android.webkit.JavascriptInterface
 		public WebSocketClient wsOpen(String setWsAddr) {
-// TODO maybe if reconnectBusy is set, we should return something to make callee.js just wait?
-// or maybe we should just wait here for wsClient!=null?
+			// TODO maybe if reconnectBusy is set, we should return something to make callee.js just wait?
+			// or maybe we should just wait here for wsClient!=null?
 			connectToSignalingServerIsWanted = true;
 			if(reconnectBusy && wsClient!=null) {
 				Log.d(TAG,"wsOpen reconnectBusy return existing wsClient");
@@ -1481,8 +1445,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				// no need to change vol back after call;
 				origvol = 0;
 			}
-// TODO after call (or better: after ringing is done):
-// if(origvol>0) audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, origvol, 0);
+			// TODO after call (or better: after ringing is done):
+			// if(origvol>0) audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, origvol, 0);
 
 			// while phone is still ringing, keep sending wakeIntent to bringActivityToFront
 			final Runnable bringActivityToFront = new Runnable() {
@@ -1754,9 +1718,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 							loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
 							Log.d(TAG,"onClose re-login in 8s url="+loginUrl);
 							// hopefully network is avilable in 8s again
-// TODO on P9 in some cases this reconnecter does NOT come
-// these are cases where the cause of the 1006 was wifi being gone (client side)
-// shortly after this 1006 we then receive a networkStateReceiver event with all null
+							// TODO on P9 in some cases this reconnecter does NOT come
+							// these are cases where the cause of the 1006 was wifi being gone (client side)
+							// shortly after this 1006 we then receive a networkStateReceiver event with all null
 							reconnectSchedFuture = scheduler.schedule(reconnecter,8,TimeUnit.SECONDS);
 						}
 					}
@@ -1827,8 +1791,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 				// we can not send messages (for instance callerCandidate's) into the JS 
 				// if the page is not fully loaded (webviewMainPageLoaded==true)
 				// in such cases we queue the WebRTC messages
-// TODO sometimes we end here unexpectedly?
-// TODO show cmd before pipe char
+				// TODO sometimes we end here unexpectedly?
+				// TODO show cmd before pipe char
 				String shortMessage = message;
 				if(message.length()>24) {
 					shortMessage = message.substring(0,24);
@@ -1881,14 +1845,14 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			}
 
 			pingCounter++;
-// TODO testing tmtmtm
-//			if(keepAwakeExtraSchedule>0 && pingCounter%keepAwakeExtraSchedule==0) {
-//				if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
-//					Log.d(TAG,"onWebsocketPing keepAwakeExtraSchedule keepAwakeWakeLock.acquire");
-//					keepAwakeWakeLock.acquire(30 * 60 * 1000);
-//					keepAwakeWakeLockStartTime = (new Date()).getTime();
-//				}
-//			} else
+			// TODO testing tmtmtm
+			//			if(keepAwakeExtraSchedule>0 && pingCounter%keepAwakeExtraSchedule==0) {
+			//				if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
+			//					Log.d(TAG,"onWebsocketPing keepAwakeExtraSchedule keepAwakeWakeLock.acquire");
+			//					keepAwakeWakeLock.acquire(30 * 60 * 1000);
+			//					keepAwakeWakeLockStartTime = (new Date()).getTime();
+			//				}
+			//			} else
 			if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 				// in case keepAwakeWakeLock was acquired before, say, by "dozeStateReceiver idle"
 				long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
@@ -1927,7 +1891,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 			// we request to wakeup out of doze every 10-15 minutes
 			// we do so to check if we are still receiving pings from the server
 			if(pendingAlarm==null) {
-// TODO if pendingAlarm==null we should abort right now
+				// TODO if pendingAlarm==null we should abort right now
 				Log.w(TAG,"pendingAlarm==null !!!");
 			}
 			pendingAlarm = null;
@@ -1996,7 +1960,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		}
 
 		if(haveNetworkInt==0 && wakeIfNoNet && screenForWifiMode>0) {
-// TODO only if last network was wifi? or only if wifi preferred (setWifiLockMode>0)
 			Log.d(TAG,"reconnecter haveNoNetwork: wakeIfNoNet + screenForWifiMode");
 			wakeUpFromDoze();
 		}
@@ -2333,8 +2296,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 
 					int status=0;
 					try {
-// TODO in deep sleep (when device is not connected to power) this may hang for several minutes
-// for instance 7min on P9 after server was restarted
+						// TODO in deep sleep (when device is not connected to power) this may hang for minutes
+						// for instance 7min on P9 after server was restarted
 						Log.d(TAG,"reconnecter con.connect()");
 						con.connect();
 						status = con.getResponseCode();
@@ -2417,8 +2380,8 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 								reconnectSchedFuture.cancel(false);	
 								reconnectSchedFuture = null;
 							}
-// tmtmtm: on p9 in sleep this may not come back as planned (in 30s) - but maybe in 7m
-// and this despite keepAwakeWakeLock being acquired by onClose (and WIFI being back)
+							// TODO on p9 in sleep this may not come back as planned (in 30s) - but maybe in 7m
+							// and this despite keepAwakeWakeLock being acquired by onClose (and WIFI being back)
 							reconnectSchedFuture =
 								scheduler.schedule(reconnecter,delaySecs,TimeUnit.SECONDS);
 							return;
@@ -2477,7 +2440,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 						return;
 					}
 
-// TODO on P9 I have a case where login has worked, but connectHost(wsAddr) has failed
+					// TODO on P9 I have seen a case where login has worked, but connectHost(wsAddr) has failed
 
 					statusMessage("Connecting..",true,false);
 					//Log.d(TAG,"reconnecter connectHost("+wsAddr+")");
@@ -2617,7 +2580,7 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		try {
 			if(!setAddr.equals("")) {
 				wsAddr = setAddr;
-//				wsAddr += "&callerId="+callerId+"&name="+callerName;
+				//wsAddr += "&callerId="+callerId+"&name="+callerName;
 				wsClient = new WsClient(new URI(wsAddr));
 			}
 			if(wsClient==null) {
@@ -3052,9 +3015,9 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 		if(extendedLogsFlag) {
 			Log.d(TAG,"audioToSpeakerSet "+set+" (prev="+audioToSpeakerActive+")");
 		}
-//		if(set==audioToSpeakerActive) {
-//			return;
-//		}
+		//		if(set==audioToSpeakerActive) {
+		//			return;
+		//		}
 		if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) { // <= 27
 			// this works on Android 5-8 but not on Android 9+
 			try {
@@ -3147,9 +3110,6 @@ private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.Un
 					String dumpStr = strbld.toString();
 					Log.d(TAG,"saveSystemLogs store "+dumpStr.length()+" bytes");
 					storeByteArrayToFile(dumpStr.getBytes(),logFileName);
-//					Intent intent = new Intent("webcall");
-//					intent.putExtra("toast", "Log stored to "+logFileName+" in Download folder");
-//					sendBroadcast(intent);
 				}
 				catch(IOException ex) {
 					ex.printStackTrace();
