@@ -4,30 +4,39 @@
 
 # WebCall for Android
 
-[WebCall](https://github.com/mehrvarz/webcall) is a telephony server and a set of web applications for making and receiving calls. It is based on WebRTC 1.0. WebCall let's you create low latency P2P connections with very high audio quality (Opus 280kbps). You can also add video streams at any time during the call. WebCall also lets you transfer files in both directions. Connections are always e2e encrypted. WebCall is selfcontaned. There is no use of 3rd party services at any time. If you run a WebCall server yourself, you will get a very private telephony solution.
+WebCall for Android offers the following features on top of the core WebCall package:
 
-[WebCall for Android](https://timur.mobi/webcall/android) offers the same functionality as the core WebCall clients do. Listed below are some of the extended functionality offered by the Android client. [APK Download.](https://timur.mobi/webcall/android/#download)
+- NFC Connect
+- Ring on speaker
+- Receiving calls while in deep sleep
+- Low battery consumption
+
+WebCall for Android offers all WebRTC 1.0 based audio/video telephony features provided by the core WebCall client. This includes low latency E2E-encrypted P2P communications and support for very high quality audio using the Opus codec (two-way 20-280kbp/s). Find out more about [Core WebCall.](https://github.com/mehrvarz/webcall/) Learn how you can run your own selfcontaned [WebCall server.](https://timur.mobi/webcall/install/)
+Even if you only use WebCall for Android, you still benefit from core WebCall, as it allows anybody on the Web to give you a call. All they need to know is your WebCall link (your WebCall "phone number").
 
 ### NFC Connect
 
-NFC Connect lets you to establish phone calls by touching two devices. Once connected the two parties can walk apart and continue the call. The other device does not need any special software. It needs to support NFC, have a 2020+ web browser and an internet connection (mobile, wifi, whatever). So even if you are using the Android version, you do benefit from the Web application, because anybody on the Web can call you. All they need to know is your WebCall link (your "phone number").
+NFC Connect lets you establish phone calls by touching two devices. Once connected the two parties can split and walk away, while continuing the call. The other device does not require any special software. It only needs internet (mobile or wifi), NFC and a 2020+ web browser. If both devices are connected to the same Wifi network, the call will occur over Wifi only.
 
 ### Ring on Speaker
 
-WebCall for Android can play back the ringtone on the loud speaker, even if you have a headset connected to the device. This lets you receive calls quicker.
+WebCall for Android can play back the ringtone on the loud speaker, even if you have a headset connected. If you intend to use a headset, this feature can simplify picking up calls a lot.
 
-### 24/7 Operation
+### Receiving calls while in deep sleep
 
-WebCall for Android lets you receive calls when the device is in sleep mode. This is a feature the Web application can not offer. It makes the Android variant a better solution for all day operations.
+WebCall for Android lets you receive calls when your device is in deep sleep mode. This makes the Android client a much better solution for all day operations.
 
 ### Low power requirements
 
-WebCall for Android has very low power requirements when receiving calls in the background. It often uses less battery than a regular mobile browser running in parallel in complete idle mode.
+WebCall for Android has very low power requirements while awaiting calls in the background.
 
+## More info + APK Download
 
-## Building the APK
+You can use WebCall for Android as your only phone software (say, on your Wifi-only Android tablet) or as a companion phone solution. Find more about WebCall for Android and download the APK [here.](https://timur.mobi/webcall/android)
 
-You need Java 11 and Gradle 7.3.3. You can build this project by running: gradle build --info
+## Build the APK
+
+You need Java 11 and Gradle 7.3.3. You can build this project by running: gradle build
 
 If you only want to build an unsigned debug APK, just outcomment the "release" section under "buildTypes" in "build.gradle". If you want to build a signed release APK, add two files "keystore.properties" and "releasekey.keystore" to the base directory. The "keystore.properties" should have three entries:
 ```
@@ -46,7 +55,7 @@ GPL3.0 - see: [LICENSE](LICENSE)
 
 - github.com/TooTallNate/Java-WebSocket, MIT license
 
-### 3rd party artwork
+### 3rd party icons
 
 - Uri Herrera, KDE Visual Design, GNU Lesser General Public
 - Timothy Miller, Public domain
