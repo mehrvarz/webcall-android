@@ -12,7 +12,8 @@ WebCall for Android offers the following features on top of the core WebCall pac
 - Low battery consumption
 
 WebCall for Android offers all WebRTC 1.0 based audio/video telephony features provided by the core WebCall client. This includes low latency E2E-encrypted P2P communications and support for very high quality audio using the Opus codec (two-way 20-280kbp/s). Find out more about [Core WebCall.](https://github.com/mehrvarz/webcall/) Learn how you can run your own selfcontaned [WebCall server.](https://timur.mobi/webcall/install/)
-Even if you only use WebCall for Android, you still benefit from core WebCall, as it allows anybody on the Web to give you a call. All they need to know is your WebCall link (your WebCall "phone number").
+
+Even if you use WebCall for Android exclusively, you still benefit from Core WebCall, as it allows anybody on the Web to call you. To give you calls, others only need to know your personal WebCall link (your WebCall "phone number").
 
 ### NFC Connect
 
@@ -24,19 +25,22 @@ WebCall for Android can play back the ringtone on the loud speaker, even if you 
 
 ### Receiving calls while in deep sleep
 
-WebCall for Android lets you receive calls when your device is in deep sleep mode. This makes the Android client a much better solution for all day operations.
+WebCall for Android lets you receive calls while your device is in deep sleep mode. This is something the Web client does not support. And it makes the Android client a much better solution for all day operations.
 
 ### Low power requirements
 
-WebCall for Android has very low power requirements while awaiting calls in the background.
+WebCall for Android has very low power requirements while running in the background.
 
 ## More info + APK Download
 
-You can use WebCall for Android as your only phone software (say, on your Wifi-only Android tablet) or as a companion phone solution. Find more about WebCall for Android and download the APK [here.](https://timur.mobi/webcall/android)
+You can use WebCall for Android as your only phone software (say, on your Wifi-only Android tablet) or as a companion phone solution. Find more about WebCall for Android and [download the APK.](https://timur.mobi/webcall/android)
 
-## Build the APK
+## Building the APK
 
-You need Java 11 and Gradle 7.3.3. You can build this project by running: gradle build
+You need Java 11 and Gradle 7.3.3. You can build this project by running:
+```
+gradle build
+```
 
 If you only want to build an unsigned debug APK, just outcomment the "release" section under "buildTypes" in "build.gradle". If you want to build a signed release APK, add two files "keystore.properties" and "releasekey.keystore" to the base directory. The "keystore.properties" should have three entries:
 ```
