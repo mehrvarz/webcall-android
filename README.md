@@ -42,8 +42,7 @@ You need Java 11 and Gradle 7.3.3. You can build this project by running:
 gradle build
 ```
 
-If you only want to build an unsigned debug APK, delete or outcomment the complete "signingConfigs" and
-"release" section (under "buildTypes") in "build.gradle" file.
+If you only want to build an unsigned debug APK, delete or outcomment the complete "signingConfigs" section as well as the "release" section (under "buildTypes") in your "build.gradle" file.
 
 If you want to build a signed release APK, add two files "keystore.properties" and "releasekey.keystore" to the base directory. The "keystore.properties" should have these entries:
 ```
