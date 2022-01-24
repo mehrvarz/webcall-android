@@ -11,21 +11,21 @@ WebCall for Android offers the following features on top of the core WebCall pac
 - Receiving calls while in deep sleep
 - Low battery consumption
 
-WebCall for Android offers all WebRTC 1.0 based audio/video telephony features provided by the core WebCall client. This includes low latency E2E-encrypted P2P communications and support for very high quality audio using the Opus codec (two-way 20-280kbp/s). Find out more about [Core WebCall.](https://github.com/mehrvarz/webcall/) Learn how you can run your own selfcontaned [WebCall server.](https://timur.mobi/webcall/install/)
+WebCall for Android offers all WebRTC 1.0 based audio/video telephony features as provided by the core WebCall client. This includes low latency E2E-encrypted P2P communications and very high audio quality using the Opus codec (two-way 20-280kbp/s). Find out more about [Core WebCall.](https://github.com/mehrvarz/webcall/) Learn how you can run your own selfcontaned [WebCall server.](https://timur.mobi/webcall/install/)
 
-Even if you use WebCall for Android exclusively, you still benefit from Core WebCall, as it allows anybody on the Web to call you. To give you calls, others only need to know your personal WebCall link (your WebCall "phone number").
+Even if you use WebCall for Android exclusively, you still benefit from Core WebCall, as it allows anybody on the Web to call you. To give you a call, others only need to know your personal WebCall link (your WebCall "phone number").
 
 ### NFC Connect
 
-NFC Connect lets you establish phone calls by touching two devices. Once connected the two parties can split and walk away, while continuing the call. The other device does not require any special software. It only needs internet (mobile or wifi), NFC and a 2020+ web browser. If both devices are connected to the same Wifi network, the call will occur over Wifi only.
+NFC Connect lets you establish phone calls by touching two devices. Once connected the two parties can split and walk away, while continuing the call. The other device does not require any special software. It only needs internet (mobile or wifi), NFC and a 2020+ web browser. If both devices are connected to the same Wifi network, the call will establish directly over Wifi.
 
 ### Ring on Speaker
 
 WebCall for Android can play back the ringtone on the loud speaker, even if you have a headset connected. If you intend to use a headset, this feature can simplify picking up calls a lot.
 
-### Receiving calls while in deep sleep
+### Receiving calls while in sleep mode
 
-WebCall for Android lets you receive calls while your device is in deep sleep mode. This is something the Web client does not support. And it makes the Android client a much better solution for all day operations.
+WebCall for Android lets you receive calls while your device is in deep sleep mode. This is something the Web client does not support. It makes the Android client a much better solution for all day operations.
 
 ### Low power requirements
 
