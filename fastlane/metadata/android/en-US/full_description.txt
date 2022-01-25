@@ -1,0 +1,6 @@
+WebCall for Android is a WebRTC telephony app
+
+It offers high quality audio and video.
+
+Anybody on the web, who knows your personal WebCall link (aka your WebCall phone number) can give you a call. You can also establish phone calls with NFC. No special software is needed on the other device. WebCall also lets you send files in both directions. WebCall makes use of low-latency P2P connections. All WebCall links are always e2e-encrypted. And if you want, you can also run your own WebCall server.
+
