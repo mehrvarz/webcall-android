@@ -467,6 +467,17 @@ public class WebCallService extends Service {
 			Log.d(TAG,"onStartCommand keepAwakeWakeLockMS ex="+ex);
 		}
 
+		try {
+			String lastUsedVersionName = prefs.getString("versionName", "");
+			Log.d(TAG,"onStartCommand lastUsed versionName="+lastUsedVersionName);
+ 			if(!lastUsedVersionName.equals(BuildConfig.VERSION_NAME)) {
+				keepAwakeWakeLockMS = 0;
+				Log.d(TAG,"onStartCommand version change, clear keepAwakeWakeLockMS");
+			}
+		} catch(Exception ex) {
+			Log.d(TAG,"onStartCommand versionName ex="+ex);
+		}
+
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) { // >=api24
 			// this code (networkCallback) fully replaces checkNetworkState()
 			connectivityManager.registerDefaultNetworkCallback(new ConnectivityManager.NetworkCallback() {
@@ -598,8 +609,11 @@ public class WebCallService extends Service {
 							Log.d(TAG,"dozeState idle");
 							if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 								Log.d(TAG,"dozeState idle keepAwakeWakeLock.acquire");
-								keepAwakeWakeLock.acquire(30 * 60 * 1000);
-								keepAwakeWakeLockStartTime = (new Date()).getTime();
+//								keepAwakeWakeLock.acquire(30 * 60 * 1000);
+//								keepAwakeWakeLockStartTime = (new Date()).getTime();
+// we don't have to wait for the next ping to release; just stay awake 3s to defend against doze
+								keepAwakeWakeLock.acquire(3 * 1000);
+								keepAwakeWakeLockMS += 3;
 							}
 							// this is a good opportunity to send a ping
 							// if the connection is bad we will know much quicker
@@ -648,8 +662,11 @@ public class WebCallService extends Service {
 
 							if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 								Log.d(TAG,"dozeState awake keepAwakeWakeLock.acquire");
-								keepAwakeWakeLock.acquire(30 * 60 * 1000);
-								keepAwakeWakeLockStartTime = (new Date()).getTime();
+//								keepAwakeWakeLock.acquire(30 * 60 * 1000);
+//								keepAwakeWakeLockStartTime = (new Date()).getTime();
+// we don't have to wait for the next ping to release; just stay awake 3s to defend against doze
+								keepAwakeWakeLock.acquire(3 * 1000);
+								keepAwakeWakeLockMS += 3;
 							}
 
 							wakeUpOnLoopCount(context);
