@@ -42,15 +42,6 @@ You need Java 11 and Gradle 7.3.3. You can build this project by running:
 gradle build
 ```
 
-If you only want to build an unsigned debug APK, delete or outcomment the complete "signingConfigs" section as well as the "release" section (under "buildTypes") in your "build.gradle" file.
-
-If you want to build a signed release APK, add two files "keystore.properties" and "releasekey.keystore" to the base directory. The "keystore.properties" should have these entries:
-```
-RELEASE_STORE_PASSWORD=...
-RELEASE_KEY_ALIAS=...
-RELEASE_KEY_PASSWORD=...
-```
-
 ## License
 
 This program is Free Software: You can use, study share and improve it at your will. Specifically you can redistribute and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
