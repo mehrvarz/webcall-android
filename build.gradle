@@ -7,32 +7,12 @@ android {
 		applicationId "timur.webcall.callee"
 		minSdkVersion 21
 		targetSdkVersion 31
-		versionCode 58
-		versionName "0.9.58"
-	}
-
-	signingConfigs {
-		release {
-			def keystorePropertiesFile = rootProject.file("keystore.properties");
-			def keystoreProperties = new Properties()
-			keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-
-			storeFile file("releasekey.keystore")
-			storePassword keystoreProperties['RELEASE_STORE_PASSWORD']
-			keyAlias keystoreProperties['RELEASE_KEY_ALIAS']
-			keyPassword keystoreProperties['RELEASE_KEY_PASSWORD']
-			//v1SigningEnabled true
-			//v2SigningEnabled true
-		}
+		versionCode 59
+		versionName "0.9.59"
 	}
 	buildTypes {
-		debug {
-			debuggable true
-		}
 		release {
 			minifyEnabled false
-			//proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-			signingConfig signingConfigs.release
 		}
 		applicationVariants.all { variant ->
 			variant.outputs.all {
@@ -68,12 +48,7 @@ repositories {
 	}
 }
 dependencies {
-	//implementation fileTree(dir: 'libs', include: ['*.jar'])
 	implementation 'androidx.appcompat:appcompat:1.4.0'
 	implementation 'org.java-websocket:Java-WebSocket:1.5.2'
-}
-tasks.withType(JavaCompile) {
-	//options.compilerArgs << '-Xlint:unchecked'
-	//options.deprecation = true
 }
 
