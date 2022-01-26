@@ -669,6 +669,7 @@ public class WebCallService extends Service {
 // we don't have to wait for the next ping to release; just stay awake 3s to defend against doze
 								keepAwakeWakeLock.acquire(1000);
 								keepAwakeWakeLockMS += 1000;
+								storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
 							}
 
 							wakeUpOnLoopCount(context);
