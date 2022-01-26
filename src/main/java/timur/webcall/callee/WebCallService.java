@@ -612,8 +612,8 @@ public class WebCallService extends Service {
 //								keepAwakeWakeLock.acquire(30 * 60 * 1000);
 //								keepAwakeWakeLockStartTime = (new Date()).getTime();
 // we don't have to wait for the next ping to release; just stay awake 3s to defend against doze
-								keepAwakeWakeLock.acquire(3 * 1000);
-								keepAwakeWakeLockMS += 3000;
+								keepAwakeWakeLock.acquire(1000);
+								keepAwakeWakeLockMS += 1000;
 							}
 							// this is a good opportunity to send a ping
 							// if the connection is bad we will know much quicker
@@ -665,8 +665,8 @@ public class WebCallService extends Service {
 //								keepAwakeWakeLock.acquire(30 * 60 * 1000);
 //								keepAwakeWakeLockStartTime = (new Date()).getTime();
 // we don't have to wait for the next ping to release; just stay awake 3s to defend against doze
-								keepAwakeWakeLock.acquire(3 * 1000);
-								keepAwakeWakeLockMS += 3000;
+								keepAwakeWakeLock.acquire(1000);
+								keepAwakeWakeLockMS += 1000;
 							}
 
 							wakeUpOnLoopCount(context);
