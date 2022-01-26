@@ -472,6 +472,7 @@ public class WebCallService extends Service {
 			Log.d(TAG,"onStartCommand lastUsed versionName="+lastUsedVersionName);
  			if(!lastUsedVersionName.equals(BuildConfig.VERSION_NAME)) {
 				keepAwakeWakeLockMS = 0;
+				storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
 				Log.d(TAG,"onStartCommand version change, clear keepAwakeWakeLockMS");
 			}
 		} catch(Exception ex) {
@@ -614,6 +615,7 @@ public class WebCallService extends Service {
 // we don't have to wait for the next ping to release; just stay awake 3s to defend against doze
 								keepAwakeWakeLock.acquire(1000);
 								keepAwakeWakeLockMS += 1000;
+								storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
 							}
 							// this is a good opportunity to send a ping
 							// if the connection is bad we will know much quicker
