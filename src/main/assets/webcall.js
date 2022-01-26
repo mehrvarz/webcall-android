@@ -99,21 +99,8 @@ window.onload = function() {
 	formDomain.value = domain;
 	formUsername.value = username;
 
-	// remove focus from any of the elements (to prevent accidental change)
+	// remove focus from any of the elements (to prevent accidental modification)
 	document.activeElement.blur();
-/*
-	var howtoHref = "https://timur.mobi/webcall/android/";
-	howtoHref += "?_="+new Date().getTime();
-	howtoElement.href = howtoHref;
-	//console.log('howtoElement.href='+howtoElement.href);
-
-// TODO only make this link visible, if the user has not seen this content yet
-	var latestNewsHref = "https://timur.mobi/webcall/android-news/";
-	latestNewsHref += "?_="+new Date().getTime();
-	latestNewsElement.href = latestNewsHref;
-	//console.log('latestNewsElement.href='+latestNewsElement.href);
-	latestNewsElement.style.display = "inline-block";
-*/
 	// will proceed in submitFormDone()
 }
 
@@ -166,9 +153,12 @@ function submitFormDone(theForm) {
 		return;
 	}
 
+	// there is no point advancing if we have no network
 	if(typeof Android !== "undefined" && Android !== null) {
-		// there is no point continuing if there is no network
-		if(!Android.isNetwork()) {
+		let isNetwork = Android.isNetwork();
+		console.log('isNetwork='+isNetwork);
+		if(!isNetwork) {
+			document.activeElement.blur();
 			alert("no network");
 			return;
 		}

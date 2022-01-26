@@ -1908,7 +1908,7 @@ public class WebCallService extends Service {
 			// we request to wakeup out of doze every 10-15 minutes
 			// we do so to check if we are still receiving pings from the server
 			if(pendingAlarm==null) {
-				// TODO if pendingAlarm==null we should abort right now
+				// TODO if pendingAlarm==null we should abort right now - not sure about this!
 				Log.w(TAG,"pendingAlarm==null !!!");
 			}
 			pendingAlarm = null;
@@ -1938,7 +1938,12 @@ public class WebCallService extends Service {
 			if(wsClient!=null) {
 				checkLastPing(true,0);
 			} else {
-				startReconnecter(true,0);
+				if(connectToSignalingServerIsWanted) {
+					Log.d(TAG,"alarm startReconnecter");
+					startReconnecter(true,0);
+				} else {
+					Log.d(TAG,"alarm no connectToSignalingServerIsWanted -> no startReconnecter");
+				}
 			}
 
 			// always request a followup alarm
@@ -1992,6 +1997,7 @@ public class WebCallService extends Service {
 			username = prefs.getString("username", "");
 			loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
 		}
+// TODO do we need to copy cookies here?
 
 		if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 			reconnectSchedFuture.cancel(false);
@@ -2286,17 +2292,20 @@ public class WebCallService extends Service {
 					con.setConnectTimeout(22000);
 					con.setReadTimeout(10000);
 					CookieManager.getInstance().setAcceptCookie(true);
+					if(webviewCookies==null) {
+						webviewCookies = CookieManager.getInstance().getCookie(loginUrl);
+					}
 					if(webviewCookies!=null) {
-						if(extendedLogsFlag) {
+						//if(extendedLogsFlag) {
 							Log.d(TAG,"reconnecter con.setRequestProperty(webviewCookies)");
-						}
+						//}
 						con.setRequestProperty("Cookie", webviewCookies);
 						storePrefsString("cookies", webviewCookies);
 					} else {
 						String newWebviewCookies = prefs.getString("cookies", "");
-						if(extendedLogsFlag) {
+						//if(extendedLogsFlag) {
 							Log.d(TAG,"reconnecter con.setRequestProperty(prefs:cookies)");
-						}
+						//}
 						con.setRequestProperty("Cookie", newWebviewCookies);
 					}
 					con.setRequestProperty("Connection", "close"); // this kills keep-alives TODO???
@@ -2793,6 +2802,7 @@ public class WebCallService extends Service {
 			}
 			if(connectToSignalingServerIsWanted && (!reconnectBusy || reconnectWaitNetwork)) {
 				// we are supposed to be connected to webcall server
+// TODO not fully certain of this condition
 				if(restartReconnectOnNetwork) {
 					reconnectWaitNetwork = false; // set false will prevent another reconnecter being started
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
@@ -2815,7 +2825,8 @@ public class WebCallService extends Service {
 					}
 				}
 			} else {
-				Log.d(TAG,"networkState wifi !connectToSignalingServerIsWanted");
+				Log.d(TAG,"networkState wifi !connectToSignalingServerIsWanted "+
+					connectToSignalingServerIsWanted);
 			}
 
 		} else if((netActiveInfo!=null && netActiveInfo.isConnected()) ||
