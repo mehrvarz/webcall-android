@@ -74,7 +74,7 @@ import android.app.PendingIntent;
 import android.app.Notification;
 import android.net.wifi.WifiManager;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo; // deprecated in API level 29
+import android.net.NetworkInfo; // deprecated in API level 29, only used for API <= 23
 import android.net.Uri;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -130,7 +130,6 @@ import java.util.Queue;
 import org.java_websocket.WebSocket;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.drafts.Draft;
-import org.java_websocket.drafts.Draft_6455;
 import org.java_websocket.handshake.ServerHandshake;
 import org.java_websocket.framing.Framedata;
 import javax.net.ssl.HostnameVerifier;
@@ -152,9 +151,6 @@ public class WebCallService extends Service {
 	// serverPingPeriodPlus corresponds to pingPeriod in wsClient.go
 	// after serverPingPeriodPlus secs we consider the pings from the server have stopped
 	private final static int serverPingPeriodPlus = 60+20;
-
-	// TODO testing, especially for HUAWEI
-	//	private final static int keepAwakeExtraSchedule = 10;
 
 	// we do up to ReconnectCounterMax loops when we try to reconnect
 	// loops are done in ca. 30s intervals; so 40 loops will take up close to 20min
@@ -184,7 +180,6 @@ public class WebCallService extends Service {
 	private DisplayManager displayManager = null;
 	private String userAgentString = null;
 	private AudioManager audioManager = null;
-
 
 	// wakeUpWakeLock used for wakeup from doze: FULL_WAKE_LOCK|ACQUIRE_CAUSES_WAKEUP (screen on)
 	// wakeUpWakeLock is released by activity
@@ -372,8 +367,6 @@ public class WebCallService extends Service {
 		}
 
 		if(wifiLock==null) {
-			// Note: N7 and N9 don't seem to need WIFI_MODE_FULL_HIGH_PERF, but P9 and Gnex might
-			//wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL, "WebCall:wifiLock");
 			String logKey = "WebCall:keepAwakeWakeLock";
 			if(userAgentString==null || userAgentString.indexOf("HUAWEI")>=0)
 				logKey = "LocationManagerService"; // to avoid being killed on Huawei
@@ -1813,7 +1806,6 @@ public class WebCallService extends Service {
 				// we can not send messages (for instance callerCandidate's) into the JS 
 				// if the page is not fully loaded (webviewMainPageLoaded==true)
 				// in such cases we queue the WebRTC messages
-				// TODO sometimes we end here unexpectedly?
 				// TODO show cmd before pipe char
 				String shortMessage = message;
 				if(message.length()>24) {
@@ -1867,14 +1859,6 @@ public class WebCallService extends Service {
 			}
 
 			pingCounter++;
-			// TODO testing tmtmtm
-			//			if(keepAwakeExtraSchedule>0 && pingCounter%keepAwakeExtraSchedule==0) {
-			//				if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
-			//					Log.d(TAG,"onWebsocketPing keepAwakeExtraSchedule keepAwakeWakeLock.acquire");
-			//					keepAwakeWakeLock.acquire(30 * 60 * 1000);
-			//					keepAwakeWakeLockStartTime = (new Date()).getTime();
-			//				}
-			//			} else
 			if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 				// in case keepAwakeWakeLock was acquired before, say, by "dozeStateReceiver idle"
 				long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
@@ -1964,7 +1948,7 @@ public class WebCallService extends Service {
 				if(extendedLogsFlag) {
 					Log.d(TAG,"alarm set");
 				}
-				// 15*60*1000 will be very likely be ignored; P9 does minimal 16min
+				// many devices do min 16min
 				alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP,
 					SystemClock.elapsedRealtime() + 15*60*1000, pendingAlarm);
 			}
@@ -2180,7 +2164,7 @@ public class WebCallService extends Service {
 		wakeUpFromDozeSecs = nowSecs;
 
 		// we use this to wake the device so we can establish NEW network connections for reconnect
-		// step 1a: bring webcall activity to front via intent
+		// step a: bring webcall activity to front via intent
 		Log.d(TAG,"wakeUpFromDoze webcallToFrontIntent");
 		wakeupTypeInt = 1; // disconnected -> reconnecting
 		Intent webcallToFrontIntent = new Intent(context, WebCallCalleeActivity.class);
@@ -2189,10 +2173,9 @@ public class WebCallService extends Service {
 			Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
 		context.startActivity(webcallToFrontIntent);
 
-		// step 1b: invoke FULL_WAKE_LOCK + ACQUIRE_CAUSES_WAKEUP 
+		// step b: invoke FULL_WAKE_LOCK + ACQUIRE_CAUSES_WAKEUP 
 		//          to wake the device (+screen) from deep sleep
 		// NOTE: this is needed bc XHR may not work in deep sleep - and bc wifi may not come back
-		//       ideally we would NOT need to wake the screen - but we have to
 		Log.d(TAG,"wakeUpFromDoze FULL_WAKE_LOCK + ACQUIRE_CAUSES_WAKEUP");
 		if(powerManager==null) {
 			powerManager = (PowerManager)context.getSystemService(Context.POWER_SERVICE);
@@ -2328,7 +2311,6 @@ public class WebCallService extends Service {
 					int status=0;
 					try {
 						// TODO in deep sleep (when device is not connected to power) this may hang for minutes
-						// for instance 7min on P9 after server was restarted
 						Log.d(TAG,"reconnecter con.connect()");
 						con.connect();
 						status = con.getResponseCode();
@@ -2411,7 +2393,7 @@ public class WebCallService extends Service {
 								reconnectSchedFuture.cancel(false);	
 								reconnectSchedFuture = null;
 							}
-							// TODO on p9 in sleep this may not come back as planned (in 30s) - but maybe in 7m
+							// TODO P9 this may not come back as planned (in 30s) - but maybe in 7m
 							// and this despite keepAwakeWakeLock being acquired by onClose (and WIFI being back)
 							reconnectSchedFuture =
 								scheduler.schedule(reconnecter,delaySecs,TimeUnit.SECONDS);
@@ -2471,7 +2453,7 @@ public class WebCallService extends Service {
 						return;
 					}
 
-					// TODO on P9 I have seen a case where login has worked, but connectHost(wsAddr) has failed
+					// TODO on P9 this happened once: after login has worked, connectHost() failed
 
 					statusMessage("Connecting..",true,false);
 					//Log.d(TAG,"reconnecter connectHost("+wsAddr+")");
@@ -2811,8 +2793,8 @@ public class WebCallService extends Service {
 				Log.d(TAG,"networkState no wifiLock.acquire");
 			}
 			if(connectToSignalingServerIsWanted && (!reconnectBusy || reconnectWaitNetwork)) {
-				// we are supposed to be connected to webcall server
-// TODO not fully certain of this condition
+				// if we are supposed to be connected and A) reconnecter is NOT in progress 
+				// or B) reconnecter IS in progress, but is waiting idly for network to come back
 				if(restartReconnectOnNetwork) {
 					reconnectWaitNetwork = false; // set false will prevent another reconnecter being started
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
@@ -2835,6 +2817,8 @@ public class WebCallService extends Service {
 					}
 				}
 			} else {
+				// if we are NOT supposed to be connected 
+				// or we are, but reconnecter is in progress and is NOT waiting for network to come back
 				Log.d(TAG,"networkState wifi !connectToSignalingServerIsWanted "+
 					connectToSignalingServerIsWanted);
 			}
