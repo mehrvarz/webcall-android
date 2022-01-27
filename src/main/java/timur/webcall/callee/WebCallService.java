@@ -1092,16 +1092,15 @@ public class WebCallService extends Service {
 				@Override
 				public void onPermissionRequest(PermissionRequest request) {
 					String[] strArray = request.getResources();
-					// we only grant the permission we want to grant!
-					// for instance "android.webkit.resource.AUDIO_CAPTURE"
-					// and          "android.webkit.resource.VIDEO_CAPTURE"
 					for(int i=0; i<strArray.length; i++) {
+						Log.w(TAG, "onPermissionRequest "+i+" ("+strArray[i]+")");
+						// we only grant the permission we want to grant
 						if(strArray[i].equals("android.webkit.resource.AUDIO_CAPTURE") ||
 						   strArray[i].equals("android.webkit.resource.VIDEO_CAPTURE")) {
-							request.grant(request.getResources());
-						} else {
-							Log.w(TAG, "onPermissionRequest unexpected "+strArray[i]);
+							request.grant(strArray);
+							break;
 						}
+						Log.w(TAG, "onPermissionRequest unexpected "+strArray[i]);
 					}
 				}
 
