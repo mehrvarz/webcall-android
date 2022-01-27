@@ -610,11 +610,12 @@ public class WebCallService extends Service {
 							Log.d(TAG,"dozeState idle");
 							if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 								Log.d(TAG,"dozeState idle keepAwakeWakeLock.acquire");
-//								keepAwakeWakeLock.acquire(30 * 60 * 1000);
-//								keepAwakeWakeLockStartTime = (new Date()).getTime();
-// we don't have to wait for the next ping to release; just stay awake 3s to defend against doze
-								keepAwakeWakeLock.acquire(1000);
-								keepAwakeWakeLockMS += 1000;
+								//keepAwakeWakeLock.acquire(30 * 60 * 1000);
+								//keepAwakeWakeLockStartTime = (new Date()).getTime();
+								// we don't have to wait for the next ping to keepAwakeWakeLock.release;
+								// just stay awake 2s to defend against doze
+								keepAwakeWakeLock.acquire(2000);
+								keepAwakeWakeLockMS += 2000;
 								storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
 							}
 							// this is a good opportunity to send a ping
@@ -664,11 +665,12 @@ public class WebCallService extends Service {
 
 							if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 								Log.d(TAG,"dozeState awake keepAwakeWakeLock.acquire");
-//								keepAwakeWakeLock.acquire(30 * 60 * 1000);
-//								keepAwakeWakeLockStartTime = (new Date()).getTime();
-// we don't have to wait for the next ping to release; just stay awake 3s to defend against doze
-								keepAwakeWakeLock.acquire(1000);
-								keepAwakeWakeLockMS += 1000;
+								//keepAwakeWakeLock.acquire(30 * 60 * 1000);
+								//keepAwakeWakeLockStartTime = (new Date()).getTime();
+								// we don't have to wait for the next ping to keepAwakeWakeLock.release;
+								// just stay awake 2s to defend against doze
+								keepAwakeWakeLock.acquire(2000);
+								keepAwakeWakeLockMS += 2000;
 								storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
 							}
 
@@ -2514,6 +2516,11 @@ public class WebCallService extends Service {
 						// success
 						Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
 						statusMessage("Online. Waiting for calls.",false,false);
+
+						// an alarm event (checkLastPing) striking now could report "diff TOO OLD"
+						// we want to prevent that from happening
+						lastPingDate = new Date();
+
 						if(beepOnLostNetworkMode>0) {
 							playSoundConfirm();
 						}
