@@ -1011,8 +1011,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			handler.postDelayed(new Runnable() {
 				@Override
 				public void run() {
-					Log.d(TAG, "activityStart releaseWakeUpWakeLock");
-					webCallServiceBinder.releaseWakeUpWakeLock();
+					if(boundService && webCallServiceBinder!=null) {
+						Log.d(TAG, "activityStart releaseWakeUpWakeLock");
+						webCallServiceBinder.releaseWakeUpWakeLock();
+					} else {
+						Log.d(TAG, "activityStart releaseWakeUpWakeLock, no boundService");
+					}
 				}
 			}, 3000);
 

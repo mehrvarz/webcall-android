@@ -526,7 +526,13 @@ public class WebCallService extends Service {
 					}
 					if(newNetworkInt==2 && haveNetworkInt!=2) {
 						// gaining wifi
-						if(setWifiLockMode>0 && wifiLock!=null && !wifiLock.isHeld()) {
+						if(setWifiLockMode<=0) {
+							Log.d(TAG,"networkCallback WifiLockMode off");
+						} else if(wifiLock==null) {
+							Log.d(TAG,"networkCallback wifiLock==null");
+						} else if(wifiLock.isHeld()) {
+							Log.d(TAG,"networkCallback wifiLock isHeld");
+						} else {
 							// enable wifi lock
 							Log.d(TAG,"networkCallback wifiLock.acquire");
 							wifiLock.acquire();
@@ -552,11 +558,11 @@ public class WebCallService extends Service {
 							if(reconnectSchedFuture.cancel(false)) {
 								// now run reconnecter in the next second
 								Log.d(TAG,"networkState restart reconnecter in 1s");
-								reconnectSchedFuture = scheduler.schedule(reconnecter,1,TimeUnit.SECONDS);
+								reconnectSchedFuture = scheduler.schedule(reconnecter, 0 ,TimeUnit.SECONDS);
 							}
 						} else {
 							Log.d(TAG,"networkState start reconnecter in 1s");
-							reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
+							reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
 						}
 					}
 					haveNetworkInt = newNetworkInt;
@@ -610,6 +616,7 @@ public class WebCallService extends Service {
 								keepAwakeWakeLock.acquire(2000);
 								keepAwakeWakeLockMS += 2000;
 								storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+								keepAwakeWakeLockStartTime = (new Date()).getTime();
 							}
 							// this is a good opportunity to send a ping
 							// if the connection is bad we will know much quicker
@@ -665,6 +672,7 @@ public class WebCallService extends Service {
 								keepAwakeWakeLock.acquire(2000);
 								keepAwakeWakeLockMS += 2000;
 								storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+								keepAwakeWakeLockStartTime = (new Date()).getTime();
 							}
 
 							wakeUpOnLoopCount(context);
@@ -698,7 +706,7 @@ public class WebCallService extends Service {
 								} else {
 									loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
 									Log.d(TAG,"dozeState awake re-login in 2s url="+loginUrl);
-									// hopefully network is avilable in 8s again
+									// hopefully network is avilable in 2s again
 									reconnectSchedFuture =
 										scheduler.schedule(reconnecter,2,TimeUnit.SECONDS);
 								}
@@ -1176,6 +1184,23 @@ public class WebCallService extends Service {
 		public int wakeupType() {
 			int ret = wakeupTypeInt;
 			wakeupTypeInt = -1;
+
+			if(Build.VERSION.SDK_INT < Build.VERSION_CODES.N) { // <api24
+				Log.d(TAG, "wakeupType() checkNetworkState");
+				checkNetworkState(false);
+			}
+			if(wsClient!=null) {
+				Log.d(TAG, "wakeupType() wsClient is set: checkLastPing");
+				checkLastPing(true,0);
+			} else {
+				if(connectToSignalingServerIsWanted && !reconnectBusy) {
+					Log.d(TAG,"wakeupType() wsClient not set: startReconnecter");
+					startReconnecter(true,0);
+				} else {
+					Log.d(TAG,"wakeupType() wsClient not set, no startReconnecter()");
+				}
+			}
+
 			return ret;
 		}
 
@@ -1203,6 +1228,7 @@ public class WebCallService extends Service {
 				Log.d(TAG, "releaseWakeUpWakeLock() not held");
 			}
 			wakeUpWakeLock = null;
+			// TODO activity called this maybe we should now do the things that we would do on next alarmReceiver
 		}
 
 		public void activityDestroyed() {
@@ -1253,12 +1279,20 @@ public class WebCallService extends Service {
 				setWifiLockMode = val;
 				storePrefsInt("setWifiLockMode", setWifiLockMode);
 				if(setWifiLockMode<1) {
-					if(wifiLock!=null && wifiLock.isHeld()) {
+					if(wifiLock==null) {
+						Log.d(TAG,"setWifiLock wifiLock==null");
+					} else if(!wifiLock.isHeld()) {
+						Log.d(TAG,"setWifiLock wifiLock not isHeld");
+					} else {
 						Log.d(TAG,"setWifiLock wifiLock release");
 						wifiLock.release();
 					}
 				} else if(haveNetworkInt==2) {
-					if(wifiLock!=null && !wifiLock.isHeld()) {
+					if(wifiLock==null) {
+						Log.d(TAG,"setWifiLock wifiLock==null");
+					} else if(wifiLock.isHeld()) {
+						Log.d(TAG,"setWifiLock wifiLock isHeld");
+					} else {
 						Log.d(TAG,"setWifiLock wifiLock.acquire");
 						wifiLock.acquire();
 					}
@@ -1689,12 +1723,12 @@ public class WebCallService extends Service {
 					// in deep sleep we cannot create new network connections
 					// in order to establish a new network connection, we need to bring device out of doze
 
-					if(screenForWifiMode>0) {
+// TODO what does screenForWifiMode do here?
+					if(haveNetworkInt==0 && screenForWifiMode>0) {
 						if(wifiLock!=null && wifiLock.isHeld()) {
 							Log.d(TAG,"onClose wifiLock release");
 							wifiLock.release();
 						}
-						haveNetworkInt=0;
 					}
 
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
@@ -1926,11 +1960,11 @@ public class WebCallService extends Service {
 			if(wsClient!=null) {
 				checkLastPing(true,0);
 			} else {
-				if(connectToSignalingServerIsWanted) {
+				if(connectToSignalingServerIsWanted && !reconnectBusy) {
 					Log.d(TAG,"alarm startReconnecter");
 					startReconnecter(true,0);
 				} else {
-					Log.d(TAG,"alarm no connectToSignalingServerIsWanted -> no startReconnecter");
+					Log.d(TAG,"alarm no startReconnecter");
 				}
 			}
 
@@ -1991,8 +2025,7 @@ public class WebCallService extends Service {
 			reconnectSchedFuture.cancel(false);
 			reconnectSchedFuture = null;
 		}
-		reconnectSchedFuture = scheduler.schedule(reconnecter,
-			reconnectDelaySecs,TimeUnit.SECONDS);
+		reconnectSchedFuture = scheduler.schedule(reconnecter, reconnectDelaySecs, TimeUnit.SECONDS);
 	}
 
 	private void checkLastPing(boolean wakeIfNoNet, int reconnectDelaySecs) {
@@ -2679,7 +2712,13 @@ public class WebCallService extends Service {
 
 					if(haveNetworkInt==2) {
 						// we are connected over wifi
-						if(setWifiLockMode>0 && wifiLock!=null && !wifiLock.isHeld()) {
+						if(setWifiLockMode<=0) {
+							Log.d(TAG,"connectHost WifiLockMode off");
+						} else if(wifiLock==null) {
+							Log.d(TAG,"connectHost wifiLock==null");
+						} else if(wifiLock.isHeld()) {
+							Log.d(TAG,"connectHost wifiLock isHeld");
+						} else {
 							// enable wifi lock
 							Log.d(TAG,"connectHost wifiLock.acquire");
 							wifiLock.acquire();
@@ -2783,13 +2822,16 @@ public class WebCallService extends Service {
 			}
 			Log.d(TAG,"networkState connected to wifi");
 			haveNetworkInt=2;
-			if(setWifiLockMode>0 && wifiLock!=null && !wifiLock.isHeld()) {
+			if(setWifiLockMode<=0) {
+				Log.d(TAG,"networkState WifiLockMode off");
+			} else if(wifiLock==null) {
+				Log.d(TAG,"networkState wifiLock==null");
+			} else if(wifiLock.isHeld()) {
+				Log.d(TAG,"networkState wifiLock isHeld");
+			} else {
 				// enable wifi lock
 				Log.d(TAG,"networkState wifiLock.acquire");
 				wifiLock.acquire();
-			} else {
-				// wifiLock is already held
-				Log.d(TAG,"networkState no wifiLock.acquire");
 			}
 			if(connectToSignalingServerIsWanted && (!reconnectBusy || reconnectWaitNetwork)) {
 				// if we are supposed to be connected and A) reconnecter is NOT in progress 
@@ -2802,17 +2844,18 @@ public class WebCallService extends Service {
 						keepAwakeWakeLockStartTime = (new Date()).getTime();
 					}
 					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-						// why wait for the scheduled reconnecter job
-						// let's cancel and start it right away
+						// why wait for the scheduled reconnecter (in 8 or 60s)?
+						// let's cancel it and start a new one right away
+						// TODO instead of in 1s, on P9 this may fire in 6min (despite keepAwakeWakeLock.acquire)
 						Log.d(TAG,"networkState connected to wifi cancel reconnectSchedFuture");
 						if(reconnectSchedFuture.cancel(false)) {
 							// cancel successful - run reconnecter right away
 							Log.d(TAG,"networkState connected to wifi restart recon");
-							reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
+							reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
 						}
 					} else {
 						Log.d(TAG,"networkState connected to wifi restart recon");
-						reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
+						reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
 					}
 				}
 			} else {
@@ -2852,11 +2895,11 @@ public class WebCallService extends Service {
 						if(reconnectSchedFuture.cancel(false)) {
 							// cancel successful - run reconnecter right away
 							Log.d(TAG,"networkState connected to net restart recon");
-							reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
+							reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
 						}
 					} else {
 						Log.d(TAG,"networkState connected to net restart recon");
-						reconnectSchedFuture = scheduler.schedule(reconnecter, 1, TimeUnit.SECONDS);
+						reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
 					}
 				}
 			} else {
