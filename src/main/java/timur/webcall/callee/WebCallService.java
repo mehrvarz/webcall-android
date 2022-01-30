@@ -165,6 +165,7 @@ public class WebCallService extends Service {
 	private BroadcastReceiver networkStateReceiver = null; // for api < 24
 	private BroadcastReceiver dozeStateReceiver = null;
 	private BroadcastReceiver alarmReceiver = null;
+//	private BroadcastReceiver powerConnectionReceiver = null;
 	private PowerManager powerManager = null;
 	private WifiManager wifiManager = null;
 	private WifiManager.WifiLock wifiLock = null; // if connected and haveNetworkInt=2
@@ -180,6 +181,8 @@ public class WebCallService extends Service {
 	private DisplayManager displayManager = null;
 	private String userAgentString = null;
 	private AudioManager audioManager = null;
+	private IntentFilter batteryStatusfilter = null;
+	private Intent batteryStatus = null;
 
 	// wakeUpWakeLock used for wakeup from doze: FULL_WAKE_LOCK|ACQUIRE_CAUSES_WAKEUP (screen on)
 	// wakeUpWakeLock is released by activity
@@ -295,12 +298,24 @@ public class WebCallService extends Service {
 		Log.d(TAG,"onCreate "+BuildConfig.VERSION_NAME);
 		alarmReceiver = new AlarmReceiver();
 		registerReceiver(alarmReceiver, new IntentFilter(startAlarmString));
+/*
+		powerConnectionReceiver = new PowerConnectionReceiver();
+		IntentFilter ifilter = new IntentFilter();
+		ifilter.addAction(Intent.ACTION_POWER_CONNECTED);
+		ifilter.addAction(Intent.ACTION_POWER_DISCONNECTED);
+		registerReceiver(powerConnectionReceiver, ifilter);
+*/
 	}
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		Log.d(TAG,"onStartCommand");
 		context = this;
+
+		if(batteryStatusfilter==null || batteryStatus==null) {
+			batteryStatusfilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+			batteryStatus = context.registerReceiver(null, batteryStatusfilter);
+		}
 
 		if(scheduler==null) {
 			scheduler = Executors.newScheduledThreadPool(20);
@@ -774,6 +789,12 @@ public class WebCallService extends Service {
 			unregisterReceiver(alarmReceiver);
 			alarmReceiver = null;
 		}
+/*
+		if(powerConnectionReceiver!=null) {
+			unregisterReceiver(powerConnectionReceiver);
+			powerConnectionReceiver = null;
+		}
+*/
 		if(networkStateReceiver!=null) {
 			unregisterReceiver(networkStateReceiver);
 			networkStateReceiver = null;
@@ -1924,6 +1945,22 @@ public class WebCallService extends Service {
 		}
 	}
 
+/*
+	public class PowerConnectionReceiver extends BroadcastReceiver {
+		private static final String TAG = "WebCallPower";
+		public PowerConnectionReceiver() {
+		}
+
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if(intent.getAction().equals(Intent.ACTION_POWER_CONNECTED)) {
+				Log.d(TAG,"charging");
+			} else if(intent.getAction().equals(Intent.ACTION_POWER_DISCONNECTED)) {
+				Log.d(TAG,"not charging");
+			}
+		}
+	}
+*/
 	public class AlarmReceiver extends BroadcastReceiver {
 		private static final String TAG = "WebCallAlarmReceiver";
 		public void onReceive(Context context, Intent intent) {
@@ -1935,8 +1972,19 @@ public class WebCallService extends Service {
 			}
 			pendingAlarm = null;
 			alarmPendingDate = null;
+
+			//Intent batteryStatus = context.registerReceiver(null, batteryStatusfilter);
+			//int chargePlug = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+			//boolean usbCharge = chargePlug == BatteryManager.BATTERY_PLUGGED_USB;
+			//boolean acCharge = chargePlug == BatteryManager.BATTERY_PLUGGED_AC;
+			int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+			int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+			float batteryPct = level * 100 / (float)scale;
+
+
 			Log.d(TAG,"net="+haveNetworkInt+ " awakeMS="+keepAwakeWakeLockMS+
-				" pings="+pingCounter+ " "+BuildConfig.VERSION_NAME+ 
+				" pings="+pingCounter+ " "+batteryPct+
+				" "+BuildConfig.VERSION_NAME+
 				" "+currentDateTimeString());
 			if(/*haveNetworkInt==0 &&*/ Build.VERSION.SDK_INT < Build.VERSION_CODES.N) { // <api24
 				checkNetworkState(false);
