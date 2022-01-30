@@ -1962,7 +1962,7 @@ public class WebCallService extends Service {
 	}
 */
 	public class AlarmReceiver extends BroadcastReceiver {
-		private static final String TAG = "WebCallAlarmReceiver";
+		private static final String TAG = "WebCallAlarm";
 		public void onReceive(Context context, Intent intent) {
 			// we request to wakeup out of doze every 10-15 minutes
 			// we do so to check if we are still receiving pings from the server
