@@ -165,7 +165,7 @@ public class WebCallService extends Service {
 	private BroadcastReceiver networkStateReceiver = null; // for api < 24
 	private BroadcastReceiver dozeStateReceiver = null;
 	private BroadcastReceiver alarmReceiver = null;
-//	private BroadcastReceiver powerConnectionReceiver = null;
+	//private BroadcastReceiver powerConnectionReceiver = null;
 	private PowerManager powerManager = null;
 	private WifiManager wifiManager = null;
 	private WifiManager.WifiLock wifiLock = null; // if connected and haveNetworkInt=2
@@ -298,13 +298,13 @@ public class WebCallService extends Service {
 		Log.d(TAG,"onCreate "+BuildConfig.VERSION_NAME);
 		alarmReceiver = new AlarmReceiver();
 		registerReceiver(alarmReceiver, new IntentFilter(startAlarmString));
-/*
+		/*
 		powerConnectionReceiver = new PowerConnectionReceiver();
 		IntentFilter ifilter = new IntentFilter();
 		ifilter.addAction(Intent.ACTION_POWER_CONNECTED);
 		ifilter.addAction(Intent.ACTION_POWER_DISCONNECTED);
 		registerReceiver(powerConnectionReceiver, ifilter);
-*/
+		*/
 	}
 
 	@Override
@@ -789,12 +789,12 @@ public class WebCallService extends Service {
 			unregisterReceiver(alarmReceiver);
 			alarmReceiver = null;
 		}
-/*
+		/*
 		if(powerConnectionReceiver!=null) {
 			unregisterReceiver(powerConnectionReceiver);
 			powerConnectionReceiver = null;
 		}
-*/
+		*/
 		if(networkStateReceiver!=null) {
 			unregisterReceiver(networkStateReceiver);
 			networkStateReceiver = null;
@@ -1945,7 +1945,7 @@ public class WebCallService extends Service {
 		}
 	}
 
-/*
+	/*
 	public class PowerConnectionReceiver extends BroadcastReceiver {
 		private static final String TAG = "WebCallPower";
 		public PowerConnectionReceiver() {
@@ -1960,7 +1960,8 @@ public class WebCallService extends Service {
 			}
 		}
 	}
-*/
+	*/
+
 	public class AlarmReceiver extends BroadcastReceiver {
 		private static final String TAG = "WebCallAlarm";
 		public void onReceive(Context context, Intent intent) {
