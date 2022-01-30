@@ -312,9 +312,9 @@ public class WebCallService extends Service {
 		Log.d(TAG,"onStartCommand");
 		context = this;
 
-		if(batteryStatusfilter==null || batteryStatus==null) {
+		if(batteryStatusfilter==null) {
 			batteryStatusfilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-			batteryStatus = context.registerReceiver(null, batteryStatusfilter);
+			//batteryStatus = context.registerReceiver(null, batteryStatusfilter);
 		}
 
 		if(scheduler==null) {
@@ -1974,7 +1974,7 @@ public class WebCallService extends Service {
 			pendingAlarm = null;
 			alarmPendingDate = null;
 
-			//Intent batteryStatus = context.registerReceiver(null, batteryStatusfilter);
+			batteryStatus = context.registerReceiver(null, batteryStatusfilter);
 			//int chargePlug = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
 			//boolean usbCharge = chargePlug == BatteryManager.BATTERY_PLUGGED_USB;
 			//boolean acCharge = chargePlug == BatteryManager.BATTERY_PLUGGED_AC;
