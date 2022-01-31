@@ -43,7 +43,7 @@
 			android:configChanges="orientation|keyboardHidden|screenSize"
 			android:theme="@android:style/Theme.Material.NoActionBar"
 			android:exported="true"
-            android:launchMode="singleInstance">
+			android:launchMode="singleInstance">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

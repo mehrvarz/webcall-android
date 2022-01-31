@@ -18,6 +18,7 @@ import android.view.WindowManager;
 import android.view.MotionEvent;
 import android.view.MenuItem;
 import android.view.ContextMenu;
+import android.view.Display;
 import android.view.MenuInflater;
 import android.graphics.Color;
 import android.webkit.WebSettings;
@@ -35,6 +36,7 @@ import android.content.SharedPreferences;
 import android.content.DialogInterface;
 import android.content.ContentResolver;
 import android.content.pm.PackageInfo;
+import android.content.res.Configuration;
 import android.widget.Toast;
 import android.widget.PopupMenu;
 import android.widget.AdapterView.AdapterContextMenuInfo;
@@ -96,6 +98,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private volatile int touchX, touchY;
 	private volatile boolean extendedLogsFlag = false;
 	private volatile String lastLogfileName = null;
+	private int mRuntimeOrientation = Configuration.ORIENTATION_UNDEFINED;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -420,6 +423,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		super.onCreate(savedInstanceState);
 		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
 		context = this;
+    	mRuntimeOrientation = getScreenOrientation();
 
 		//PackageInfo packageInfo = WebViewCompat.getCurrentWebViewPackage();
 		PackageInfo packageInfo = getCurrentWebViewPackageInfo();
@@ -848,12 +852,26 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		// so it is fine to endPeerConAndWebView(), unbind and destroy the activity
 		// in onDestroy we call webCallServiceBinder.activityDestroyed() which will call exitService()
 		super.onBackPressed();
-    }
+	}
+
+	@Override
+	public void onConfigurationChanged(Configuration newConfig) {
+		Log.d(TAG, "onConfigurationChanged "+newConfig);
+		super.onConfigurationChanged(newConfig);
+		// no orientation change while peer connected
+		if(webCallServiceBinder.callInProgress()>0) {
+			Log.d(TAG, "onConfigurationChanged keep "+mRuntimeOrientation);
+			setRequestedOrientation(mRuntimeOrientation);
+		} else {
+			mRuntimeOrientation = getScreenOrientation();
+			Log.d(TAG, "onConfigurationChanged changed "+mRuntimeOrientation);
+		}
+	}
 
 	@Override
 	public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-	    Log.d(TAG, "onActivityResult "+requestCode+" "+resultCode);
+		super.onActivityResult(requestCode, resultCode, data);
+		Log.d(TAG, "onActivityResult "+requestCode+" "+resultCode);
 		if(requestCode==FILE_REQ_CODE) {
 			Uri[] results = null;
 			if(resultCode == Activity.RESULT_OK) {
@@ -900,6 +918,25 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	}
 
 	////////// private functions //////////////////////////////////////
+
+	private int getScreenOrientation() {
+		Display display = getWindowManager().getDefaultDisplay();
+		int orientation = display.getOrientation();
+
+		if(orientation == Configuration.ORIENTATION_UNDEFINED) {
+			orientation = getResources().getConfiguration().orientation;
+
+			if(orientation == Configuration.ORIENTATION_UNDEFINED) {
+				if(display.getWidth() == display.getHeight())
+					orientation = Configuration.ORIENTATION_SQUARE;
+				else if(display.getWidth() < display.getHeight())
+					orientation = Configuration.ORIENTATION_PORTRAIT;
+				else
+					orientation = Configuration.ORIENTATION_LANDSCAPE;
+			}
+		}
+		return orientation;
+	}
 
 	private void disableBattOptimizations() {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23

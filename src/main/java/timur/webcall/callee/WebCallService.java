@@ -1029,6 +1029,10 @@ public class WebCallService extends Service {
 						if(idxHash>=0) {
 							baseCurrentUrl = baseCurrentUrl.substring(0,idxHash);
 						}
+						int idxArgs = baseCurrentUrl.indexOf("?");
+						if(idxArgs>=0) {
+							baseCurrentUrl = baseCurrentUrl.substring(0,idxArgs);
+						}
 						//Log.d(TAG, "onPageFinished baseCurrentUrl=" + baseCurrentUrl);
 						if(url.startsWith(baseCurrentUrl)) {
 							// url is just a hashchange; does not need onPageFinished processing
@@ -1044,9 +1048,7 @@ public class WebCallService extends Service {
 
 					// if the url has changed (beyond a hashchange)
 					// and if we ARE connected already -> call js:wakeGoOnline()
-					if(extendedLogsFlag) {
-						Log.d(TAG, "onPageFinished process set currentUrl=" + url);
-					}
+					Log.d(TAG, "onPageFinished set=" + url);
 					currentUrl = url;
 					webviewMainPageLoaded = false;
 					webviewCookies = CookieManager.getInstance().getCookie(url);
@@ -1583,7 +1585,6 @@ public class WebCallService extends Service {
 
 			// hangup peercon, clear callPickedUpFlag, reset webview
 			endPeerConAndWebView();
-			//? currentUrl = null;
 
 			// disconnect from webcall server
 			Log.d(TAG,"wsExit disconnectHost()");
