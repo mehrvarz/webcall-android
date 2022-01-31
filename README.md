@@ -30,7 +30,7 @@ WebCall for Android lets you receive calls while your device is in deep sleep mo
 
 ### Low power requirements
 
-WebCall for Android has very moderate power requirements. It can run in the background all day in order to receive calls at any time. Unlike a regular phone application, it requires no SIM card.
+WebCall for Android has very moderate power requirements. It can run in the background all day in order to receive calls at any time. Unlike a regular phone application, it does not require a SIM card.
 
 ## More info + APK Download
 
