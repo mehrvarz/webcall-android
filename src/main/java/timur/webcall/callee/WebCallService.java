@@ -1041,18 +1041,18 @@ public class WebCallService extends Service {
 								Log.d(TAG, "onPageFinished set currentUrl="+url+" (just a hashchange)");
 							}
 							// no need to execute onPageFinished() on hashchange or history back
-							//Log.d(TAG, "onPageFinished skip url=" + url);
 							currentUrl = url;
+							Log.d(TAG, "onPageFinished only hashchange currentUrl=" + currentUrl);
 							return;
 						}
 					}
 
 					// if the url has changed (beyond a hashchange)
 					// and if we ARE connected already -> call js:wakeGoOnline()
-					Log.d(TAG, "onPageFinished set=" + url);
 					currentUrl = url;
+					Log.d(TAG, "onPageFinished set currentUrl=" + currentUrl);
 					webviewMainPageLoaded = false;
-					webviewCookies = CookieManager.getInstance().getCookie(url);
+					webviewCookies = CookieManager.getInstance().getCookie(currentUrl);
 
 					storePrefsString("cookies", webviewCookies);
 					//Log.d(TAG, "onPageFinished webviewCookies=" + webviewCookies);
@@ -2773,7 +2773,7 @@ public class WebCallService extends Service {
 
 					if(currentUrl!=null) {
 						if(extendedLogsFlag) {
-							Log.d(TAG,"connectHost get cookies from "+currentUrl);
+							Log.d(TAG,"connectHost get cookies from currentUrl="+currentUrl);
 						}
 						if(!currentUrl.equals("")) {
 							webviewCookies = CookieManager.getInstance().getCookie(currentUrl);

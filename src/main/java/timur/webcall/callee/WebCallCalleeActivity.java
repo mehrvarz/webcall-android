@@ -88,7 +88,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private PowerManager powerManager = null;
 	private PowerManager.WakeLock wakeLockProximity = null;
 	private Sensor proximitySensor = null;
-	private SensorEventListener proximitySensorEventListener = null;
+	private volatile SensorEventListener proximitySensorEventListener = null;
 	private SensorManager sensorManager = null;
 	private volatile boolean activityStartNeeded = false;
 	private WakeLock wakeLockScreen = null;
@@ -163,12 +163,18 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public void onCreateContextMenu(ContextMenu menu, View view,
 						ContextMenu.ContextMenuInfo menuInfo) {
+		int callInProgress = 0;
+		if(webCallServiceBinder!=null && webCallServiceBinder.callInProgress()>0) {
+			Log.d(TAG,"onCreateContextMenu abort on callInProgress");
+			return;
+		}
+
 		final int none = ContextMenu.NONE;
 		// for the context menu to be shown, our service must be connected to webcall server
 		// and our webview url must contain "/callee/"
 		String webviewUrl = webCallServiceBinder.getCurrentUrl();
 		if(extendedLogsFlag) {
-			Log.d(TAG,"onCreateContextMenu url="+webviewUrl+" touchY="+touchY);
+			Log.d(TAG,"onCreateContextMenu currentUrl="+webviewUrl+" touchY="+touchY);
 		}
 		if(webviewUrl.indexOf("/callee/")<0) {
 			if(extendedLogsFlag) {
@@ -236,7 +242,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				menu.add(none,menuOpenLogs,none,R.string.msg_open_logs);
 			}
 
-			if(touchY<80) {
+			if(touchY<100) {
 				// extended functionality
 				if(webCallServiceBinder.extendedLogs(-1)) {
 					// offer to turn this off, bc it is on
@@ -493,9 +499,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 					// undim screen
 					// TODO do this every time? shd only be needed once after "if(typeOfWakeup==1)"
-					mParams.screenBrightness = -1f;
-					getWindow().setAttributes(mParams);
-					view.performClick();
+					//mParams.screenBrightness = -1f;
+					//getWindow().setAttributes(mParams);
+					//view.performClick();
 					return false;
 				}
 			});
@@ -520,9 +526,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						openContextMenu(mainView);
 					} else if(command.equals("screenorientlock")) {
 						// peer connect: lock the current screen orientation, aka don't allow changes
-						setRequestedOrientation(getScreenOrientation());
+						int currOrient = getScreenOrientation();
+						Log.d(TAG, "broadcastReceiver setRequestedOrientation "+currOrient);
+						setRequestedOrientation(currOrient);
 					} else if(command.equals("screenorientunlock")) {
 						// peer disconnect: unlock screen orientation, aka allow changes
+						Log.d(TAG, "broadcastReceiver setRequestedOrientation UNSPECIFIED");
 						setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
 					}
 					return;
@@ -746,12 +755,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							// device is in-a-call: shut the screen on proximity
 							if(!wakeLockProximity.isHeld()) {
 								Log.d(TAG, "SensorEvent near, wakeLockProximity.acquire");
-								wakeLockProximity.acquire(); //60*60*1000);
 								myWebView.setClickable(false); // disable UI click events
-								webCallServiceBinder.setProximity(true); // use ear speaker, not speakerphone
-
 								getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
 								getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+								webCallServiceBinder.setProximity(true); // use ear speaker, not speakerphone
+								wakeLockProximity.acquire();
 							} else {
 								//Log.d(TAG, "SensorEvent near, wakeLockProximity already held");
 							}
@@ -764,11 +772,23 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						if(wakeLockProximity.isHeld()) {
 							Log.d(TAG, "SensorEvent away, wakeLockProximity.release");
 							wakeLockProximity.release();
-							myWebView.setClickable(true); // enable UI click events
 							webCallServiceBinder.setProximity(false); // use speakerphone, not ear speaker
 
-							getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
-							getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+							// do this with a little delay; screen needs to be back on before we do this
+							Runnable mDelayed = new Runnable() {
+								@Override
+								public void run() {
+									Log.d(TAG, "SensorEvent away, delayed");
+									if(!wakeLockProximity.isHeld()) {
+										Log.d(TAG, "SensorEvent away, delayed, FLAG_DISMISS_KEYGUARD");
+										getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+										getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+										myWebView.setClickable(true); // enable UI click events
+									}
+								}
+							};
+							final Handler handler = new Handler(Looper.getMainLooper());
+							handler.postDelayed(mDelayed, 700);
 						} else {
 							//Log.d(TAG, "SensorEvent away, wakeLockProximity not held");
 						}
@@ -787,8 +807,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 		super.onPause();
 
-		if(sensorManager!=null && wakeLockProximity!=null && proximitySensor!=null) {
+		if(sensorManager!=null && proximitySensorEventListener!=null) {
 			sensorManager.unregisterListener(proximitySensorEventListener);
+			proximitySensorEventListener = null;
 		}
     }
 
@@ -852,7 +873,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	    Log.d(TAG, "onBackPressed");
 		if(webCallServiceBinder!=null) {
 			String webviewUrl = webCallServiceBinder.getCurrentUrl();
-		    Log.d(TAG, "onBackPressed webviewUrl="+webviewUrl);
+		    Log.d(TAG, "onBackPressed currentUrl="+webviewUrl);
 			// we ONLY allow history.back() if the user is NOT on the basepage or the mainpage
 			// except there is a '#' in webviewUrl
 			if(webviewUrl!=null) {
@@ -887,8 +908,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public void onConfigurationChanged(Configuration newConfig) {
 		// accept all changes without restarting the activity
-		Log.d(TAG, "onConfigurationChanged "+newConfig);
 		super.onConfigurationChanged(newConfig);
+		Log.d(TAG, "onConfigurationChanged "+newConfig+" "+getScreenOrientation());
 	}
 
 	@Override
@@ -943,24 +964,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	////////// private functions //////////////////////////////////////
 
 	private int getScreenOrientation() {
+		int	orientation = 0; // landscape (as used by setRequestedOrientation())
 		Display display = getWindowManager().getDefaultDisplay();
-		int orientation = display.getOrientation();
-		//Log.d(TAG, "getScreenOrientation 1="+orientation);
-
-		if(orientation == Configuration.ORIENTATION_UNDEFINED) {
-			orientation = getResources().getConfiguration().orientation;
-			//Log.d(TAG, "getScreenOrientation 2="+orientation);
-
-			if(orientation == Configuration.ORIENTATION_UNDEFINED) {
-				if(display.getWidth() == display.getHeight())
-					orientation = Configuration.ORIENTATION_SQUARE;
-				else if(display.getWidth() < display.getHeight())
-					orientation = Configuration.ORIENTATION_PORTRAIT;
-				else
-					orientation = Configuration.ORIENTATION_LANDSCAPE;
-				//Log.d(TAG, "getScreenOrientation 3="+orientation);
-			}
-		}
+		if(display.getWidth() < display.getHeight())
+			orientation = 1; // portrait
+		Log.d(TAG, "getScreenOrientation "+orientation);
 		return orientation;
 	}
 
