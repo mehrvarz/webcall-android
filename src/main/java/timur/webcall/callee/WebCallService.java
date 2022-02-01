@@ -1246,13 +1246,27 @@ public class WebCallService extends Service {
 		public void setProximity(boolean flagNear) {
 			proximityNear = flagNear;
 			if(proximityNear) {
-				if(audioManager.isWiredHeadsetOn()) {
-					Log.d(TAG, "setProximity() near, WiredHeadset, skip setSpeakerphoneOn(false)");
+				// user is using a smartphone and is now holding it to their head
+/*
+				boolean wiredHeadsetConnected = false;
+				if(Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+					if(audioManager.isWiredHeadsetOn()) {
+						wiredHeadsetConnected = true;
+					}
 				} else {
-					Log.d(TAG, "setProximity() near, no WiredHeadset, set setSpeakerphoneOn(false)");
+					AudioDeviceInfo[] audioDevices = audioManager.getDevices(audioManager.GET_DEVICES_OUTPUTS);
+				}
+
+				if(wiredHeadsetConnected) {
+					Log.d(TAG, "setProximity() near, WiredHeadset, skip setSpeakerphoneOn(false)");
+				} else 
+*/
+				{
+					Log.d(TAG, "setProximity() near, no WiredHeadset, disable speakerphone");
 					audioManager.setSpeakerphoneOn(false);
 				}
 			} else {
+				// user is currently NOT holding a smartphone to their head
 				Log.d(TAG, "setProximity() away, set setSpeakerphoneOn(true)");
 				audioManager.setSpeakerphoneOn(true);
 			}
