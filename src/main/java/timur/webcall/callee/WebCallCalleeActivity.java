@@ -707,29 +707,33 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					@Override
 					public void onSensorChanged(SensorEvent event) {
 						// check if the sensor type is proximity sensor.
-						if (event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
-							if (event.values[0] == 0) {
+						if(event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
+							if(event.values[0] == 0) {
 								//Log.d(TAG, "SensorEvent near");
-								// callInProgress() is >0 on incoming call (ringing) or if in-call
+								// callInProgress() > 0 on incoming call (ringing) or in-call
 								if(webCallServiceBinder!=null && webCallServiceBinder.callInProgress()>0) {
 									// device is in-a-call: shut the screen on proximity
 									//Log.d(TAG, "SensorEvent near dim screen");
 									if(!wakeLockProximity.isHeld()) {
-										Log.d(TAG, "SensorEvent near wakeLockProximity.acquire");
+										Log.d(TAG, "SensorEvent near, wakeLockProximity.acquire");
 										wakeLockProximity.acquire(60*60*1000);
 										myWebView.setClickable(false);
 										webCallServiceBinder.setProximity(true);
+									} else {
+										Log.d(TAG, "SensorEvent near, wakeLockProximity isHeld");
 									}
 								} else {
-									//Log.d(TAG, "SensorEvent near but NO callInProgress");
+									Log.d(TAG, "SensorEvent near, but NO callInProgress");
 								}
 							} else {
 								//Log.d(TAG, "SensorEvent away");
 								if(wakeLockProximity.isHeld()) {
-									Log.d(TAG, "SensorEvent away wakeLockProximity.release");
+									Log.d(TAG, "SensorEvent away, wakeLockProximity.release");
 									wakeLockProximity.release();
 									myWebView.setClickable(true);
 									webCallServiceBinder.setProximity(false);
+								} else {
+									Log.d(TAG, "SensorEvent away, wakeLockProximity not held");
 								}
 							}
 						}
@@ -860,11 +864,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	public void onConfigurationChanged(Configuration newConfig) {
 		Log.d(TAG, "onConfigurationChanged "+newConfig);
 		super.onConfigurationChanged(newConfig);
-		// no orientation change while peer connected
 		if(webCallServiceBinder.callInProgress()>0) {
+			// if peer connected (or ringing): accept no screen orientation changes, keep prev orientation
 			Log.d(TAG, "onConfigurationChanged keep "+mRuntimeOrientation);
 			setRequestedOrientation(mRuntimeOrientation);
 		} else {
+			// if NOT peer connected: accept screen orientation changes
 			mRuntimeOrientation = getScreenOrientation();
 			Log.d(TAG, "onConfigurationChanged changed "+mRuntimeOrientation);
 		}

@@ -1262,7 +1262,7 @@ public class WebCallService extends Service {
 				} else 
 */
 				{
-					Log.d(TAG, "setProximity() near, no WiredHeadset, disable speakerphone");
+					Log.d(TAG, "setProximity() near, disable speakerphone");
 					audioManager.setSpeakerphoneOn(false);
 				}
 			} else {
