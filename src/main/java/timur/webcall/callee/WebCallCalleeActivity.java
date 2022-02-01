@@ -75,6 +75,7 @@ import timur.webcall.callee.BuildConfig;
 
 public class WebCallCalleeActivity extends Activity implements CreateNdefMessageCallback {
 	private static final String TAG = "WebCallActivity";
+	private static final int SENSOR_SENSITIVITY = 3;
 
 	private WebCallService.WebCallServiceBinder webCallServiceBinder = null;
 	private volatile boolean boundService = false;
@@ -99,7 +100,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private volatile int touchX, touchY;
 	private volatile boolean extendedLogsFlag = false;
 	private volatile String lastLogfileName = null;
-//	private int mRuntimeOrientation = Configuration.ORIENTATION_UNDEFINED;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -424,7 +424,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		super.onCreate(savedInstanceState);
 		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
 		context = this;
-//    	mRuntimeOrientation = getScreenOrientation();
 
 		//PackageInfo packageInfo = WebViewCompat.getCurrentWebViewPackage();
 		PackageInfo packageInfo = getCurrentWebViewPackageInfo();
@@ -457,9 +456,26 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(powerManager==null) {
 			powerManager = (PowerManager)getSystemService(POWER_SERVICE);
 		}
+		if(powerManager==null) {
+			Log.d(TAG, "onCreate powerManager==null");
+			return;
+		}
+
 		if(sensorManager==null) {
 			sensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
 		}
+//		if(sensorManager==null) {
+//			Log.d(TAG, "onCreate sensorManager==null");
+//			return;
+//		}
+
+		if(proximitySensor==null) {
+			proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
+		}
+//		if(proximitySensor==null) {
+//			Log.d(TAG, "onCreate proximitySensor==null");
+//			return;
+//		}
 
 		View mainView = findViewById(R.id.webview);
 		if(mainView!=null) {
@@ -691,76 +707,73 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
         super.onResume();
 
 		if(sensorManager==null) {
-			Log.d(TAG, "onResume sensorManager fail");
-		} else if(powerManager==null) {
-			Log.d(TAG, "onResume powerManager fail");
-		} else {
-			int proximityField = 0x00000020;
-			if(wakeLockProximity==null) {
-				wakeLockProximity = powerManager.newWakeLock(proximityField, getLocalClassName());
-			}
-			if(wakeLockProximity==null) {
-				Log.d(TAG, "onResume wakeLockProximity fail");
-			} else {
-				proximitySensorEventListener = new SensorEventListener() {
-					@Override
-					public void onAccuracyChanged(Sensor sensor, int accuracy) {
-						// method to check accuracy changed in sensor.
-						if(webCallServiceBinder!=null && webCallServiceBinder.callInProgress()>0) {
-							Log.d(TAG, "SensorEvent accuracy "+accuracy);
-						}
-					}
-
-					@Override
-					public void onSensorChanged(SensorEvent event) {
-						// check if the sensor type is proximity sensor.
-						if(event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
-							if(event.values[0] == 0) {
-								//Log.d(TAG, "SensorEvent near");
-								// callInProgress() > 0 on incoming call (ringing) or in-call
-								if(webCallServiceBinder!=null && webCallServiceBinder.callInProgress()>0) {
-									// device is in-a-call: shut the screen on proximity
-									//Log.d(TAG, "SensorEvent near dim screen");
-									if(!wakeLockProximity.isHeld()) {
-										Log.d(TAG, "SensorEvent near, wakeLockProximity.acquire");
-										wakeLockProximity.acquire(60*60*1000);
-										myWebView.setClickable(false);
-										webCallServiceBinder.setProximity(true);
-									} else {
-										Log.d(TAG, "SensorEvent near, wakeLockProximity isHeld");
-									}
-								} else {
-									Log.d(TAG, "SensorEvent near, but NO callInProgress");
-								}
-							} else {
-								//Log.d(TAG, "SensorEvent away");
-								if(wakeLockProximity.isHeld()) {
-									Log.d(TAG, "SensorEvent away, wakeLockProximity.release");
-									wakeLockProximity.release();
-									myWebView.setClickable(true);
-									webCallServiceBinder.setProximity(false);
-								} else {
-									Log.d(TAG, "SensorEvent away, wakeLockProximity not held");
-								}
-							}
-						}
-					}
-				};
-
-				if(proximitySensor==null) {
-					proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
-				}
-				if(proximitySensor==null) {
-					// this device does not have a proximity sensor
-					if(extendedLogsFlag) {
-						Log.d(TAG, "no proximitySensor");
-					}
-				} else {
-					sensorManager.registerListener(proximitySensorEventListener,
-						proximitySensor, SensorManager.SENSOR_DELAY_NORMAL);
-				}
-			}
+			Log.d(TAG, "onResume sensorManager==null");
+			return;
 		}
+		if(powerManager==null) {
+			Log.d(TAG, "onResume powerManager==null");
+			return;
+		}
+		if(wakeLockProximity==null) {
+			wakeLockProximity = powerManager.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, TAG);
+		}
+		if(wakeLockProximity==null) {
+			Log.d(TAG, "onResume wakeLockProximity==null");
+			return;
+		}
+
+		proximitySensorEventListener = new SensorEventListener() {
+			@Override
+			public void onAccuracyChanged(Sensor sensor, int accuracy) {
+				// method to check accuracy changed in sensor.
+				if(webCallServiceBinder!=null && webCallServiceBinder.callInProgress()>0) {
+					Log.d(TAG, "SensorEvent accuracy "+accuracy);
+				}
+			}
+
+			@Override
+			public void onSensorChanged(SensorEvent event) {
+				// check if the sensor type is proximity sensor.
+				if(event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
+					if(event.values[0] >= -SENSOR_SENSITIVITY && event.values[0] <= SENSOR_SENSITIVITY) {
+						// face near
+						Log.d(TAG, "SensorEvent near "+event.values[0]);
+						if(webCallServiceBinder!=null && webCallServiceBinder.callInProgress()>0) {
+							// device is in-a-call: shut the screen on proximity
+							if(!wakeLockProximity.isHeld()) {
+								Log.d(TAG, "SensorEvent near, wakeLockProximity.acquire");
+								wakeLockProximity.acquire(); //60*60*1000);
+								myWebView.setClickable(false); // disable UI click events
+								webCallServiceBinder.setProximity(true); // use ear speaker, not speakerphone
+
+								getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+								getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+							} else {
+								//Log.d(TAG, "SensorEvent near, wakeLockProximity already held");
+							}
+						} else {
+							//Log.d(TAG, "SensorEvent near, but NO callInProgress");
+						}
+					} else {
+						// face away
+						Log.d(TAG, "SensorEvent away "+event.values[0]);
+						if(wakeLockProximity.isHeld()) {
+							Log.d(TAG, "SensorEvent away, wakeLockProximity.release");
+							wakeLockProximity.release();
+							myWebView.setClickable(true); // enable UI click events
+							webCallServiceBinder.setProximity(false); // use speakerphone, not ear speaker
+
+							getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+							getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+						} else {
+							//Log.d(TAG, "SensorEvent away, wakeLockProximity not held");
+						}
+					}
+				}
+			}
+		};
+		sensorManager.registerListener(proximitySensorEventListener, proximitySensor,
+			SensorManager.SENSOR_DELAY_NORMAL);
     }
 
     @Override
@@ -768,10 +781,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(extendedLogsFlag) {
 		    Log.d(TAG, "onPause");
 		}
-        super.onPause();
+		super.onPause();
 
 		if(sensorManager!=null && wakeLockProximity!=null && proximitySensor!=null) {
-			sensorManager.unregisterListener(proximitySensorEventListener, proximitySensor);
+			sensorManager.unregisterListener(proximitySensorEventListener);
 		}
     }
 
