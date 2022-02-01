@@ -1247,11 +1247,11 @@ public class WebCallService extends Service {
 			proximityNear = flagNear;
 			if(proximityNear) {
 				// user is is now holding device to head
-				Log.d(TAG, "setProximity() near, disable speakerphone");
+				Log.d(TAG, "setProximity() near, speakerphone=false");
 				audioManager.setSpeakerphoneOn(false);
 			} else {
 				// user is is now NOT holding device to head
-				Log.d(TAG, "setProximity() away, set setSpeakerphoneOn(true)");
+				Log.d(TAG, "setProximity() away, speakerphone=true");
 				audioManager.setSpeakerphoneOn(true);
 			}
 		}
