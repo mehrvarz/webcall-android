@@ -267,6 +267,7 @@ public class WebCallService extends Service {
 	private volatile long keepAwakeWakeLockStartTime = 0;
 	private volatile int lastMinuteOfDay = 0;
 	private volatile int origvol = 0;
+	private volatile boolean proximity = false;
 
 	// below are variables backed by preference persistens
 	private volatile int beepOnLostNetworkMode = 0;
@@ -1240,6 +1241,21 @@ public class WebCallService extends Service {
 				Log.d(TAG, "callInProgress ret="+ret);
 			}
 			return ret;
+		}
+
+		public void setProximity(boolean flag) {
+			proximity = flag;
+			if(audioManager.isWiredHeadsetOn()) {
+				Log.d(TAG, "setProximity() WiredHeadsetOn "+flag);
+			} else {
+				if(proximity) {
+					Log.d(TAG, "setProximity() !WiredHeadsetOn proximity setSpeakerphoneOn(false)");
+					audioManager.setSpeakerphoneOn(false);
+				} else {
+					Log.d(TAG, "setProximity() !WiredHeadsetOn !proximity setSpeakerphoneOn(true)");
+					audioManager.setSpeakerphoneOn(true);
+				}
+			}
 		}
 
 		public void releaseWakeUpWakeLock() {

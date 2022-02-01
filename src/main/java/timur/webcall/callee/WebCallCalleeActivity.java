@@ -716,8 +716,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 									//Log.d(TAG, "SensorEvent near dim screen");
 									if(!wakeLockProximity.isHeld()) {
 										Log.d(TAG, "SensorEvent near wakeLockProximity.acquire");
-										wakeLockProximity.acquire(30*60*1000);
+										wakeLockProximity.acquire(60*60*1000);
 										myWebView.setClickable(false);
+										webCallServiceBinder.setProximity(true);
 									}
 								} else {
 									//Log.d(TAG, "SensorEvent near but NO callInProgress");
@@ -728,6 +729,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 									Log.d(TAG, "SensorEvent away wakeLockProximity.release");
 									wakeLockProximity.release();
 									myWebView.setClickable(true);
+									webCallServiceBinder.setProximity(false);
 								}
 							}
 						}
