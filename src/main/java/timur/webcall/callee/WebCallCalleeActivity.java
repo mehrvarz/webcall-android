@@ -36,6 +36,7 @@ import android.content.SharedPreferences;
 import android.content.DialogInterface;
 import android.content.ContentResolver;
 import android.content.pm.PackageInfo;
+import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.widget.Toast;
 import android.widget.PopupMenu;
@@ -98,7 +99,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private volatile int touchX, touchY;
 	private volatile boolean extendedLogsFlag = false;
 	private volatile String lastLogfileName = null;
-	private int mRuntimeOrientation = Configuration.ORIENTATION_UNDEFINED;
+//	private int mRuntimeOrientation = Configuration.ORIENTATION_UNDEFINED;
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
         @Override
@@ -423,7 +424,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		super.onCreate(savedInstanceState);
 		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
 		context = this;
-    	mRuntimeOrientation = getScreenOrientation();
+//    	mRuntimeOrientation = getScreenOrientation();
 
 		//PackageInfo packageInfo = WebViewCompat.getCurrentWebViewPackage();
 		PackageInfo packageInfo = getCurrentWebViewPackageInfo();
@@ -501,6 +502,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						finish();
 					} else if(command.equals("menu")) {
 						openContextMenu(mainView);
+					} else if(command.equals("screenorientlock")) {
+						// peer connect: lock the current screen orientation, aka don't allow changes
+						setRequestedOrientation(getScreenOrientation());
+					} else if(command.equals("screenorientunlock")) {
+						// peer disconnect: unlock screen orientation, aka allow changes
+						setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
 					}
 					return;
 				}
@@ -862,17 +869,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 	@Override
 	public void onConfigurationChanged(Configuration newConfig) {
+		// accept all changes without restarting the activity
 		Log.d(TAG, "onConfigurationChanged "+newConfig);
 		super.onConfigurationChanged(newConfig);
-		if(webCallServiceBinder.callInProgress()>0) {
-			// if peer connected (or ringing): accept no screen orientation changes, keep prev orientation
-			Log.d(TAG, "onConfigurationChanged keep "+mRuntimeOrientation);
-			setRequestedOrientation(mRuntimeOrientation);
-		} else {
-			// if NOT peer connected: accept screen orientation changes
-			mRuntimeOrientation = getScreenOrientation();
-			Log.d(TAG, "onConfigurationChanged changed "+mRuntimeOrientation);
-		}
 	}
 
 	@Override
@@ -929,9 +928,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private int getScreenOrientation() {
 		Display display = getWindowManager().getDefaultDisplay();
 		int orientation = display.getOrientation();
+		//Log.d(TAG, "getScreenOrientation 1="+orientation);
 
 		if(orientation == Configuration.ORIENTATION_UNDEFINED) {
 			orientation = getResources().getConfiguration().orientation;
+			//Log.d(TAG, "getScreenOrientation 2="+orientation);
 
 			if(orientation == Configuration.ORIENTATION_UNDEFINED) {
 				if(display.getWidth() == display.getHeight())
@@ -940,6 +941,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					orientation = Configuration.ORIENTATION_PORTRAIT;
 				else
 					orientation = Configuration.ORIENTATION_LANDSCAPE;
+				//Log.d(TAG, "getScreenOrientation 3="+orientation);
 			}
 		}
 		return orientation;

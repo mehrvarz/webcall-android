@@ -1583,6 +1583,11 @@ public class WebCallService extends Service {
 			Log.d(TAG,"peerConnect() - mediaConnect");
 			peerConnectFlag=true;
 			callPickedUpFlag=false;
+
+			// tell activity to lock screen orientation
+			Intent intent = new Intent("webcall");
+			intent.putExtra("cmd", "screenorientlock");
+			sendBroadcast(intent);
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1592,8 +1597,15 @@ public class WebCallService extends Service {
 			peerConnectFlag=false;
 			callPickedUpFlag=false;
 			peerDisconnnectFlag=true;
+
+			// TODO verify:
 			// route audio to the speaker, even if a headset is connected)
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
+
+			// tell activity to unlock screen orientation
+			Intent intent = new Intent("webcall");
+			intent.putExtra("cmd", "screenorientunlock");
+			sendBroadcast(intent);
 		}
 
 		@android.webkit.JavascriptInterface
