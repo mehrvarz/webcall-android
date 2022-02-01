@@ -737,8 +737,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				if(event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
 					if(event.values[0] >= -SENSOR_SENSITIVITY && event.values[0] <= SENSOR_SENSITIVITY) {
 						// face near
-						Log.d(TAG, "SensorEvent near "+event.values[0]);
-						if(webCallServiceBinder!=null && webCallServiceBinder.callInProgress()>0) {
+						int callInProgress = 0;
+						if(webCallServiceBinder!=null) {
+							callInProgress = webCallServiceBinder.callInProgress();
+						}
+						//Log.d(TAG, "SensorEvent near "+event.values[0]+" "+callInProgress);
+						if(callInProgress>0) {
 							// device is in-a-call: shut the screen on proximity
 							if(!wakeLockProximity.isHeld()) {
 								Log.d(TAG, "SensorEvent near, wakeLockProximity.acquire");
@@ -756,7 +760,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						}
 					} else {
 						// face away
-						Log.d(TAG, "SensorEvent away "+event.values[0]);
+						//Log.d(TAG, "SensorEvent away "+event.values[0]);
 						if(wakeLockProximity.isHeld()) {
 							Log.d(TAG, "SensorEvent away, wakeLockProximity.release");
 							wakeLockProximity.release();
