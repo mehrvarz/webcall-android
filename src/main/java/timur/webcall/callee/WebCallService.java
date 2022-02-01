@@ -267,7 +267,7 @@ public class WebCallService extends Service {
 	private volatile long keepAwakeWakeLockStartTime = 0;
 	private volatile int lastMinuteOfDay = 0;
 	private volatile int origvol = 0;
-	private volatile boolean proximity = false;
+	private volatile boolean proximityNear = false;
 
 	// below are variables backed by preference persistens
 	private volatile int beepOnLostNetworkMode = 0;
@@ -1243,18 +1243,18 @@ public class WebCallService extends Service {
 			return ret;
 		}
 
-		public void setProximity(boolean flag) {
-			proximity = flag;
-			if(audioManager.isWiredHeadsetOn()) {
-				Log.d(TAG, "setProximity() WiredHeadsetOn "+flag);
-			} else {
-				if(proximity) {
-					Log.d(TAG, "setProximity() !WiredHeadsetOn proximity setSpeakerphoneOn(false)");
-					audioManager.setSpeakerphoneOn(false);
+		public void setProximity(boolean flagNear) {
+			proximityNear = flagNear;
+			if(proximityNear) {
+				if(audioManager.isWiredHeadsetOn()) {
+					Log.d(TAG, "setProximity() near, WiredHeadset, skip setSpeakerphoneOn(false)");
 				} else {
-					Log.d(TAG, "setProximity() !WiredHeadsetOn !proximity setSpeakerphoneOn(true)");
-					audioManager.setSpeakerphoneOn(true);
+					Log.d(TAG, "setProximity() near, no WiredHeadset, set setSpeakerphoneOn(false)");
+					audioManager.setSpeakerphoneOn(false);
 				}
+			} else {
+				Log.d(TAG, "setProximity() away, set setSpeakerphoneOn(true)");
+				audioManager.setSpeakerphoneOn(true);
 			}
 		}
 
