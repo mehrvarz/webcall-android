@@ -100,6 +100,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private volatile int touchX, touchY;
 	private volatile boolean extendedLogsFlag = false;
 	private volatile String lastLogfileName = null;
+	private volatile KeyguardManager.KeyguardLock keyguardLock = null;
+
 
 	private ServiceConnection serviceConnection = new ServiceConnection() {
 		@Override
@@ -753,13 +755,17 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						//Log.d(TAG, "SensorEvent near "+event.values[0]+" "+callInProgress);
 						if(callInProgress>0) {
 							// device is in-a-call: shut the screen on proximity
-							if(!wakeLockProximity.isHeld()) {
+							if(wakeLockProximity!=null && !wakeLockProximity.isHeld()) {
 								Log.d(TAG, "SensorEvent near, wakeLockProximity.acquire");
 								myWebView.setClickable(false); // disable UI click events
-								getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+//								getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
 								getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-								webCallServiceBinder.setProximity(true); // use ear speaker, not speakerphone
+								webCallServiceBinder.setProximity(true);
 								wakeLockProximity.acquire();
+
+								KeyguardManager keyguardManager =
+									(KeyguardManager)getSystemService(Context.KEYGUARD_SERVICE);
+								keyguardLock = keyguardManager.newKeyguardLock(KEYGUARD_SERVICE);
 							} else {
 								//Log.d(TAG, "SensorEvent near, wakeLockProximity already held");
 							}
@@ -769,21 +775,25 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					} else {
 						// face away
 						//Log.d(TAG, "SensorEvent away "+event.values[0]);
-						if(wakeLockProximity.isHeld()) {
+						if(wakeLockProximity!=null && wakeLockProximity.isHeld()) {
 							Log.d(TAG, "SensorEvent away, wakeLockProximity.release");
 							wakeLockProximity.release();
-							webCallServiceBinder.setProximity(false); // use speakerphone, not ear speaker
+							webCallServiceBinder.setProximity(false);
 
 							// do this with a little delay; screen needs to be back on before we do this
 							Runnable mDelayed = new Runnable() {
 								@Override
 								public void run() {
 									Log.d(TAG, "SensorEvent away, delayed");
-									if(!wakeLockProximity.isHeld()) {
+									if(wakeLockProximity!=null && !wakeLockProximity.isHeld()) {
 										Log.d(TAG, "SensorEvent away, delayed, FLAG_DISMISS_KEYGUARD");
-										getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+//										getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
 										getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-										myWebView.setClickable(true); // enable UI click events
+										myWebView.setClickable(true); // re-enable UI click events
+									}
+									if(keyguardLock!=null) {
+										keyguardLock.disableKeyguard();
+										keyguardLock = null;
 									}
 								}
 							};
@@ -1040,16 +1050,17 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			wakeLockScreen.acquire(3000);
 
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) { // >= 27
-				setShowWhenLocked(true);
-				//setTurnScreenOn(true);
+				setShowWhenLocked(true); // show activity on top of the lock screen
+				//setTurnScreenOn(true); // screen should be turned on when activity is resumed
 				KeyguardManager keyguardManager =
 					(KeyguardManager)getSystemService(Context.KEYGUARD_SERVICE);
 				keyguardManager.requestDismissKeyguard(this, null);
 			} else {
-				KeyguardManager.KeyguardLock lock = 
-				  ((KeyguardManager)getSystemService(Activity.KEYGUARD_SERVICE)).
-					newKeyguardLock(KEYGUARD_SERVICE);
-				lock.disableKeyguard();
+				// TODO here we create and release a keyguardLock - is this correct?
+				KeyguardManager keyguardManager =
+					(KeyguardManager)getSystemService(Context.KEYGUARD_SERVICE);
+				keyguardLock = keyguardManager.newKeyguardLock(KEYGUARD_SERVICE);
+				keyguardLock.disableKeyguard();
 			}
 
 			// we release wakeLockScreen with a small delay
