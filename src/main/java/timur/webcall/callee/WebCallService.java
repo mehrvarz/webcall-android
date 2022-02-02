@@ -1560,6 +1560,26 @@ public class WebCallService extends Service {
 			callPickedUpFlag=true; // no peerConnect yet, this activates proximitySensor
 		}
 
+
+		@android.webkit.JavascriptInterface
+		public void prepareDial() {
+			// turn speakerphone off - the idea is to always switch audio playback to the earpiece
+			// on devices without an earpiece (tablets) this is expected to do nothing
+			// we do it now here instead of at setProximity(true), because it is more reliable this way
+			// will be reversed by peerDisConnect()
+// TODO API>=31 use audioManager.setCommunicationDevice(speakerDevice);
+// see https://developer.android.com/reference/android/media/AudioManager#setCommunicationDevice(android.media.AudioDeviceInfo)
+
+			Log.d(TAG, "prepareDial(), speakerphone=false");
+			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // needed for P9 to deactivate speakerphone
+			audioManager.setSpeakerphoneOn(false);
+
+			// tell activity to lock screen orientation
+			Intent intent = new Intent("webcall");
+			intent.putExtra("cmd", "screenorientlock");
+			sendBroadcast(intent);
+		}
+
 		@android.webkit.JavascriptInterface
 		public void peerConnect() {
 			// aka mediaConnect
@@ -1572,6 +1592,7 @@ public class WebCallService extends Service {
 			// we do it now here instead of at setProximity(true), because it is more reliable this way
 			// will be reversed by peerDisConnect()
 			Log.d(TAG, "peerConnect(), speakerphone=false");
+			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // needed for P9 to deactivate speakerphone
 			audioManager.setSpeakerphoneOn(false);
 
 			// tell activity to lock screen orientation
