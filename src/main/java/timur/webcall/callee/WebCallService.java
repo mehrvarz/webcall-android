@@ -1245,12 +1245,12 @@ public class WebCallService extends Service {
 			proximityNear = flagNear;
 			if(proximityNear) {
 				// user is is now holding device to head
-				Log.d(TAG, "setProximity() near, speakerphone=false");
-				audioManager.setSpeakerphoneOn(false);
+//				Log.d(TAG, "setProximity() near, speakerphone=false");
+//				audioManager.setSpeakerphoneOn(false);
 			} else {
 				// user is is now NOT holding device to head
-				Log.d(TAG, "setProximity() away, speakerphone=true");
-				audioManager.setSpeakerphoneOn(true);
+//				Log.d(TAG, "setProximity() away, speakerphone=true");
+//				audioManager.setSpeakerphoneOn(true);
 			}
 		}
 
@@ -1567,6 +1567,13 @@ public class WebCallService extends Service {
 			peerConnectFlag=true;
 			callPickedUpFlag=false;
 
+			// turn speakerphone off - the idea is to always switch audio playback to the earpiece
+			// on devices without an earpiece (tablets) this is expected to do nothing
+			// we do it now here instead of at setProximity(true), because it is more reliable this way
+			// will be reversed by peerDisConnect()
+			Log.d(TAG, "peerConnect(), speakerphone=false");
+			audioManager.setSpeakerphoneOn(false);
+
 			// tell activity to lock screen orientation
 			Intent intent = new Intent("webcall");
 			intent.putExtra("cmd", "screenorientlock");
@@ -1580,6 +1587,9 @@ public class WebCallService extends Service {
 			peerConnectFlag=false;
 			callPickedUpFlag=false;
 			peerDisconnnectFlag=true;
+
+			Log.d(TAG, "peerConnect(), speakerphone=true");
+			audioManager.setSpeakerphoneOn(true);
 
 			// TODO verify:
 			// route audio to the speaker, even if a headset is connected)

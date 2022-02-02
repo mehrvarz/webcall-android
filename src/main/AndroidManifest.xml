@@ -52,6 +52,7 @@
 
 		<service android:name=".WebCallService"
 			android:foregroundServiceType="microphone|camera" />
+
 		<receiver android:name=".WebCallServiceReceiver"
 			android:exported="true">
 			<intent-filter>
