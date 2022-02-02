@@ -1037,9 +1037,6 @@ public class WebCallService extends Service {
 						//Log.d(TAG, "onPageFinished baseCurrentUrl=" + baseCurrentUrl);
 						if(url.startsWith(baseCurrentUrl)) {
 							// url is just a hashchange; does not need onPageFinished processing
-							if(extendedLogsFlag) {
-								Log.d(TAG, "onPageFinished set currentUrl="+url+" (just a hashchange)");
-							}
 							// no need to execute onPageFinished() on hashchange or history back
 							currentUrl = url;
 							Log.d(TAG, "onPageFinished only hashchange currentUrl=" + currentUrl);
@@ -1050,6 +1047,7 @@ public class WebCallService extends Service {
 					// if the url has changed (beyond a hashchange)
 					// and if we ARE connected already -> call js:wakeGoOnline()
 					currentUrl = url;
+					// TODO here we could cut off "?auto=1"
 					Log.d(TAG, "onPageFinished set currentUrl=" + currentUrl);
 					webviewMainPageLoaded = false;
 					webviewCookies = CookieManager.getInstance().getCookie(currentUrl);
@@ -1166,23 +1164,23 @@ public class WebCallService extends Service {
 			// let JS call java service code
 			myWebView.addJavascriptInterface(new WebCallJSInterface(), "Android");
 
-			// render the base html file
-			String myUrl = "file:///android_asset/index.html";
+			// render base page - or main page if we are connected already
+			currentUrl = "file:///android_asset/index.html";
 			//TODO for some reason wsClient==null despite service being logged in
 			if(wsClient!=null) {
 				username = prefs.getString("username", "");
-				String webcalldomain = 
+				String webcalldomain =
 					prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 				if(webcalldomain.equals("")) {
 					Log.d(TAG,"onClose cannot reconnect: webcalldomain is not set");
 				} else if(username.equals("")) {
 					Log.d(TAG,"onClose cannot reconnect: username is not set");
 				} else {
-					myUrl = "https://"+webcalldomain+"/callee/"+username;
+					currentUrl = "https://"+webcalldomain+"/callee/"+username;
 				}
 			}
-			Log.d(TAG, "startWebView loadUrl="+myUrl);
-			myWebView.loadUrl(myUrl);
+			Log.d(TAG, "startWebView load currentUrl="+currentUrl);
+			myWebView.loadUrl(currentUrl);
 		}
 
 		// webcallConnectType returns >0 if we are connected to webcall server signalling
@@ -1804,7 +1802,7 @@ public class WebCallService extends Service {
 						// if no reconnecter is scheduled at this time (say, by checkLastPing())
 						// then schedule a new reconnecter
 						// schedule in 8s to give server some time to detect the discon
-						String webcalldomain = 
+						String webcalldomain =
 							prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 						String username = prefs.getString("username", "");
 						if(webcalldomain.equals("")) {
@@ -2634,12 +2632,14 @@ public class WebCallService extends Service {
 							}
 						}
 
-						String webcalldomain = 
-							prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-						String username = prefs.getString("username", "");
-						currentUrl = "https://"+webcalldomain+"/callee/"+username;
-						if(extendedLogsFlag) {
-							Log.d(TAG,"reconnecter set currentUrl="+currentUrl);
+						if(currentUrl==null) {
+							String webcalldomain =
+								prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+							String username = prefs.getString("username", "");
+							currentUrl = "https://"+webcalldomain+"/callee/"+username;
+							//if(extendedLogsFlag) {
+								Log.d(TAG,"reconnecter set currentUrl="+currentUrl);
+							//}
 						}
 					}
 					if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
@@ -2767,9 +2767,9 @@ public class WebCallService extends Service {
 							prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 						String username = prefs.getString("username", "");
 						currentUrl = "https://"+webcalldomain+"/callee/"+username;
-						if(extendedLogsFlag) {
+						//if(extendedLogsFlag) {
 							Log.d(TAG,"connectHost set currentUrl="+currentUrl);
-						}
+						//}
 					}
 
 					if(currentUrl!=null) {
