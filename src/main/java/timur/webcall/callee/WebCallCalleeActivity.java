@@ -92,7 +92,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private SensorManager sensorManager = null;
 	private volatile boolean activityStartNeeded = false;
 	private WakeLock wakeLockScreen = null;
-    private final static int FILE_REQ_CODE = 1341;
+	private final static int FILE_REQ_CODE = 1341;
 	private final static int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 1342;
 	private	Context context;
 	private NfcAdapter nfcAdapter;
@@ -101,9 +101,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private volatile boolean extendedLogsFlag = false;
 	private volatile String lastLogfileName = null;
 
-    private ServiceConnection serviceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
+	private ServiceConnection serviceConnection = new ServiceConnection() {
+		@Override
+		public void onServiceConnected(ComponentName name, IBinder service) {
 			if(extendedLogsFlag) {
 				Log.d(TAG, "onServiceConnected");
 			}
@@ -132,15 +132,15 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					activityStartNeeded = false;
 				}
 			}
-        }
+		}
 
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-		    Log.d(TAG, "onServiceDisconnected");
+		@Override
+		public void onServiceDisconnected(ComponentName name) {
+			Log.d(TAG, "onServiceDisconnected");
 			webCallServiceBinder = null;
 			boundService = false;
-        }
-    };
+		}
+	};
 
 	private int menuNearbyOn = 1;
 	private int menuNearbyOff = 2;
@@ -296,7 +296,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Log.d(TAG, "onContextItemSelected setNdefPushMessageCallback");
 					nfcAdapter.setNdefPushMessageCallback(this, this);
 					// createNdefMessage() will be called when nfc device toucg
-	                Toast.makeText(context, "NFC WebCall link is ready...", Toast.LENGTH_LONG).show();
+					Toast.makeText(context, "NFC WebCall link is ready...", Toast.LENGTH_LONG).show();
 					nearbyMode = true;
 					// TODO should we deactivate NFC automatically after, say, 10 min?
 				}
@@ -310,7 +310,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			if(Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
 				// deactivate createNdefMessage()
 				nfcAdapter.setNdefPushMessageCallback(null, this);
-                //Toast.makeText(context, "NFC WebCall has been deactivated", Toast.LENGTH_LONG).show();
+				//Toast.makeText(context, "NFC WebCall has been deactivated", Toast.LENGTH_LONG).show();
 				nearbyMode = false;
 				// TODO also turn off NFC adapter?
 			} else {
@@ -443,7 +443,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				return;
 			}
 		} else {
-		    Log.d(TAG, "onCreate webview "+packageInfo.packageName+" "+packageInfo.versionName);
+			Log.d(TAG, "onCreate webview "+packageInfo.packageName+" "+packageInfo.versionName);
 		}
 
 		try {
@@ -514,7 +514,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				String message = intent.getStringExtra("toast");
 				if(message!=null && message!="") {
 					Log.d(TAG, "broadcastReceiver message "+message);
-	                Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+					Toast.makeText(context, message, Toast.LENGTH_LONG).show();
 					return;
 				}
 				String command = intent.getStringExtra("cmd");
@@ -552,7 +552,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
 					if(clipboard!=null) {
 						clipboard.setPrimaryClip(clipData);
-			            Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_LONG).show();
+						Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_LONG).show();
 					}
 					return;
 				}
@@ -578,23 +578,23 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 		// get runtime permissions (will be executed only once)
 		if (ContextCompat.checkSelfPermission(this,
-			    Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+				Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
 
 			// Should we show an explanation?
 			if (ActivityCompat.shouldShowRequestPermissionRationale(
 					this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-			    // Show an expanation to the user *asynchronously* -- don't block
-			    // this thread waiting for the user's response! After the user
-			    // sees the explanation, try again to request the permission.
+				// Show an expanation to the user *asynchronously* -- don't block
+				// this thread waiting for the user's response! After the user
+				// sees the explanation, try again to request the permission.
 
 			} else {
-			    // No explanation needed, we can request the permission.
-			    ActivityCompat.requestPermissions(this,
-			            new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-			            MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
-			    // MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE is an
-			    // app-defined int constant. The callback method gets the
-			    // result of the request.
+				// No explanation needed, we can request the permission.
+				ActivityCompat.requestPermissions(this,
+					new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+					MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
+				// MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE is an
+				// app-defined int constant. The callback method gets the
+				// result of the request.
 			}
 		}
 
@@ -620,7 +620,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(extendedLogsFlag) {
 			Log.d(TAG, "onCreate done");
 		}
-    }
+	}
 
 	@Override
 	public NdefMessage createNdefMessage(NfcEvent event) {
@@ -633,8 +633,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		return ndefMessage;
 	}
 
-    @Override
-    public void onStart() {
+	@Override
+	public void onStart() {
 		super.onStart();
 		if(startupFail) {
 			Log.d(TAG, "onStart abort on startupFail");
@@ -694,26 +694,26 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		} else {
 			// not connected to service yet
 			// request to execute activityStart() when webCallServiceBinder is available
-		    Log.d(TAG, "onStart activityStartNeeded");
+			Log.d(TAG, "onStart activityStartNeeded");
 			activityStartNeeded = true;
 		}
-    }
-
-    @Override
-    public void onStop() {
-		if(extendedLogsFlag) {
-		    Log.d(TAG, "onStop");
-		}
-		activityStartNeeded = false;
-        super.onStop();
 	}
 
-    @Override
-    public void onResume() {
+	@Override
+	public void onStop() {
 		if(extendedLogsFlag) {
-		    Log.d(TAG, "onResume");
+			Log.d(TAG, "onStop");
 		}
-        super.onResume();
+		activityStartNeeded = false;
+		super.onStop();
+	}
+
+	@Override
+	public void onResume() {
+		if(extendedLogsFlag) {
+			Log.d(TAG, "onResume");
+		}
+		super.onResume();
 
 		if(sensorManager==null) {
 			Log.d(TAG, "onResume sensorManager==null");
@@ -798,12 +798,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		};
 		sensorManager.registerListener(proximitySensorEventListener, proximitySensor,
 			SensorManager.SENSOR_DELAY_NORMAL);
-    }
+	}
 
-    @Override
-    public void onPause() {
+	@Override
+	public void onPause() {
 		if(extendedLogsFlag) {
-		    Log.d(TAG, "onPause");
+			Log.d(TAG, "onPause");
 		}
 		super.onPause();
 
@@ -811,7 +811,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			sensorManager.unregisterListener(proximitySensorEventListener);
 			proximitySensorEventListener = null;
 		}
-    }
+	}
 
 	@Override
 	protected void onDestroy() {
@@ -837,8 +837,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		super.onWindowAttributesChanged(params);
 	}
 
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
 		if (keyCode != KeyEvent.KEYCODE_POWER) {
 			// any key other than power button will un-dim the screen (if it was dimmed)
 			mParams.screenBrightness = -1f;
@@ -852,12 +852,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		//	Log.d(TAG, "onKeyDown KEYCODE_BACK");
 		//}
 
-        return super.onKeyDown(keyCode, event);
-    }
+		return super.onKeyDown(keyCode, event);
+	}
 
 	@Override
 	public boolean onKeyLongPress(int keyCode, KeyEvent event) {
-	    Log.d(TAG, "onKeyLongPress");
+		Log.d(TAG, "onKeyLongPress");
 		if (keyCode != KeyEvent.KEYCODE_POWER) {
 			// any key other than power will un-dim the screen (if it was dimmed)
 			mParams.screenBrightness = -1f;
@@ -869,11 +869,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	}
 
 	@Override
-    public void onBackPressed() {
-	    Log.d(TAG, "onBackPressed");
+	public void onBackPressed() {
+		Log.d(TAG, "onBackPressed");
 		if(webCallServiceBinder!=null) {
 			String webviewUrl = webCallServiceBinder.getCurrentUrl();
-		    Log.d(TAG, "onBackPressed currentUrl="+webviewUrl);
+			Log.d(TAG, "onBackPressed currentUrl="+webviewUrl);
 			// we ONLY allow history.back() if the user is NOT on the basepage or the mainpage
 			// except there is a '#' in webviewUrl
 			if(webviewUrl!=null) {
@@ -888,16 +888,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			int connectType = webCallServiceBinder.webcallConnectType();
 			if(connectType>0) {
 				// service is connected to webcall server (1,2) or reconnecting (3)
-			    Log.d(TAG, "onBackPressed connectType="+connectType+" -> moveTaskToBack()");
+				Log.d(TAG, "onBackPressed connectType="+connectType+" -> moveTaskToBack()");
 				moveTaskToBack(true);
 				return;
 			}
 
 			// if we are not connected to webcall server, we close the activity
 			// (which will end our service as well)
-		    Log.d(TAG, "onBackPressed connectType="+connectType+" -> destroy activity");
+			Log.d(TAG, "onBackPressed connectType="+connectType+" -> destroy activity");
 		} else {
-		    Log.d(TAG, "onBackPressed webCallServiceBinder==null -> destroy activity");
+			Log.d(TAG, "onBackPressed webCallServiceBinder==null -> destroy activity");
 		}
 		// service is idle (not connected and not reconnecting)
 		// so it is fine to endPeerConAndWebView(), unbind and destroy the activity
@@ -1021,16 +1021,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			typeOfWakeup = webCallServiceBinder.wakeupType();
 		}
 		if(typeOfWakeup>0) {
-		    Log.d(TAG, "activityStart typeOfWakeup="+typeOfWakeup);
+			Log.d(TAG, "activityStart typeOfWakeup="+typeOfWakeup);
 		}
 		if(typeOfWakeup==2) {
 			// incoming call
 			if(wakeLockScreen!=null /*&& wakeLockScreen.isHeld()*/) {
-			    Log.d(TAG, "activityStart wakelock + screen already held");
+				Log.d(TAG, "activityStart wakelock + screen already held");
 				// this can happen when we receive onStart, onStop, onStart in quick order
 				return;
 			}
-		    Log.d(TAG, "activityStart wakelock + screen");
+			Log.d(TAG, "activityStart wakelock + screen");
 			mParams.screenBrightness = -1f;
 			getWindow().setAttributes(mParams);
 
@@ -1093,7 +1093,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 		} else {
 			if(extendedLogsFlag) {
-			    Log.d(TAG, "activityStart no special wakeup");
+				Log.d(TAG, "activityStart no special wakeup");
 			}
 			// set screenBrightness only if LowBrightness (0.01f) occured more than 2s ago
 			if(System.currentTimeMillis() - lastSetLowBrightness >= 2000) {
@@ -1109,7 +1109,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 			//starting with Android O (API 26) they added a new method specific for this
 			if(extendedLogsFlag) {
-			    Log.d(TAG, "getCurrentWebViewPackageInfo for O+");
+				Log.d(TAG, "getCurrentWebViewPackageInfo for O+");
 			}
 			pInfo = WebView.getCurrentWebViewPackage();
 		} else if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -1119,7 +1119,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			//should handle the Android 7.0 behaviour changes too
 			try {
 				if(extendedLogsFlag) {
-				    Log.d(TAG, "getCurrentWebViewPackageInfo for L+");
+					Log.d(TAG, "getCurrentWebViewPackageInfo for L+");
 				}
 				Class webViewFactory = Class.forName("android.webkit.WebViewFactory");
 				Method method = webViewFactory.getMethod("getLoadedPackageInfo");
@@ -1133,14 +1133,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			if(pInfo==null) {
 				try {
 					if(extendedLogsFlag) {
-					    Log.d(TAG, "getCurrentWebViewPackageInfo for L+ (2)");
+						Log.d(TAG, "getCurrentWebViewPackageInfo for L+ (2)");
 					}
 					Class webViewFactory = Class.forName("com.google.android.webview.WebViewFactory");
 					Method method = webViewFactory.getMethod("getLoadedPackageInfo");
 					pInfo = (PackageInfo) method.invoke(null);
 				} catch(Exception e2) {
 					//e.printStackTrace();
-				    Log.d(TAG, "getCurrentWebViewPackageInfo for L+ (2) ex="+e2);
+					Log.d(TAG, "getCurrentWebViewPackageInfo for L+ (2) ex="+e2);
 				}
 			}
 		} else {
@@ -1163,7 +1163,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 			//When permission is not granted by user, show them message why this permission is needed.
 			if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-				    Manifest.permission.RECORD_AUDIO)) {
+					Manifest.permission.RECORD_AUDIO)) {
 				Toast.makeText(this, "Please grant permissions to record audio", Toast.LENGTH_LONG).show();
 
 				//Give user option to still opt-in the permissions
@@ -1198,10 +1198,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			case MY_PERMISSIONS_RECORD_AUDIO:
 				Log.d(TAG, "onRequestPermissionsResult MY_PERMISSIONS_RECORD_AUDIO");
 				if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-				    // permission granted
+					// permission granted
 					Log.d(TAG, "onRequestPermissionsResult Permissions granted");
 				} else {
-				    // permission denied
+					// permission denied
 					Log.d(TAG, "onRequestPermissionsResult Permissions denied");
 				}
 				return;
@@ -1209,16 +1209,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			case PERMISSION_REQUEST_RW_EXTERNAL_STORAGE:
 				Log.d(TAG, "onRequestPermissionsResult PERMISSION_REQUEST_RW_EXTERNAL_STORAGE");
 				if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-				    // permission granted
+					// permission granted
 					Log.d(TAG, "onRequestPermissionsResult Permissions granted");
 				} else {
-				    // permission denied
+					// permission denied
 					Log.d(TAG, "onRequestPermissionsResult Permissions denied");
 				}
 				return;
 
-            default:
-                super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+			default:
+				super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 		}
 	}
 }

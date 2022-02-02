@@ -1361,6 +1361,7 @@ public class WebCallService extends Service {
 		}
 
 		public String getCurrentUrl() {
+			Log.d(TAG, "getCurrentUrl currentUrl="+currentUrl);
 			return currentUrl;
 		}
 
@@ -3165,14 +3166,14 @@ public class WebCallService extends Service {
 				java.lang.reflect.Method setForceUse =
 					audioSystemClass.getMethod("setForceUse", int.class, int.class);
 				if(set) {
-					setForceUse.invoke(null, 1, 1);
+					setForceUse.invoke(null, 1, 1); // FOR_MEDIA, FORCE_SPEAKER
 					if(showUser) {
 						Intent intent = new Intent("webcall");
 						intent.putExtra("toast", "Ring on speaker activated");
 						sendBroadcast(intent);
 					}
 				} else {
-					setForceUse.invoke(null, 1, 0);
+					setForceUse.invoke(null, 1, 0); // FOR_MEDIA, DON'T FORCE_SPEAKER
 					if(showUser) {
 						Intent intent = new Intent("webcall");
 						intent.putExtra("toast", "Ring on speaker disabled");
