@@ -1373,6 +1373,9 @@ public class WebCallService extends Service {
 
 		public void runJScode(String str) {
 			// for instance, this lets the activity run "history.back()"
+			if(str.startsWith("history.back()")) {
+				Log.d(TAG, "runJScode history.back()");
+			}
 			runJS(str,null);
 		}
 
@@ -1617,7 +1620,7 @@ public class WebCallService extends Service {
 			callPickedUpFlag=false;
 			peerDisconnnectFlag=true;
 
-			Log.d(TAG, "peerConnect(), speakerphone=true");
+			Log.d(TAG, "peerDisConnect(), speakerphone=true");
 			audioManager.setSpeakerphoneOn(true);
 
 			// TODO verify:
