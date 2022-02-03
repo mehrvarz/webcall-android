@@ -90,6 +90,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private Sensor proximitySensor = null;
 	private volatile SensorEventListener proximitySensorEventListener = null;
 	private SensorManager sensorManager = null;
+	private KeyguardManager keyguardManager = null;
+	private SharedPreferences prefs = null;
 	private volatile boolean activityStartNeeded = false;
 	private WakeLock wakeLockScreen = null;
 	private final static int FILE_REQ_CODE = 1341;
@@ -102,7 +104,253 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private volatile String lastLogfileName = null;
 	private volatile KeyguardManager.KeyguardLock keyguardLock = null;
 	private volatile boolean proximityNear = false;
+	private int proximitySensorMode = 0; // 0=off, 1=on
+	private int proximitySensorAction = 0; // 0=screen off, 1=screen dim
+	private volatile boolean webviewBlocked = false;
+//	private volatile int screenOrientationLockCounter = 0;
 
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
+		context = this;
+
+		//PackageInfo packageInfo = WebViewCompat.getCurrentWebViewPackage();
+		PackageInfo packageInfo = getCurrentWebViewPackageInfo();
+		if(packageInfo == null) {
+			if(Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
+				Log.d(TAG, "onCreate No System WebView installed "+
+					Build.VERSION.SDK_INT+" "+Build.VERSION_CODES.LOLLIPOP);
+				startupFail = true;
+				Toast.makeText(context, "WebCall cannot start. No System WebView installed.",
+					Toast.LENGTH_LONG).show();
+				return;
+			}
+		} else {
+			Log.d(TAG, "onCreate webview "+packageInfo.packageName+" "+packageInfo.versionName);
+		}
+
+		try {
+			setContentView(R.layout.activity_main);
+		} catch(Exception ex) {
+			Log.d(TAG, "onCreate setContentView ex="+ex);
+			startupFail = true;
+			Toast.makeText(context, "WebCall cannot start. No System WebView installed",
+				Toast.LENGTH_LONG).show();
+			return;
+		}
+
+		activityStartNeeded = false;
+
+		if(powerManager==null) {
+			powerManager = (PowerManager)getSystemService(POWER_SERVICE);
+		}
+		if(powerManager==null) {
+			Log.d(TAG, "onCreate powerManager==null");
+			return;
+		}
+
+		if(sensorManager==null) {
+			sensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
+		}
+//		if(sensorManager==null) {
+//			Log.d(TAG, "onCreate sensorManager==null");
+//			return;
+//		}
+
+		if(proximitySensor==null && sensorManager!=null) {
+			proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
+		}
+
+		if(keyguardManager==null) {
+			keyguardManager = (KeyguardManager)getSystemService(Context.KEYGUARD_SERVICE);
+		}
+		if(keyguardManager==null) {
+			Log.d(TAG, "onCreate keyguardManager==null");
+			return;
+		}
+
+		proximitySensorEventListener = new SensorEventListener() {
+			@Override
+			public void onAccuracyChanged(Sensor sensor, int accuracy) {
+				Log.d(TAG, "proximitySensorEvent accuracy "+accuracy);
+				proximityAway("accuracy");
+			}
+
+			@Override
+			public void onSensorChanged(SensorEvent event) {
+				if(event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
+					Log.d(TAG, "proximitySensorEvent TYPE_PROXIMITY "+event.values[0]);
+					if(event.values[0] < event.sensor.getMaximumRange()){
+						proximityNear();
+					} else {
+						proximityAway("sensor");
+					}
+				} else {
+					Log.d(TAG, "proximitySensorEvent unknown type="+event.sensor.getType());
+				}
+			}
+		};
+
+		if(prefs==null) {
+			prefs = PreferenceManager.getDefaultSharedPreferences(this);
+		}
+		if(prefs!=null) {
+			try {
+				proximitySensorMode = prefs.getInt("proximitySensor", 1);
+			} catch(Exception ex) {
+				Log.d(TAG,"onCreateContextMenu proximitySensorMode ex="+ex);
+			}
+			try {
+				proximitySensorAction = prefs.getInt("proximitySensorAction", 0);
+			} catch(Exception ex) {
+				Log.d(TAG,"onCreateContextMenu proximitySensorAction ex="+ex);
+			}
+		}
+
+		View mainView = findViewById(R.id.webview);
+		if(mainView!=null) {
+			mainView.setOnTouchListener(new View.OnTouchListener() {
+				@Override
+				public boolean onTouch(View view, MotionEvent ev) {
+					//Log.d(TAG, "onTouch webviewBlocked="+webviewBlocked);
+					if(webviewBlocked) {
+						return true;
+					}
+
+					//Log.d(TAG, "onCreate onTouch");
+					final int pointerCount = ev.getPointerCount();
+					for(int p = 0; p < pointerCount; p++) {
+						//Log.d(TAG, "onCreate onTouch x="+ev.getX(p)+" y="+ev.getY(p));
+						touchX = (int)ev.getX(p);
+						touchY = (int)ev.getY(p);
+					}
+					//Log.d(TAG,"onTouch "+touchX+"/"+touchY+" will be processed");
+
+					// undim screen
+					// TODO do this every time? shd only be needed once after "if(typeOfWakeup==1)"
+					//mParams.screenBrightness = -1f;
+					//getWindow().setAttributes(mParams);
+					//view.performClick();
+					return false;
+				}
+			});
+		}
+
+		// to receive msgs from our service
+		broadcastReceiver = new BroadcastReceiver() {
+			@Override
+			public void onReceive(Context context, Intent intent) {
+				String message = intent.getStringExtra("toast");
+				if(message!=null && message!="") {
+					Log.d(TAG, "broadcastReceiver message "+message);
+					Toast.makeText(context, message, Toast.LENGTH_LONG).show();
+					return;
+				}
+				String command = intent.getStringExtra("cmd");
+				if(command!=null && command!="") {
+					Log.d(TAG, "broadcastReceiver command "+command);
+					if(command.equals("shutdown")) {
+						finish();
+					} else if(command.equals("menu")) {
+						openContextMenu(mainView);
+					} else if(command.equals("screenorientlock")) {
+						// peer connect: lock the current screen orientation, aka don't allow changes
+						Log.d(TAG, "broadcastReceiver screenOrientationLock");
+						screenOrientationLock("service");
+					} else if(command.equals("screenorientunlock")) {
+						// peer disconnect: unlock screen orientation, aka allow changes
+						Log.d(TAG, "broadcastReceiver screenOrientationRelease");
+						screenOrientationRelease("service");
+					}
+					return;
+				}
+				String url = intent.getStringExtra("browse");
+				if(url!=null && url!=null) {
+					Log.d(TAG, "broadcastReceiver browse "+url);
+					Intent i = new Intent(Intent.ACTION_VIEW);
+					i.setData(Uri.parse(url));
+					startActivity(i);
+					return;
+				}
+				String clipText = intent.getStringExtra("clip");
+				if(clipText!=null && clipText!="") {
+					Log.d(TAG, "broadcastReceiver clipText "+clipText);
+					ClipData clipData = ClipData.newPlainText(null,clipText);
+					ClipboardManager clipboard =
+						(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
+					if(clipboard!=null) {
+						clipboard.setPrimaryClip(clipData);
+						Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_LONG).show();
+					}
+					return;
+				}
+
+				String forResults = intent.getStringExtra("forResults");
+				if(forResults!="") {
+					Log.d(TAG, "broadcastReceiver forResults "+forResults);
+
+					String file_type = "*/*";    // file types to be allowed for upload
+					Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
+					contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
+					contentSelectionIntent.setType(file_type);
+					//contentSelectionIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+
+					Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
+					chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
+					chooserIntent.putExtra(Intent.EXTRA_TITLE, "File chooser");
+					startActivityForResult(chooserIntent, FILE_REQ_CODE);
+				}
+			}
+		};
+		registerReceiver(broadcastReceiver, new IntentFilter("webcall"));
+
+		// get runtime permissions (will be executed only once)
+		if(ContextCompat.checkSelfPermission(this,
+				Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+
+			// Should we show an explanation?
+			if(ActivityCompat.shouldShowRequestPermissionRationale(
+					this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+				// Show an expanation to the user *asynchronously* -- don't block
+				// this thread waiting for the user's response! After the user
+				// sees the explanation, try again to request the permission.
+
+			} else {
+				// No explanation needed, we can request the permission.
+				ActivityCompat.requestPermissions(this,
+					new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+					MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
+				// MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE is an
+				// app-defined int constant. The callback method gets the
+				// result of the request.
+			}
+		}
+
+		Intent serviceIntent = new Intent(this, WebCallService.class);
+		serviceIntent.putExtra("onstart", "donothing");
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
+			// foreground service
+			startForegroundService(serviceIntent);
+		} else {
+			// regular service
+			startService(serviceIntent);
+		}
+
+		// here we bind the service, so that we can call startWebView()
+		//Intent serviceIntent = new Intent(this, WebCallService.class);
+		bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
+		// onServiceConnected -> webCallServiceBinder.startWebView()
+
+		if(extendedLogsFlag) {
+			Log.d(TAG, "onCreate registerForContextMenu");
+		}
+		registerForContextMenu(mainView);
+		if(extendedLogsFlag) {
+			Log.d(TAG, "onCreate done");
+		}
+	}
 
 	private ServiceConnection serviceConnection = new ServiceConnection() {
 		@Override
@@ -157,6 +405,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private int menuWifiLockOff = 10;
 	private int menuScreenForWifiOn = 11;
 	private int menuScreenForWifiOff = 12;
+	private int menuProximitySensorOn = 13;
+	private int menuProximitySensorOff = 14;
+	private int menuProximityActionDim = 15;
+	private int menuProximityActionOff = 16;
 	private int menuCaptureLogs = 20;
 	private int menuOpenLogs = 21;
 	private int menuExtendedLogsOn = 30;
@@ -189,14 +441,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 			menu.setHeaderTitle("WebCall Android "+BuildConfig.VERSION_NAME);
 			if(!nearbyMode) {
-				if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // <=9 <=api28
+				if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // <=9 <=api28
 					menu.add(none,menuNearbyOn,none,R.string.msg_nfcconnect_on);
 				} else {
 					// TODO turn nearby On for Android 10+ (not yet implemented)
 					//menu.add(none,menuNearbyOn,none,R.string.msg_nearby_on);
 				}
 			} else {
-				if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // <=9 <=api28
+				if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // <=9 <=api28
 					menu.add(none,menuNearbyOff,none,R.string.msg_nfcconnect_off);
 				} else {
 					// TODO turn nearby Off for Android 10+ (not yet implemented)
@@ -204,7 +456,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			}
 
-			if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) { // <=8 <=api27
+			if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) { // <=8 <=api27
 				if(webCallServiceBinder.audioToSpeaker(-1)==0) {
 					menu.add(none,menuRingOnSpeakerOn,none,R.string.msg_ring_on_speaker_on);
 				} else {
@@ -232,12 +484,24 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				menu.add(none,menuWifiLockOff,none,R.string.msg_wifi_lock_is_off);
 			}
 
-			if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
+			if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
 				if(webCallServiceBinder.screenForWifi(-1)==0) {
 					menu.add(none,menuScreenForWifiOn,none,R.string.msg_screen_for_wifi_on);
 				} else {
 					menu.add(none,menuScreenForWifiOff,none,R.string.msg_screen_for_wifi_off);
 				}
+			}
+
+			if(proximitySensorMode==0) {
+				menu.add(none,menuProximitySensorOn,none,R.string.msg_proximity_sensor_on);
+			} else {
+				menu.add(none,menuProximitySensorOff,none,R.string.msg_proximity_sensor_off);
+			}
+
+			if(proximitySensorAction==0) {
+				menu.add(none,menuProximityActionDim,none,R.string.msg_proximity_action_screen_dim);
+			} else {
+				menu.add(none,menuProximityActionOff,none,R.string.msg_proximity_action_screen_off);
 			}
 
 			menu.add(none,menuCaptureLogs,none,R.string.msg_capture_logs);
@@ -385,6 +649,60 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return true;
 		}
 
+		if(selectedItem==menuProximitySensorOn) {
+			Log.d(TAG, "onContextItemSelected proximitySensorOn");
+			if(proximitySensorMode==0) {
+				if(proximitySensor!=null && sensorManager!=null) {
+					proximitySensorMode = 1;
+					sensorManager.registerListener(proximitySensorEventListener, proximitySensor,
+						SensorManager.SENSOR_DELAY_NORMAL);
+					SharedPreferences.Editor prefed = prefs.edit();
+					prefed.putInt("proximitySensor", proximitySensorMode);
+					prefed.commit();
+					Toast.makeText(context, "ProximitySensor has been activated", Toast.LENGTH_LONG).show();
+				}
+			}
+			return true;
+		}
+		if(selectedItem==menuProximitySensorOff) {
+			Log.d(TAG, "onContextItemSelected proximitySensorOff");
+			if(proximitySensorMode!=0) {
+				proximitySensorMode = 0;
+				if(proximitySensorEventListener!=null && sensorManager!=null) {
+					sensorManager.unregisterListener(proximitySensorEventListener);
+					proximitySensorEventListener = null;
+				}
+				SharedPreferences.Editor prefed = prefs.edit();
+				prefed.putInt("proximitySensor", proximitySensorMode);
+				prefed.commit();
+				Toast.makeText(context, "ProximitySensor has been deactivated", Toast.LENGTH_LONG).show();
+			}
+			return true;
+		}
+
+		if(selectedItem==menuProximityActionDim) {
+			Log.d(TAG, "onContextItemSelected menuProximityActionDim");
+			if(proximitySensorAction==0) {
+				proximitySensorAction = 1;
+				SharedPreferences.Editor prefed = prefs.edit();
+				prefed.putInt("proximitySensorAction", proximitySensorAction);
+				prefed.commit();
+				Toast.makeText(context, "ProximitySensorAction screen dim", Toast.LENGTH_LONG).show();
+			}
+			return true;
+		}
+		if(selectedItem==menuProximityActionOff) {
+			Log.d(TAG, "onContextItemSelected menuProximityActionOff");
+			if(proximitySensorAction!=0) {
+				proximitySensorAction = 0;
+				SharedPreferences.Editor prefed = prefs.edit();
+				prefed.putInt("proximitySensorAction", proximitySensorAction);
+				prefed.commit();
+				Toast.makeText(context, "ProximitySensorAction screen off", Toast.LENGTH_LONG).show();
+			}
+			return true;
+		}
+
 		if(selectedItem==menuCaptureLogs) {
 			Log.d(TAG, "onContextItemSelected captureLogs");
 			lastLogfileName = webCallServiceBinder.captureLogs();
@@ -429,202 +747,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	}
 
 	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
-		context = this;
-
-		//PackageInfo packageInfo = WebViewCompat.getCurrentWebViewPackage();
-		PackageInfo packageInfo = getCurrentWebViewPackageInfo();
-		if(packageInfo == null) {
-			if(Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
-				Log.d(TAG, "onCreate No System WebView installed "+
-					Build.VERSION.SDK_INT+" "+Build.VERSION_CODES.LOLLIPOP);
-				startupFail = true;
-				Toast.makeText(context, "WebCall cannot start. No System WebView installed.",
-					Toast.LENGTH_LONG).show();
-				return;
-			}
-		} else {
-			Log.d(TAG, "onCreate webview "+packageInfo.packageName+" "+packageInfo.versionName);
-		}
-
-		try {
-			// this will crash if no system webview is installed
-			setContentView(R.layout.activity_main);
-		} catch(Exception ex) {
-			Log.d(TAG, "onCreate setContentView ex="+ex);
-			startupFail = true;
-			Toast.makeText(context, "WebCall cannot start. System WebView installed?",
-				Toast.LENGTH_LONG).show();
-			return;
-		}
-
-		activityStartNeeded = false;
-
-		if(powerManager==null) {
-			powerManager = (PowerManager)getSystemService(POWER_SERVICE);
-		}
-		if(powerManager==null) {
-			Log.d(TAG, "onCreate powerManager==null");
-			return;
-		}
-
-		if(sensorManager==null) {
-			sensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
-		}
-//		if(sensorManager==null) {
-//			Log.d(TAG, "onCreate sensorManager==null");
-//			return;
-//		}
-
-		if(proximitySensor==null) {
-			proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
-		}
-
-		View mainView = findViewById(R.id.webview);
-		if(mainView!=null) {
-			mainView.setOnTouchListener(new View.OnTouchListener() {
-				@Override
-				public boolean onTouch(View view, MotionEvent ev) {
-					//Log.d(TAG, "onCreate onTouch");
-					final int pointerCount = ev.getPointerCount();
-					for(int p = 0; p < pointerCount; p++) {
-						//Log.d(TAG, "onCreate onTouch x="+ev.getX(p)+" y="+ev.getY(p));
-						touchX = (int)ev.getX(p);
-						touchY = (int)ev.getY(p);
-					}
-					//Log.d(TAG,"onTouch "+touchX+"/"+touchY+" will be processed");
-
-					// undim screen
-					// TODO do this every time? shd only be needed once after "if(typeOfWakeup==1)"
-					//mParams.screenBrightness = -1f;
-					//getWindow().setAttributes(mParams);
-					//view.performClick();
-					return false;
-				}
-			});
-		}
-
-		// to receive msgs from our service
-		broadcastReceiver = new BroadcastReceiver() {
-			@Override
-			public void onReceive(Context context, Intent intent) {
-				String message = intent.getStringExtra("toast");
-				if(message!=null && message!="") {
-					Log.d(TAG, "broadcastReceiver message "+message);
-					Toast.makeText(context, message, Toast.LENGTH_LONG).show();
-					return;
-				}
-				String command = intent.getStringExtra("cmd");
-				if(command!=null && command!="") {
-					Log.d(TAG, "broadcastReceiver command "+command);
-					if(command.equals("shutdown")) {
-						finish();
-					} else if(command.equals("menu")) {
-						openContextMenu(mainView);
-					} else if(command.equals("screenorientlock")) {
-						// peer connect: lock the current screen orientation, aka don't allow changes
-						int currOrient = getScreenOrientation();
-						Log.d(TAG, "broadcastReceiver setRequestedOrientation "+currOrient);
-						setRequestedOrientation(currOrient);
-					} else if(command.equals("screenorientunlock")) {
-						// peer disconnect: unlock screen orientation, aka allow changes
-						Log.d(TAG, "broadcastReceiver setRequestedOrientation UNSPECIFIED");
-						setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-					}
-					return;
-				}
-				String url = intent.getStringExtra("browse");
-				if(url!=null && url!=null) {
-					Log.d(TAG, "broadcastReceiver browse "+url);
-					Intent i = new Intent(Intent.ACTION_VIEW);
-					i.setData(Uri.parse(url));
-					startActivity(i);
-					return;
-				}
-				String clipText = intent.getStringExtra("clip");
-				if(clipText!=null && clipText!="") {
-					Log.d(TAG, "broadcastReceiver clipText "+clipText);
-					ClipData clipData = ClipData.newPlainText(null,clipText);
-					ClipboardManager clipboard =
-						(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
-					if(clipboard!=null) {
-						clipboard.setPrimaryClip(clipData);
-						Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_LONG).show();
-					}
-					return;
-				}
-
-				String forResults = intent.getStringExtra("forResults");
-				if(forResults!="") {
-					Log.d(TAG, "broadcastReceiver forResults "+forResults);
-
-					String file_type = "*/*";    // file types to be allowed for upload
-					Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
-					contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
-					contentSelectionIntent.setType(file_type);
-					//contentSelectionIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-
-					Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
-					chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
-					chooserIntent.putExtra(Intent.EXTRA_TITLE, "File chooser");
-					startActivityForResult(chooserIntent, FILE_REQ_CODE);
-				}
-			}
-		};
-		registerReceiver(broadcastReceiver, new IntentFilter("webcall"));
-
-		// get runtime permissions (will be executed only once)
-		if (ContextCompat.checkSelfPermission(this,
-				Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-
-			// Should we show an explanation?
-			if (ActivityCompat.shouldShowRequestPermissionRationale(
-					this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-				// Show an expanation to the user *asynchronously* -- don't block
-				// this thread waiting for the user's response! After the user
-				// sees the explanation, try again to request the permission.
-
-			} else {
-				// No explanation needed, we can request the permission.
-				ActivityCompat.requestPermissions(this,
-					new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-					MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
-				// MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE is an
-				// app-defined int constant. The callback method gets the
-				// result of the request.
-			}
-		}
-
-		Intent serviceIntent = new Intent(this, WebCallService.class);
-		serviceIntent.putExtra("onstart", "donothing");
-		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
-			// foreground service
-			startForegroundService(serviceIntent);
-		} else {
-			// regular service
-			startService(serviceIntent);
-		}
-
-		// here we bind the service, so that we can call startWebView()
-		//Intent serviceIntent = new Intent(this, WebCallService.class);
-		bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
-		// onServiceConnected -> webCallServiceBinder.startWebView()
-
-		if(extendedLogsFlag) {
-			Log.d(TAG, "onCreate registerForContextMenu");
-		}
-		registerForContextMenu(mainView);
-		if(extendedLogsFlag) {
-			Log.d(TAG, "onCreate done");
-		}
-	}
-
-	@Override
 	public NdefMessage createNdefMessage(NfcEvent event) {
 		Log.d(TAG, "onCreate createNdefMessage");
-		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+		if(prefs==null) {
+			return null;
+		}
 		String username = prefs.getString("username", "");
 		String webcalldomain = prefs.getString("webcalldomain", "");
 		NdefRecord rtdUriRecord1 = NdefRecord.createUri("https://"+webcalldomain+"/user/"+username);
@@ -673,7 +800,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			alertbox.show();
 			return;
 		}
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
 			String packageName = context.getPackageName();
 			boolean ignoreOpti = powerManager.isIgnoringBatteryOptimizations(packageName);
 			if(extendedLogsFlag) {
@@ -714,10 +841,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		//}
 		super.onResume();
 
-		if(sensorManager==null) {
-			Log.d(TAG, "onResume sensorManager==null");
-			return;
-		}
+//		if(sensorManager==null) {
+//			Log.d(TAG, "onResume sensorManager==null");
+//			return;
+//		}
 		if(powerManager==null) {
 			Log.d(TAG, "onResume powerManager==null");
 			return;
@@ -730,66 +857,18 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
-		proximitySensorEventListener = new SensorEventListener() {
-			@Override
-			public void onAccuracyChanged(Sensor sensor, int accuracy) {
-				Log.d(TAG, "SensorEvent accuracy "+accuracy);
-				proximityRelease("accuracy");
-			}
-
-			@Override
-			public void onSensorChanged(SensorEvent event) {
-				// check if the sensor type is proximity sensor.
-				if(event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
-					if(event.values[0] < event.sensor.getMaximumRange()){
-						// face near
-						if(proximityNear) {
-							return;
-						}
-						proximityNear = true;
-						int callInProgress = 0;
-						if(webCallServiceBinder!=null) {
-							callInProgress = webCallServiceBinder.callInProgress();
-						}
-//Log.d(TAG, "SensorEvent near "+event.values[0]+" "+callInProgress);
-						if(callInProgress>0) {
-							// device is in-a-call: shut the screen on proximity
-							if(wakeLockProximity!=null && !wakeLockProximity.isHeld()) {
-								Log.d(TAG, "SensorEvent near, wakeLockProximity.acquire");
-								myWebView.setClickable(false); // disable UI click events
-//								getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
-								getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-								webCallServiceBinder.setProximity(true);
-								wakeLockProximity.acquire();
-
-								KeyguardManager keyguardManager =
-									(KeyguardManager)getSystemService(Context.KEYGUARD_SERVICE);
-								keyguardLock = keyguardManager.newKeyguardLock(KEYGUARD_SERVICE);
-								keyguardLock.disableKeyguard();
-							} else {
-								//Log.d(TAG, "SensorEvent near, wakeLockProximity already held");
-							}
-						} else {
-							//Log.d(TAG, "SensorEvent near, but NO callInProgress");
-						}
-					} else {
-						// face away
-						if(!proximityNear) {
-							return;
-						}
-						proximityRelease("away");
-					}
-				} else {
-					// type is not Sensor.TYPE_PROXIMITY
-					Log.d(TAG, "SensorEvent unknown type="+event.sensor.getType());
-				}
-			}
-		};
-		if(proximitySensor!=null) {
+		if(proximitySensorMode==0) {
+			Log.d(TAG,"onResume proximitySensorEventListener not registered: proximitySensorMode==0");
+		} else if(proximitySensor==null) {
+			Log.d(TAG,"onResume proximitySensorEventListener not registered: proximitySensor==null");
+		} else if(sensorManager==null) {
+			Log.d(TAG,"onResume proximitySensorEventListener not registered: sensorManager==null");
+		} else if(proximitySensorEventListener==null) {
+			Log.d(TAG,"onResume proximitySensorEventListener not registered: proximitySensorEventListener==null");
+		} else {
 			sensorManager.registerListener(proximitySensorEventListener, proximitySensor,
 				SensorManager.SENSOR_DELAY_NORMAL);
-		} else {
-			Log.d(TAG, "proximitySensorEventListener not registered");
+			Log.d(TAG,"onResume proximitySensorEventListener registered");
 		}
 	}
 
@@ -800,11 +879,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		//}
 		super.onPause();
 
-		if(sensorManager!=null && proximitySensorEventListener!=null) {
-			Log.d(TAG, "onPause sensorManager.unregisterListener");
-			proximityRelease("onPause");
-			sensorManager.unregisterListener(proximitySensorEventListener);
-			proximitySensorEventListener = null;
+		if(proximitySensorMode>0) {
+			if(sensorManager!=null && proximitySensorEventListener!=null) {
+				Log.d(TAG, "onPause sensorManager.unregisterListener");
+				proximityAway("onPause");
+				sensorManager.unregisterListener(proximitySensorEventListener);
+			} else {
+				Log.d(TAG, "onPause no unregisterListener");
+			}
 		}
 	}
 
@@ -834,7 +916,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 	@Override
 	public boolean onKeyDown(int keyCode, KeyEvent event) {
-		if (keyCode != KeyEvent.KEYCODE_POWER) {
+		if(keyCode != KeyEvent.KEYCODE_POWER) {
 			// any key other than power button will un-dim the screen (if it was dimmed)
 			mParams.screenBrightness = -1f;
 			getWindow().setAttributes(mParams);
@@ -853,7 +935,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public boolean onKeyLongPress(int keyCode, KeyEvent event) {
 		Log.d(TAG, "onKeyLongPress");
-		if (keyCode != KeyEvent.KEYCODE_POWER) {
+		if(keyCode != KeyEvent.KEYCODE_POWER) {
 			// any key other than power will un-dim the screen (if it was dimmed)
 			mParams.screenBrightness = -1f;
 			getWindow().setAttributes(mParams);
@@ -942,7 +1024,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					} catch (Exception ignored){ }
 					/* checking extra data
 					Bundle bundle = data.getExtras();
-					if (bundle != null) {
+					if(bundle != null) {
 						for (String key : bundle.keySet()) {
 							Log.w("ExtraData",
 								key + " : " + (bundle.get(key) != null ? bundle.get(key) : "NULL"));
@@ -958,38 +1040,94 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 	////////// private functions //////////////////////////////////////
 
-	private void proximityRelease(String from) {
+	private void proximityNear() {
+		if(proximitySensorMode==0) {
+			return;
+		}
+		if(proximityNear) {
+			return;
+		}
+		proximityNear = true;
+		int callInProgress = 0;
+		if(webCallServiceBinder!=null) {
+			callInProgress = webCallServiceBinder.callInProgress();
+		}
+		callInProgress = 33; // fake in-call for testing
+
+		//Log.d(TAG, "SensorEvent near "+event.values[0]+" "+callInProgress);
+		if(callInProgress>0) {
+			// device is in-a-call: shut the screen on proximity
+			Log.d(TAG, "SensorEvent near, block screen");
+			webviewBlocked = true;
+			screenOrientationLock("near");
+
+			//getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+			getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+			webCallServiceBinder.setProximity(true);
+
+			if(proximitySensorAction==0) {
+				if(wakeLockProximity!=null && !wakeLockProximity.isHeld()) {
+					Log.d(TAG, "SensorEvent near, wakeLockProximity.acquire");
+					wakeLockProximity.acquire();
+				}
+			} else {
+				Log.d(TAG, "SensorEvent near, dim screen");
+				mParams.screenBrightness = 0.01f;
+				getWindow().setAttributes(mParams);
+			}
+
+			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) { // >= 27
+				setShowWhenLocked(true); // show activity on top of the lock screen
+				//setTurnScreenOn(true); // screen should be turned on when activity is resumed
+				keyguardManager.requestDismissKeyguard(this, null);
+			} else {
+				keyguardLock = keyguardManager.newKeyguardLock(KEYGUARD_SERVICE);
+				keyguardLock.disableKeyguard();
+			}
+		} else {
+			//Log.d(TAG, "SensorEvent near, but NO callInProgress");
+		}
+	}
+
+	private void proximityAway(String from) {
+		if(proximitySensorMode==0) {
+			return;
+		}
+		if(!proximityNear) {
+			return;
+		}
 		proximityNear = false;
+
 		if(wakeLockProximity!=null && wakeLockProximity.isHeld()) {
 			Log.d(TAG, "SensorEvent "+from+" wakeLockProximity.release");
 			wakeLockProximity.release(PowerManager.RELEASE_FLAG_WAIT_FOR_NO_PROXIMITY);
-			webCallServiceBinder.setProximity(false);
-/*
-			// do this with a little delay; screen needs to be back on before we do this
-			Runnable mDelayed = new Runnable() {
-				@Override
-				public void run() {
-					Log.d(TAG, "SensorEvent away, delayed");
-*/
-//					if(wakeLockProximity!=null && !wakeLockProximity.isHeld()) {
-//						Log.d(TAG, "SensorEvent "+from+", clear FLAG_KEEP_SCREEN_ON");
-//						getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
-						getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-						myWebView.setClickable(true); // re-enable UI click events
-//					}
-					if(keyguardLock!=null) {
-						keyguardLock.reenableKeyguard();
-						keyguardLock = null;
-					}
-/*
-				}
-			};
-			final Handler handler = new Handler(Looper.getMainLooper());
-			handler.postDelayed(mDelayed, 700);
-*/
 		} else {
-			//Log.d(TAG, "SensorEvent away, wakeLockProximity not held");
+			Log.d(TAG, "SensorEvent near, un-dim screen");
+			mParams.screenBrightness = -1f;
+			getWindow().setAttributes(mParams);
 		}
+
+		webCallServiceBinder.setProximity(false);
+		//getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+		getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+		if(keyguardLock!=null) {
+			keyguardLock.reenableKeyguard();
+			keyguardLock = null;
+		}
+
+		Log.d(TAG, "SensorEvent "+from+", unblock screen");
+
+		// do this with a little delay to avoid immediate touch events and screenOrientation change
+		final Handler handler = new Handler(Looper.getMainLooper());
+		handler.postDelayed(new Runnable() {
+			@Override
+			public void run() {
+				if(!proximityNear) {
+					webviewBlocked = false;
+					screenOrientationRelease("away");
+				}
+			}
+		}, 500);
 	}
 
 	private int getScreenOrientation() {
@@ -1001,8 +1139,27 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		return orientation;
 	}
 
+	private void screenOrientationLock(String from) {
+//		if(screenOrientationLockCounter==0) {
+			int currOrient = getScreenOrientation();
+			Log.d(TAG, "screenOrientationLock "+from+" currOrient="+currOrient);
+			setRequestedOrientation(currOrient);
+//		}
+//		screenOrientationLockCounter++;
+//		Log.d(TAG, "screenOrientationLock "+from+" counter="+screenOrientationLockCounter);
+	}
+
+	private void screenOrientationRelease(String from) {
+//		if(screenOrientationLockCounter<=1) {
+			Log.d(TAG, "screenOrientationRelease "+from);
+			setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+//		}
+//		screenOrientationLockCounter--;
+//		Log.d(TAG, "screenOrientationRelease "+from+" counter="+screenOrientationLockCounter);
+	}
+
 	private void disableBattOptimizations() {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
 			// deactivate battery optimizations
 			AlertDialog.Builder alertbox = new AlertDialog.Builder(context);
 
@@ -1068,18 +1225,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			  PowerManager.FULL_WAKE_LOCK|PowerManager.ACQUIRE_CAUSES_WAKEUP, "WebCall:WakelockScreen");
 			wakeLockScreen.acquire(3000);
 
-			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) { // >= 27
+			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) { // >= 27
 				setShowWhenLocked(true); // show activity on top of the lock screen
 				//setTurnScreenOn(true); // screen should be turned on when activity is resumed
-				KeyguardManager keyguardManager =
-					(KeyguardManager)getSystemService(Context.KEYGUARD_SERVICE);
 				keyguardManager.requestDismissKeyguard(this, null);
 			} else {
-				// TODO here we create and release a keyguardLock - is this correct?
-				KeyguardManager keyguardManager =
-					(KeyguardManager)getSystemService(Context.KEYGUARD_SERVICE);
 				keyguardLock = keyguardManager.newKeyguardLock(KEYGUARD_SERVICE);
 				keyguardLock.disableKeyguard();
+				// TODO where do we keyguardLock.reenableKeyguard();
 			}
 
 			// we release wakeLockScreen with a small delay
@@ -1187,12 +1340,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private final int MY_PERMISSIONS_RECORD_AUDIO = 1;
 
 	private void requestAudioPermissions() {
-		if (ContextCompat.checkSelfPermission(this,
+		if(ContextCompat.checkSelfPermission(this,
 				Manifest.permission.RECORD_AUDIO)
 				!= PackageManager.PERMISSION_GRANTED) {
 
 			//When permission is not granted by user, show them message why this permission is needed.
-			if (ActivityCompat.shouldShowRequestPermissionRationale(this,
+			if(ActivityCompat.shouldShowRequestPermissionRationale(this,
 					Manifest.permission.RECORD_AUDIO)) {
 				Toast.makeText(this, "Please grant permissions to record audio", Toast.LENGTH_LONG).show();
 
@@ -1209,7 +1362,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 		}
 		//If permission is granted, then go ahead recording audio
-		else if (ContextCompat.checkSelfPermission(this,
+		else if(ContextCompat.checkSelfPermission(this,
 			    Manifest.permission.RECORD_AUDIO)
 			    == PackageManager.PERMISSION_GRANTED) {
 
@@ -1227,7 +1380,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			/*
 			case MY_PERMISSIONS_RECORD_AUDIO:
 				Log.d(TAG, "onRequestPermissionsResult MY_PERMISSIONS_RECORD_AUDIO");
-				if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+				if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 					// permission granted
 					Log.d(TAG, "onRequestPermissionsResult Permissions granted");
 				} else {
@@ -1238,7 +1391,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			*/
 			case PERMISSION_REQUEST_RW_EXTERNAL_STORAGE:
 				Log.d(TAG, "onRequestPermissionsResult PERMISSION_REQUEST_RW_EXTERNAL_STORAGE");
-				if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+				if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 					// permission granted
 					Log.d(TAG, "onRequestPermissionsResult Permissions granted");
 				} else {

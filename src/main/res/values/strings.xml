@@ -1,35 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name"                    >WebCall</string>
+    <string name="app_name"                        >WebCall</string>
 
-    <string name="msg_nfcon"                   >Please turn the NFC adapter On</string>
+    <string name="msg_nfcon"                       >Please turn the NFC adapter On</string>
 <!--
-    <string name="msg_noopti"                  >Click Continue. Then select \'All apps\' from the top right, scroll down to \'WebCall\' and switch to \'Don\'t optimize\'</string>
+    <string name="msg_noopti"                      >Click Continue. Then select \'All apps\' from the top right, scroll down to \'WebCall\' and switch to \'Don\'t optimize\'</string>
 -->
-    <string name="msg_noopti2"                 >A permission is needed for reliable connection handling.\n\nThis is only used in exceptional cases. This has very little effect on battery power.</string>
+    <string name="msg_noopti2"                     >A permission is needed for reliable connection handling.\n\nThis is only used in exceptional cases. This has very little effect on battery power.</string>
 
-    <string name="msg_nfcconnect_on"           >NFC Connect is Off</string>
-    <string name="msg_nfcconnect_off"          >NFC Connect is On</string>
+    <string name="msg_nfcconnect_on"               >NFC Connect is: Off</string>
+    <string name="msg_nfcconnect_off"              >NFC Connect is: On</string>
 <!--
-    <string name="msg_nearby_on"               >Nearby Connect is Off</string>
-    <string name="msg_nearby_off"              >Nearby Connect is On</string>
+    <string name="msg_nearby_on"                   >Nearby Connect is Off</string>
+    <string name="msg_nearby_off"                  >Nearby Connect is On</string>
 -->
-    <string name="msg_ring_on_speaker_on"      >Ring on speaker is Off</string>
-    <string name="msg_ring_on_speaker_off"     >Ring on speaker is On</string>
-    <string name="msg_beep_on_lost_network_on" >Beep on no network is Off</string>
-    <string name="msg_beep_on_lost_network_off">Beep on no network is On</string>
-    <string name="msg_start_on_boot_on"        >Start on boot is Off</string>
-    <string name="msg_start_on_boot_off"       >Start on boot is On</string>
+    <string name="msg_ring_on_speaker_on"          >Ring on speaker: Off</string>
+    <string name="msg_ring_on_speaker_off"         >Ring on speaker: On</string>
+    <string name="msg_beep_on_lost_network_on"     >Beep on no network: Off</string>
+    <string name="msg_beep_on_lost_network_off"    >Beep on no network: On</string>
+    <string name="msg_start_on_boot_on"            >Start on boot: Off</string>
+    <string name="msg_start_on_boot_off"           >Start on boot: On</string>
 
-    <string name="msg_wifi_lock_is_on"         >Wifi preferred is Off</string>
-    <string name="msg_wifi_lock_is_off"        >Wifi preferred is On</string>
+    <string name="msg_wifi_lock_is_on"             >Wifi preferred: Off</string>
+    <string name="msg_wifi_lock_is_off"            >Wifi preferred: On</string>
 
-    <string name="msg_screen_for_wifi_on"      >Screen for Wifi is Off</string>
-    <string name="msg_screen_for_wifi_off"     >Screen for Wifi is On</string>
+    <string name="msg_screen_for_wifi_on"          >Screen for Wifi: Off</string>
+    <string name="msg_screen_for_wifi_off"         >Screen for Wifi: On</string>
 
-    <string name="msg_capture_logs"            >Capture logs now</string>
-    <string name="msg_open_logs"               >Open log file</string>
-    <string name="msg_ext_logs_off"            ># Extended logs is Off</string>
-    <string name="msg_ext_logs_on"             ># Extended logs is On</string>
+    <string name="msg_proximity_sensor_on"         >Proximity Sensor: Off</string>
+    <string name="msg_proximity_sensor_off"        >Proximity Sensor: On</string>
+
+    <string name="msg_proximity_action_screen_off" >Proximity Action: Screen dim</string>
+    <string name="msg_proximity_action_screen_dim" >Proximity Action: Screen off</string>
+
+    <string name="msg_capture_logs"                >Capture logs now</string>
+    <string name="msg_open_logs"                   >Open log file</string>
+    <string name="msg_ext_logs_off"                ># Extended logs: Off</string>
+    <string name="msg_ext_logs_on"                 ># Extended logs: On</string>
 </resources>
 

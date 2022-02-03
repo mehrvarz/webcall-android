@@ -1582,13 +1582,15 @@ public class WebCallService extends Service {
 // see https://developer.android.com/reference/android/media/AudioManager#setCommunicationDevice(android.media.AudioDeviceInfo)
 
 			Log.d(TAG, "prepareDial(), speakerphone=false");
-			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // needed for P9 to deactivate speakerphone
-			audioManager.setSpeakerphoneOn(false); // needed for Gn to deactivate speakerphone
+			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
+			audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
 
+			/* now managed by proximity sensor
 			// tell activity to lock screen orientation
 			Intent intent = new Intent("webcall");
 			intent.putExtra("cmd", "screenorientlock");
 			sendBroadcast(intent);
+			*/
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1603,13 +1605,15 @@ public class WebCallService extends Service {
 			// we do it now here instead of at setProximity(true), because it is more reliable this way
 			// will be reversed by peerDisConnect()
 			Log.d(TAG, "peerConnect(), speakerphone=false");
-			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // needed for P9 to deactivate speakerphone
-			audioManager.setSpeakerphoneOn(false); // needed for Gn to deactivate speakerphone
+			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
+			audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
 
+			/* now managed by proximity sensor
 			// tell activity to lock screen orientation
 			Intent intent = new Intent("webcall");
 			intent.putExtra("cmd", "screenorientlock");
 			sendBroadcast(intent);
+			*/
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1627,10 +1631,12 @@ public class WebCallService extends Service {
 			// route audio to the speaker, even if a headset is connected)
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
 
+			/* now managed by proximity sensor
 			// tell activity to unlock screen orientation
 			Intent intent = new Intent("webcall");
 			intent.putExtra("cmd", "screenorientunlock");
 			sendBroadcast(intent);
+			*/
 		}
 
 		@android.webkit.JavascriptInterface
