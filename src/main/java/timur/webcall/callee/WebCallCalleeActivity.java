@@ -419,7 +419,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	public void onCreateContextMenu(ContextMenu menu, View view,
 						ContextMenu.ContextMenuInfo menuInfo) {
 		int callInProgress = 0;
-		if(webCallServiceBinder!=null && webCallServiceBinder.callInProgress()>0) {
+		if(webCallServiceBinder==null) {
+			Log.d(TAG,"onCreateContextMenu abort on no webCallServiceBinder");
+			return;
+		}
+		if(webCallServiceBinder.callInProgress()>0) {
 			Log.d(TAG,"onCreateContextMenu abort on callInProgress");
 			return;
 		}
@@ -587,65 +591,85 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 		if(selectedItem==menuRingOnSpeakerOn) {
 			Log.d(TAG, "onContextItemSelected turn ring_on_speaker On");
-			webCallServiceBinder.audioToSpeaker(1);
-			// audioToSpeaker() will generate a toast with the result
+			if(webCallServiceBinder!=null) {
+				webCallServiceBinder.audioToSpeaker(1);
+				// audioToSpeaker() will generate a toast with the result
+			}
 			return true;
 		}
 		if(selectedItem==menuRingOnSpeakerOff) {
 			Log.d(TAG, "onContextItemSelected turn ring_on_speaker Off");
-			webCallServiceBinder.audioToSpeaker(0);
-			// audioToSpeaker() will generate a toast with the result
+			if(webCallServiceBinder!=null) {
+				webCallServiceBinder.audioToSpeaker(0);
+				// audioToSpeaker() will generate a toast with the result
+			}
 			return true;
 		}
 		if(selectedItem==menuBeepOnNoNetworkOn) {
 			Log.d(TAG, "onContextItemSelected turn beepOnLostNetwork On");
-			webCallServiceBinder.beepOnLostNetwork(1);
-			Toast.makeText(context, "Beep-on-no-network has been activated", Toast.LENGTH_LONG).show();
+			if(webCallServiceBinder!=null) {
+				webCallServiceBinder.beepOnLostNetwork(1);
+				Toast.makeText(context, "Beep-on-no-network has been activated", Toast.LENGTH_LONG).show();
+			}
 			return true;
 		}
 		if(selectedItem==menuBeepOnNoNetworkOff) {
 			Log.d(TAG, "onContextItemSelected turn beepOnLostNetwork Off");
-			webCallServiceBinder.beepOnLostNetwork(0);
-			Toast.makeText(context, "Beep-on-no-network has been deactivated", Toast.LENGTH_LONG).show();
+			if(webCallServiceBinder!=null) {
+				webCallServiceBinder.beepOnLostNetwork(0);
+				Toast.makeText(context, "Beep-on-no-network has been deactivated", Toast.LENGTH_LONG).show();
+			}
 			return true;
 		}
 
 		if(selectedItem==menuStartOnBootOn) {
 			Log.d(TAG, "onContextItemSelected turn startOnBoot On");
-			webCallServiceBinder.startOnBoot(1);
-			Toast.makeText(context, "Start-on-boot has been activated", Toast.LENGTH_LONG).show();
+			if(webCallServiceBinder!=null) {
+				webCallServiceBinder.startOnBoot(1);
+				Toast.makeText(context, "Start-on-boot has been activated", Toast.LENGTH_LONG).show();
+			}
 			return true;
 		}
 		if(selectedItem==menuStartOnBootOff) {
 			Log.d(TAG, "onContextItemSelected turn startOnBoot Off");
-			webCallServiceBinder.startOnBoot(0);
-			Toast.makeText(context, "Start-on-boot has been deactivated", Toast.LENGTH_LONG).show();
+			if(webCallServiceBinder!=null) {
+				webCallServiceBinder.startOnBoot(0);
+				Toast.makeText(context, "Start-on-boot has been deactivated", Toast.LENGTH_LONG).show();
+			}
 			return true;
 		}
 
 		if(selectedItem==menuWifiLockOn) {
 			Log.d(TAG, "onContextItemSelected turn WifiLock On");
-			webCallServiceBinder.setWifiLock(1);
-			Toast.makeText(context, "WifiLock has been activated", Toast.LENGTH_LONG).show();
+			if(webCallServiceBinder!=null) {
+				webCallServiceBinder.setWifiLock(1);
+				Toast.makeText(context, "WifiLock has been activated", Toast.LENGTH_LONG).show();
+			}
 			return true;
 		}
 		if(selectedItem==menuWifiLockOff) {
 			Log.d(TAG, "onContextItemSelected turn WifiLock Off");
-			webCallServiceBinder.setWifiLock(0);
-			Toast.makeText(context, "WifiLock has been deactivated", Toast.LENGTH_LONG).show();
+			if(webCallServiceBinder!=null) {
+				webCallServiceBinder.setWifiLock(0);
+				Toast.makeText(context, "WifiLock has been deactivated", Toast.LENGTH_LONG).show();
+			}
 			return true;
 		}
 
 		if(selectedItem==menuScreenForWifiOn) {
 			Log.d(TAG, "onContextItemSelected screenForWifiOn");
-			webCallServiceBinder.screenForWifi(1);
-			Toast.makeText(context, "Screen-for-WIFI has been activated", Toast.LENGTH_LONG).show();
+			if(webCallServiceBinder!=null) {
+				webCallServiceBinder.screenForWifi(1);
+				Toast.makeText(context, "Screen-for-WIFI has been activated", Toast.LENGTH_LONG).show();
+			}
 			return true;
 		}
 		if(selectedItem==menuStartOnBootOff) {
 			Log.d(TAG, "onContextItemSelected screenForWifiOff");
-			webCallServiceBinder.screenForWifi(0);
-			Toast.makeText(context, "Screen-for-WIFI has been deactivated", Toast.LENGTH_LONG).show();
+			if(webCallServiceBinder!=null) {
+				webCallServiceBinder.screenForWifi(0);
+				Toast.makeText(context, "Screen-for-WIFI has been deactivated", Toast.LENGTH_LONG).show();
+			}
 			return true;
 		}
 
@@ -704,6 +728,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 
 		if(selectedItem==menuCaptureLogs) {
+			if(webCallServiceBinder!=null) {
+				Log.d(TAG, "onContextItemSelected captureLogs, no webCallServiceBinder");
+				return true;
+			}
 			Log.d(TAG, "onContextItemSelected captureLogs");
 			lastLogfileName = webCallServiceBinder.captureLogs();
 			Log.d(TAG, "onContextItemSelected captureLogs ("+lastLogfileName+")");
@@ -727,6 +755,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return true;
 		}
 		if(selectedItem==menuExtendedLogsOn) {
+			if(webCallServiceBinder!=null) {
+				Log.d(TAG, "onContextItemSelected extended logs on, no webCallServiceBinder");
+				return true;
+			}
 			Log.d(TAG, "onContextItemSelected extended logs On");
 			if(webCallServiceBinder.extendedLogs(1)) {
 				extendedLogsFlag = true;
@@ -735,6 +767,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return true;
 		}
 		if(selectedItem==menuExtendedLogsOff) {
+			if(webCallServiceBinder!=null) {
+				Log.d(TAG, "onContextItemSelected extended logs on, no webCallServiceBinder");
+				return true;
+			}
 			Log.d(TAG, "onContextItemSelected extended logs Off");
 			if(!webCallServiceBinder.extendedLogs(0)) {
 				extendedLogsFlag = false;
@@ -1063,7 +1099,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 			//getWindow().addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
 			getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-			webCallServiceBinder.setProximity(true);
+			if(webCallServiceBinder!=null) {
+				webCallServiceBinder.setProximity(true);
+			}
 
 			if(proximitySensorAction==0) {
 				if(wakeLockProximity!=null && !wakeLockProximity.isHeld()) {
@@ -1107,7 +1145,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			getWindow().setAttributes(mParams);
 		}
 
-		webCallServiceBinder.setProximity(false);
+		if(webCallServiceBinder!=null) {
+			webCallServiceBinder.setProximity(false);
+		}
 		//getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
 		getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 		if(keyguardLock!=null) {
