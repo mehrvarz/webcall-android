@@ -728,7 +728,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 
 		if(selectedItem==menuCaptureLogs) {
-			if(webCallServiceBinder!=null) {
+			if(webCallServiceBinder==null) {
 				Log.d(TAG, "onContextItemSelected captureLogs, no webCallServiceBinder");
 				return true;
 			}
@@ -755,7 +755,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return true;
 		}
 		if(selectedItem==menuExtendedLogsOn) {
-			if(webCallServiceBinder!=null) {
+			if(webCallServiceBinder==null) {
 				Log.d(TAG, "onContextItemSelected extended logs on, no webCallServiceBinder");
 				return true;
 			}
@@ -767,7 +767,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return true;
 		}
 		if(selectedItem==menuExtendedLogsOff) {
-			if(webCallServiceBinder!=null) {
+			if(webCallServiceBinder==null) {
 				Log.d(TAG, "onContextItemSelected extended logs on, no webCallServiceBinder");
 				return true;
 			}
@@ -1088,7 +1088,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(webCallServiceBinder!=null) {
 			callInProgress = webCallServiceBinder.callInProgress();
 		}
-		callInProgress = 33; // fake in-call for testing
+		//callInProgress = 33; // fake in-call for testing
 
 		//Log.d(TAG, "SensorEvent near "+event.values[0]+" "+callInProgress);
 		if(callInProgress>0) {
