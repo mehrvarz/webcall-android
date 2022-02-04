@@ -3268,8 +3268,7 @@ public class WebCallService extends Service {
 						   lowerLine.indexOf("waking")>=0 ||
 						   lowerLine.indexOf("dozing")>=0 ||
 						   lowerLine.indexOf("killing")>=0 ||
-						   lowerLine.indexOf("anymotion")>=0)
-						{
+						   lowerLine.indexOf("anymotion")>=0) {
 							strbld.append(line+"\n");
 							linesAccepted++;
 						} else {
