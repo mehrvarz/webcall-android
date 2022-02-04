@@ -74,7 +74,7 @@ import android.app.PendingIntent;
 import android.app.Notification;
 import android.net.wifi.WifiManager;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo; // deprecated in API level 29, only used for API <= 23
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -1253,12 +1253,12 @@ public class WebCallService extends Service {
 			proximityNear = flagNear;
 			if(proximityNear) {
 				// user is is now holding device to head
-//				Log.d(TAG, "setProximity() near, speakerphone=false");
-//				audioManager.setSpeakerphoneOn(false);
+				//Log.d(TAG, "setProximity() near, speakerphone=false");
+				//audioManager.setSpeakerphoneOn(false);
 			} else {
 				// user is is now NOT holding device to head
-//				Log.d(TAG, "setProximity() away, speakerphone=true");
-//				audioManager.setSpeakerphoneOn(true);
+				//Log.d(TAG, "setProximity() away, speakerphone=true");
+				//audioManager.setSpeakerphoneOn(true);
 			}
 		}
 
@@ -1584,13 +1584,6 @@ public class WebCallService extends Service {
 			Log.d(TAG, "prepareDial(), speakerphone=false");
 			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
 			audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
-
-			/* now managed by proximity sensor
-			// tell activity to lock screen orientation
-			Intent intent = new Intent("webcall");
-			intent.putExtra("cmd", "screenorientlock");
-			sendBroadcast(intent);
-			*/
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1607,13 +1600,6 @@ public class WebCallService extends Service {
 			Log.d(TAG, "peerConnect(), speakerphone=false");
 			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
 			audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
-
-			/* now managed by proximity sensor
-			// tell activity to lock screen orientation
-			Intent intent = new Intent("webcall");
-			intent.putExtra("cmd", "screenorientlock");
-			sendBroadcast(intent);
-			*/
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1627,16 +1613,8 @@ public class WebCallService extends Service {
 			Log.d(TAG, "peerDisConnect(), speakerphone=true");
 			audioManager.setSpeakerphoneOn(true);
 
-			// TODO verify:
-			// route audio to the speaker, even if a headset is connected)
+			// TODO verify: route audio to the speaker, even if a headset is connected)
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
-
-			/* now managed by proximity sensor
-			// tell activity to unlock screen orientation
-			Intent intent = new Intent("webcall");
-			intent.putExtra("cmd", "screenorientunlock");
-			sendBroadcast(intent);
-			*/
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1818,7 +1796,7 @@ public class WebCallService extends Service {
 					// in deep sleep we cannot create new network connections
 					// in order to establish a new network connection, we need to bring device out of doze
 
-// TODO what does screenForWifiMode do here?
+					// TODO what does screenForWifiMode do here?
 					if(haveNetworkInt==0 && screenForWifiMode>0) {
 						if(wifiLock!=null && wifiLock.isHeld()) {
 							Log.d(TAG,"onClose wifiLock release");
@@ -2068,7 +2046,7 @@ public class WebCallService extends Service {
 				" pings="+pingCounter+ " "+batteryPct+
 				" "+BuildConfig.VERSION_NAME+
 				" "+currentDateTimeString());
-			if(/*haveNetworkInt==0 &&*/ Build.VERSION.SDK_INT < Build.VERSION_CODES.N) { // <api24
+			if(Build.VERSION.SDK_INT < Build.VERSION_CODES.N) { // <api24
 				checkNetworkState(false);
 			}
 			if(haveNetworkInt>0) {
@@ -2149,8 +2127,7 @@ public class WebCallService extends Service {
 			username = prefs.getString("username", "");
 			loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
 		}
-// TODO do we need to copy cookies here?
-
+		// TODO do we need to copy cookies here?
 		if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 			reconnectSchedFuture.cancel(false);
 			reconnectSchedFuture = null;
@@ -2783,10 +2760,10 @@ public class WebCallService extends Service {
 			boolean isOpen = wsClient.connectBlocking();
 			Log.d(TAG,"connectHost connectBlocking done isOpen="+isOpen);
 			if(isOpen) {
-				// Self hostVerify
-				// the next 25 lines (and the override of onSetSSLParameters below) 
-				// are only needed (bis einschl Android 6.x) API < 24 "N"
-				// see: https://github.com/TooTallNate/Java-WebSocket/wiki/No-such-method-error-setEndpointIdentificationAlgorithm
+			// Self hostVerify
+			// the next 25 lines (and the override of onSetSSLParameters below) 
+			// are only needed for API < 24 "N"
+			// github.com/TooTallNate/Java-WebSocket/wiki/No-such-method-error-setEndpointIdentificationAlgorithm
 				boolean hostVerifySuccess = true;
 				if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
 					Log.d(TAG,"connectHost self hostVerify");
@@ -2897,7 +2874,6 @@ public class WebCallService extends Service {
 					return wsClient;
 				}
 			}
-
 		} catch(URISyntaxException ex) {
 			Log.e(TAG,"connectHost URISyntaxException",ex);
 		} catch(InterruptedException ex) {
@@ -3213,9 +3189,6 @@ public class WebCallService extends Service {
 		if(extendedLogsFlag) {
 			Log.d(TAG,"audioToSpeakerSet "+set+" (prev="+audioToSpeakerActive+")");
 		}
-		//		if(set==audioToSpeakerActive) {
-		//			return;
-		//		}
 		if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) { // <= 27
 			// this works on Android 5-8 but not on Android 9+
 			try {
@@ -3295,8 +3268,8 @@ public class WebCallService extends Service {
 						   lowerLine.indexOf("waking")>=0 ||
 						   lowerLine.indexOf("dozing")>=0 ||
 						   lowerLine.indexOf("killing")>=0 ||
-						   lowerLine.indexOf("anymotion")>=0
-						) {
+						   lowerLine.indexOf("anymotion")>=0)
+						{
 							strbld.append(line+"\n");
 							linesAccepted++;
 						} else {

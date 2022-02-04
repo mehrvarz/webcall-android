@@ -107,7 +107,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private int proximitySensorMode = 0; // 0=off, 1=on
 	private int proximitySensorAction = 0; // 0=screen off, 1=screen dim
 	private volatile boolean webviewBlocked = false;
-//	private volatile int screenOrientationLockCounter = 0;
 
 
 	@Override
@@ -116,7 +115,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
 		context = this;
 
-		//PackageInfo packageInfo = WebViewCompat.getCurrentWebViewPackage();
 		PackageInfo packageInfo = getCurrentWebViewPackageInfo();
 		if(packageInfo == null) {
 			if(Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
@@ -154,10 +152,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(sensorManager==null) {
 			sensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
 		}
-//		if(sensorManager==null) {
-//			Log.d(TAG, "onCreate sensorManager==null");
-//			return;
-//		}
 
 		if(proximitySensor==null && sensorManager!=null) {
 			proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
@@ -229,7 +223,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					//Log.d(TAG,"onTouch "+touchX+"/"+touchY+" will be processed");
 
 					// undim screen
-					// TODO do this every time? shd only be needed once after "if(typeOfWakeup==1)"
+					// do this every time? shd only be needed once after "if(typeOfWakeup==1)"
 					//mParams.screenBrightness = -1f;
 					//getWindow().setAttributes(mParams);
 					//view.performClick();
@@ -316,7 +310,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				// Show an expanation to the user *asynchronously* -- don't block
 				// this thread waiting for the user's response! After the user
 				// sees the explanation, try again to request the permission.
-
 			} else {
 				// No explanation needed, we can request the permission.
 				ActivityCompat.requestPermissions(this,
@@ -339,7 +332,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 
 		// here we bind the service, so that we can call startWebView()
-		//Intent serviceIntent = new Intent(this, WebCallService.class);
 		bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
 		// onServiceConnected -> webCallServiceBinder.startWebView()
 
@@ -872,15 +864,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 	@Override
 	public void onResume() {
-		//if(extendedLogsFlag) {
+		if(extendedLogsFlag) {
 			Log.d(TAG, "onResume");
-		//}
+		}
 		super.onResume();
 
-//		if(sensorManager==null) {
-//			Log.d(TAG, "onResume sensorManager==null");
-//			return;
-//		}
 		if(powerManager==null) {
 			Log.d(TAG, "onResume powerManager==null");
 			return;
@@ -910,9 +898,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 	@Override
 	public void onPause() {
-		//if(extendedLogsFlag) {
+		if(extendedLogsFlag) {
 			Log.d(TAG, "onPause");
-		//}
+		}
 		super.onPause();
 
 		if(proximitySensorMode>0) {
@@ -1088,8 +1076,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(webCallServiceBinder!=null) {
 			callInProgress = webCallServiceBinder.callInProgress();
 		}
-		//callInProgress = 33; // fake in-call for testing
-
 		//Log.d(TAG, "SensorEvent near "+event.values[0]+" "+callInProgress);
 		if(callInProgress>0) {
 			// device is in-a-call: shut the screen on proximity
@@ -1180,22 +1166,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	}
 
 	private void screenOrientationLock(String from) {
-//		if(screenOrientationLockCounter==0) {
-			int currOrient = getScreenOrientation();
-			Log.d(TAG, "screenOrientationLock "+from+" currOrient="+currOrient);
-			setRequestedOrientation(currOrient);
-//		}
-//		screenOrientationLockCounter++;
-//		Log.d(TAG, "screenOrientationLock "+from+" counter="+screenOrientationLockCounter);
+		int currOrient = getScreenOrientation();
+		Log.d(TAG, "screenOrientationLock "+from+" currOrient="+currOrient);
+		setRequestedOrientation(currOrient);
 	}
 
 	private void screenOrientationRelease(String from) {
-//		if(screenOrientationLockCounter<=1) {
-			Log.d(TAG, "screenOrientationRelease "+from);
-			setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-//		}
-//		screenOrientationLockCounter--;
-//		Log.d(TAG, "screenOrientationRelease "+from+" counter="+screenOrientationLockCounter);
+		Log.d(TAG, "screenOrientationRelease "+from);
+		setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
 	}
 
 	private void disableBattOptimizations() {
@@ -1230,13 +1208,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					context.startActivity(myIntent);
 				}
 			});
-			/*
-			alertbox.setNegativeButton("Close", new DialogInterface.OnClickListener() {
-				@Override
-				public void onClick(DialogInterface dialog, int which) {
-				}
-			});
-			*/
 			alertbox.show();
 		}
 	}
@@ -1372,7 +1343,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		return pInfo;
 	}
 
-/*
+	/*
 	//Requesting run-time permissions
 
 	//Create placeholder for user's consent to record_audio permission.
@@ -1410,7 +1381,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			recordAudio();
 		}
 	}
-*/
+	*/
+
 	private static final int PERMISSION_REQUEST_RW_EXTERNAL_STORAGE = 11141;
 
 	@Override
