@@ -6,7 +6,7 @@
 <!--
     <string name="msg_noopti"                      >Click Continue. Then select \'All apps\' from the top right, scroll down to \'WebCall\' and switch to \'Don\'t optimize\'</string>
 -->
-    <string name="msg_noopti2"                     >A permission is needed for reliable connection handling.\n\nThis is only used in exceptional cases. This has very little effect on battery power.</string>
+    <string name="msg_noopti2"                     >A permission is needed for reliable connection handling.</string>
 
     <string name="msg_nfcconnect_on"               >NFC Connect is: Off</string>
     <string name="msg_nfcconnect_off"              >NFC Connect is: On</string>
