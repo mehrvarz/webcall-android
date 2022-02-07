@@ -43,10 +43,31 @@
 			android:theme="@android:style/Theme.Material.NoActionBar"
 			android:exported="true"
 			android:launchMode="singleInstance">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+			<intent-filter>
+				<action android:name="android.intent.action.VIEW" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<category android:name="android.intent.category.BROWSABLE" />
+				<data
+				    android:host="timur.mobi"
+				    android:pathPrefix="/user/"
+				    android:scheme="https" />
+			</intent-filter>
+
+			<intent-filter>
+				<action android:name="android.nfc.action.NDEF_DISCOVERED" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<category android:name="android.intent.category.BROWSABLE" />
+				<data
+				    android:host="timur.mobi"
+				    android:pathPrefix="/user/"
+				    android:scheme="https" />
+			</intent-filter>
         </activity>
 
 		<service android:name=".WebCallService"

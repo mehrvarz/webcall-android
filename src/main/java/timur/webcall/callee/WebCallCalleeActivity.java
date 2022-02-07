@@ -107,6 +107,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private int proximitySensorMode = 0; // 0=off, 1=on
 	private int proximitySensorAction = 0; // 0=screen off, 1=screen dim
 	private volatile boolean webviewBlocked = false;
+	private volatile String dialId = null;
 
 
 	@Override
@@ -342,6 +343,20 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(extendedLogsFlag) {
 			Log.d(TAG, "onCreate done");
 		}
+
+		Intent intent = getIntent();
+		Uri data = intent.getData();
+		Log.d(TAG, "onCreate data="+data);
+		dialId = null;
+		if(data!=null) {
+			String path = data.getPath();
+			int idxUser = path.indexOf("/user/");
+			if(idxUser>=0) {
+				dialId = path.substring(idxUser+6);
+				Log.d(TAG, "onCreate dialId="+dialId);
+				// will be executed in onServiceConnected
+			}
+		}
 	}
 
 	private ServiceConnection serviceConnection = new ServiceConnection() {
@@ -373,6 +388,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				if(activityStartNeeded) {
 					activityStart(); // may need to turn on screen, etc.
 					activityStartNeeded = false;
+				}
+
+				if(dialId!=null) {
+					Log.d(TAG, "onServiceConnected dialId="+dialId);
+					// only execute if we are on the main page
+					if(webCallServiceBinder.getCurrentUrl().indexOf("/callee/")>=0) {
+						webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
+					}
 				}
 			}
 		}
@@ -850,6 +873,27 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			// request to execute activityStart() when webCallServiceBinder is available
 			Log.d(TAG, "onStart activityStartNeeded");
 			activityStartNeeded = true;
+		}
+	}
+
+	@Override
+	public void onNewIntent(Intent intent) {
+		Uri data = intent.getData();
+		Log.d(TAG, "onNewIntent data="+data);
+		String dialId = null;
+		if(data!=null) {
+			String path = data.getPath();
+			int idxUser = path.indexOf("/user/");
+			if(idxUser>=0) {
+				dialId = path.substring(idxUser+6);
+				Log.d(TAG, "onNewIntent dialId="+dialId);
+				if(webCallServiceBinder!=null) {
+					// only execute if we are on the main page
+					if(webCallServiceBinder.getCurrentUrl().indexOf("/callee/")>=0) {
+						webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
+					}
+				}
+			}
 		}
 	}
 
