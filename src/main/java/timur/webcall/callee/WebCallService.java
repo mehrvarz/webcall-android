@@ -1217,11 +1217,13 @@ public class WebCallService extends Service {
 				Log.d(TAG, "wakeupType() wsClient is set: checkLastPing");
 				checkLastPing(true,0);
 			} else {
-				if(connectToSignalingServerIsWanted && !reconnectBusy) {
-					Log.d(TAG,"wakeupType() wsClient not set: startReconnecter");
-					startReconnecter(true,0);
+				if(!connectToSignalingServerIsWanted) {
+					Log.d(TAG,"wakeupType() wsClient not set, no connectToSignalingServerIsWanted");
+				} else if(reconnectBusy) {
+					Log.d(TAG,"wakeupType() wsClient not set, reconnectBusy");
 				} else {
-					Log.d(TAG,"wakeupType() wsClient not set, no startReconnecter()");
+					Log.d(TAG,"wakeupType() wsClient not set, startReconnecter");
+					startReconnecter(true,0);
 				}
 			}
 
@@ -2062,16 +2064,18 @@ public class WebCallService extends Service {
 			if(wsClient!=null) {
 				checkLastPing(true,0);
 			} else {
-				if(connectToSignalingServerIsWanted && !reconnectBusy) {
+				if(!connectToSignalingServerIsWanted) {
+					Log.d(TAG,"alarm no connectToSignalingServerIsWanted");
+				} else if(reconnectBusy) {
+					Log.d(TAG,"alarm reconnectBusy");
+				} else {
 					Log.d(TAG,"alarm startReconnecter");
 					startReconnecter(true,0);
-				} else {
-					Log.d(TAG,"alarm no startReconnecter");
 				}
 			}
 
 			// always request a followup alarm
-			pendingAlarm = PendingIntent.getBroadcast(context, 0, startAlarmIntent, 0);
+			pendingAlarm = PendingIntent.getBroadcast(context, 0, startAlarmIntent, PendingIntent.FLAG_IMMUTABLE);
 			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 				if(extendedLogsFlag) {
 					Log.d(TAG,"alarm setAndAllowWhileIdle");
@@ -2687,6 +2691,15 @@ public class WebCallService extends Service {
 					reconnectBusy = false;
 					reconnectCounter = 0;
 				} catch(Exception ex) {
+					// this can be caused by webview not installed or just now uninstalled
+					// "android.webkit.WebViewFactory$MissingWebViewPackageException: "
+					//   "Failed to load WebView provider: No WebView installed
+					// if "No WebView installed" we abort reconnecter
+					String exString = ex.toString();
+					if(exString.indexOf("No WebView installed")>=0) {
+						reconnectCounter=ReconnectCounterMax;
+					}
+
 					ex.printStackTrace();
 					if(reconnectCounter<ReconnectCounterMax) {
 						int delaySecs = reconnectCounter*5;
@@ -2843,7 +2856,8 @@ public class WebCallService extends Service {
 						}
 					}
 					if(alarmPendingDate==null) {
-						pendingAlarm = PendingIntent.getBroadcast(context, 0, startAlarmIntent, 0);
+						pendingAlarm =
+						  PendingIntent.getBroadcast(context, 0, startAlarmIntent, PendingIntent.FLAG_IMMUTABLE);
 						if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 							if(extendedLogsFlag) {
 								Log.d(TAG,"connectHost alarm setAndAllowWhileIdle");
@@ -3381,7 +3395,8 @@ public class WebCallService extends Service {
 			getSystemService(NotificationManager.class).createNotificationChannel(notificationChannel);
 
 			Intent notificationIntent = new Intent(this, WebCallCalleeActivity.class);
-			PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+			PendingIntent pendingIntent =
+				PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 			if(title.equals("")) {
 				title = "WebCall";
 			}
