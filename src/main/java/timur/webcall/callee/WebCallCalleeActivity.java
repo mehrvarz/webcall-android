@@ -115,17 +115,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		super.onCreate(savedInstanceState);
 		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
 		context = this;
-/*
-		PackageInfo packageInfo = getCurrentWebViewPackageInfo();
-		if(packageInfo == null) {
-			if(Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
-				Log.d(TAG, "onCreate no WebView packageInfo on "+
-					Build.VERSION.SDK_INT+" > "+Build.VERSION_CODES.M);
-			}
-		} else {
-			Log.d(TAG, "onCreate webview packageInfo "+packageInfo.packageName+" "+packageInfo.versionName);
+
+		// call getCurrentWebViewPackageInfo() to get webview versionName, but it may fail (on old Android vers.)
+		PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
+		if(webviewPackageInfo != null) {
+			Log.d(TAG, "onCreate webview packageInfo "+
+				webviewPackageInfo.packageName+" "+webviewPackageInfo.versionName);
 		}
-*/
+		// the real webview test comes here and we MUST do it in a try/catch
 		try {
 			setContentView(R.layout.activity_main);
 		} catch(Exception ex) {
@@ -1336,19 +1333,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 		}
 	}
-/*
+
 	@SuppressWarnings({"unchecked", "JavaReflectionInvocation"})
 	private PackageInfo getCurrentWebViewPackageInfo() {
 		PackageInfo pInfo = null;
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-			//starting with Android O (API 26) they added a new method specific for this
 			Log.d(TAG, "getCurrentWebViewPackageInfo for O+");
 			pInfo = WebView.getCurrentWebViewPackage();
 		} else if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-			//with Android Lollipop (API 21) they started to update the WebView 
-			//as a separate APK with the PlayStore and they added the
-			//getLoadedPackageInfo() method to the WebViewFactory class and this
-			//should handle the Android 7.0 behaviour changes too
 			try {
 				Log.d(TAG, "getCurrentWebViewPackageInfo for M+");
 				Class webViewFactory = Class.forName("android.webkit.WebViewFactory");
@@ -1368,11 +1360,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			}
 		} else {
-			//before Lollipop we get no info
+			// no info before Lollipop
 		}
 		return pInfo;
 	}
-*/
+
 	/*
 	//Requesting run-time permissions
 
