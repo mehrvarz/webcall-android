@@ -1098,9 +1098,10 @@ public class WebCallService extends Service {
 					Log.d(TAG, "onPageFinished set currentUrl=" + currentUrl);
 					webviewMainPageLoaded = false;
 					webviewCookies = CookieManager.getInstance().getCookie(currentUrl);
-
-					storePrefsString("cookies", webviewCookies);
 					//Log.d(TAG, "onPageFinished webviewCookies=" + webviewCookies);
+					if(webviewCookies!=null) {
+						storePrefsString("cookies", webviewCookies);
+					}
 
 					// if page sends "init|" when sendRtcMessagesAfterInit is set true
 					// we call processWebRtcMessages()
@@ -2933,7 +2934,7 @@ public class WebCallService extends Service {
 							if(extendedLogsFlag) {
 								Log.d(TAG,"connectHost webviewCookies="+webviewCookies);
 							}
-							if(!webviewCookies.equals("")) {
+							if(webviewCookies!=null && !webviewCookies.equals("")) {
 								storePrefsString("cookies", webviewCookies);
 							}
 						}

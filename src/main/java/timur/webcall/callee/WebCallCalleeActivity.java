@@ -115,27 +115,23 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		super.onCreate(savedInstanceState);
 		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
 		context = this;
-
+/*
 		PackageInfo packageInfo = getCurrentWebViewPackageInfo();
 		if(packageInfo == null) {
 			if(Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
 				Log.d(TAG, "onCreate no WebView packageInfo on "+
 					Build.VERSION.SDK_INT+" > "+Build.VERSION_CODES.M);
-				//startupFail = true;
-				//Toast.makeText(context, "WebCall cannot start. No System WebView installed.",
-				//	Toast.LENGTH_LONG).show();
-				//return;
 			}
 		} else {
 			Log.d(TAG, "onCreate webview packageInfo "+packageInfo.packageName+" "+packageInfo.versionName);
 		}
-
+*/
 		try {
 			setContentView(R.layout.activity_main);
 		} catch(Exception ex) {
 			Log.d(TAG, "onCreate setContentView ex="+ex);
 			startupFail = true;
-			Toast.makeText(context, "WebCall cannot start. No System WebView installed",
+			Toast.makeText(context, "WebCall cannot start. No System WebView installed?",
 				Toast.LENGTH_LONG).show();
 			return;
 		}
@@ -1340,7 +1336,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 		}
 	}
-
+/*
 	@SuppressWarnings({"unchecked", "JavaReflectionInvocation"})
 	private PackageInfo getCurrentWebViewPackageInfo() {
 		PackageInfo pInfo = null;
@@ -1357,9 +1353,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				Log.d(TAG, "getCurrentWebViewPackageInfo for M+");
 				Class webViewFactory = Class.forName("android.webkit.WebViewFactory");
 				Method method = webViewFactory.getMethod("getLoadedPackageInfo");
-				pInfo = (PackageInfo) method.invoke(null);
+				pInfo = (PackageInfo)method.invoke(null);
 			} catch(Exception e) {
-				//e.printStackTrace();
 				Log.d(TAG, "getCurrentWebViewPackageInfo for M+ ex="+e);
 			}
 			if(pInfo==null) {
@@ -1369,7 +1364,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Method method = webViewFactory.getMethod("getLoadedPackageInfo");
 					pInfo = (PackageInfo) method.invoke(null);
 				} catch(Exception e2) {
-					//e.printStackTrace();
 					Log.d(TAG, "getCurrentWebViewPackageInfo for M+ (2) ex="+e2);
 				}
 			}
@@ -1378,7 +1372,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 		return pInfo;
 	}
-
+*/
 	/*
 	//Requesting run-time permissions
 
