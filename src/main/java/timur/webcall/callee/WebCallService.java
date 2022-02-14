@@ -68,6 +68,8 @@ import android.webkit.WebResourceRequest;
 import android.webkit.ValueCallback;
 import android.webkit.DownloadListener;
 import android.webkit.URLUtil;
+import android.webkit.SslErrorHandler;
+import android.webkit.ClientCertRequest;
 import android.app.KeyguardManager;
 import android.app.Activity;
 import android.app.PendingIntent;
@@ -79,6 +81,7 @@ import android.net.Uri;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.LinkProperties;
+import android.net.http.SslError;
 import android.app.NotificationManager;
 import android.app.NotificationChannel;
 import android.graphics.Bitmap;
@@ -126,19 +129,28 @@ import java.io.OutputStream;
 import java.util.LinkedList;
 import java.util.Queue;
 
+import java.security.GeneralSecurityException;
+import java.security.cert.X509Certificate;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSocketFactory;
+
 // https://github.com/TooTallNate/Java-WebSocket
 import org.java_websocket.WebSocket;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.drafts.Draft;
 import org.java_websocket.handshake.ServerHandshake;
 import org.java_websocket.framing.Framedata;
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSession;
-import javax.net.ssl.SSLHandshakeException;
-import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLParameters;
 
 import timur.webcall.callee.BuildConfig;
 
@@ -270,6 +282,7 @@ public class WebCallService extends Service {
 	private volatile int lastMinuteOfDay = 0;
 	private volatile int origvol = 0;
 	private volatile boolean proximityNear = false;
+	private volatile boolean insecureTlsFlag = false;
 
 	// below are variables backed by preference persistens
 	private volatile int beepOnLostNetworkMode = 0;
@@ -948,6 +961,38 @@ public class WebCallService extends Service {
 				//	Log.d(TAG, "onLoadResource: " + url);
 				//}
 
+// tmtmtm
+				@Override
+				public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+					// this is called when webview does a https PAGE request and fails
+					Log.d(TAG, "onReceivedSslError "+error);
+					// error.getPrimaryError()
+					// -1 = no error
+					// 0 = not yet valid
+					// 1 = SSL_EXPIRED
+					// 2 = SSL_IDMISMATCH  certificate Hostname mismatch
+					// 3 = SSL_UNTRUSTED   certificate authority is not trusted
+					// 5 = SSL_INVALID
+					// primary error: 3 certificate: Issued to: O=Internet Widgits Pty Ltd,ST=Some-State,C=AU;
+					// Issued by: O=Internet Widgits Pty Ltd,ST=Some-State,C=AU;
+					//  on URL: https://192.168.3.209:8068/callee/Timur?auto=1
+
+					// TODO do only proceed if confirmed by the user
+					// however, if we do proceed here, wsOpen -> connectHost(wss://...) will fail
+					//   with onError ex javax.net.ssl.SSLHandshakeException
+					if(insecureTlsFlag) {
+						handler.proceed();
+					} else {
+						super.onReceivedSslError(view, handler, error);
+					}
+				}
+
+//				@Override
+//				public void onReceivedClientCertRequest(WebView view, final ClientCertRequest request) {
+//					Log.d(TAG, "onReceivedClientCertRequest "+request);
+//					request.proceed(mPrivateKey, mCertificates);
+//				}
+
 				@SuppressWarnings("deprecation")
 				@Override
 				public boolean shouldOverrideUrlLoading(WebView view, String url) {
@@ -1066,6 +1111,30 @@ public class WebCallService extends Service {
 						// webview has just finished loading the main page
 						if(wsClient==null) {
 							webviewMainPageLoaded = true;
+							Log.d(TAG, "onPageFinished main page not yet connected to server");
+							// callee.js onload should be running in parallel now
+							// we can expect JavascriptInterface wsOpen() to be called within 1s
+							// will set connectToSignalingServerIsWanted and wsClient
+/*
+							final Runnable runnable2 = new Runnable() {
+								public void run() {
+									if(wsClient!=null) {
+										// TODO outcomment this log
+										Log.d(TAG, "onPageFinished after 5s wsClient set ");
+									} else {
+										if(connectToSignalingServerIsWanted) {
+											// wsOpen was called but connectServer() has failed
+											Log.d(TAG, "onPageFinished after 5s wsOpen called, wsClient null");
+										} else {
+											// wsOpen was not even called
+											Log.d(TAG, "onPageFinished after 5s wsOpen not called wsClient null");
+										}
+										// TODO we can abort the spinner
+									}
+								}
+							};
+							scheduler.schedule(runnable2, 5, TimeUnit.SECONDS);
+*/
 						} else {
 							// we are already connected to server (probably from before activity start)
 							// we have to bring the just loaded callee.js online, too
@@ -1403,7 +1472,7 @@ public class WebCallService extends Service {
 				return wsClient;
 			}
 			if(wsClient==null) {
-				Log.d(TAG,"wsOpen "+setWsAddr);
+				Log.d(TAG,"wsOpen wsClient==null addr="+setWsAddr);
 				WebSocketClient wsCli = connectHost(setWsAddr);
 				Log.d(TAG,"wsOpen wsClient="+(wsCli!=null));
 				if(wsCli!=null) {
@@ -1486,6 +1555,12 @@ public class WebCallService extends Service {
 		public void wsClearCookies() {
 			// used by WebCallAndroid
 			clearCookies();
+		}
+
+		@android.webkit.JavascriptInterface
+		public void insecureTls(boolean flag) {
+			insecureTlsFlag = flag;
+			Log.d(TAG,"insecureTlsFlag="+insecureTlsFlag);
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1764,6 +1839,9 @@ public class WebCallService extends Service {
 			//    I/O error during system call, Software caused connection abort
 			// occurs when we lose connection to our webcall server (N7 without ext power)
 
+			// javax.net.ssl.SSLHandshakeException: java.security.cert.CertPathValidatorException:
+			//    Trust anchor for certification path not found
+
 			if(exString!=null && exString.indexOf("Read error") >=0) {
 				if(extendedLogsFlag) {
 					Log.d(TAG,"onError hide from JS");
@@ -1929,10 +2007,10 @@ public class WebCallService extends Service {
 		public void onSetSSLParameters(SSLParameters sslParameters) {
 			// this method is only supported on Android >= 24 (Nougat)
 			// below we do host verification ourselves in wsOpen()
+//			if(extendedLogsFlag) {
+				Log.d(TAG,"onSetSSLParameters "+sslParameters);
+//			}
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-				if(extendedLogsFlag) {
-					Log.d(TAG,"onSetSSLParameters");
-				}
 				super.onSetSSLParameters(sslParameters);
 			}
 		}
@@ -2451,6 +2529,8 @@ public class WebCallService extends Service {
 					try {
 						// TODO in deep sleep (when device is not connected to power) this may hang for minutes
 						Log.d(TAG,"reconnecter con.connect()");
+						// TODO when using a selfsigned cert, this may throw: javax.net.ssl.SSLHandshakeException
+						// "Trust anchor for certification path not found"
 						con.connect();
 						status = con.getResponseCode();
 						if(status!=200) {
@@ -2761,10 +2841,41 @@ public class WebCallService extends Service {
 			// if the client sends a ping every 60s, then the server will never do so
 			// we just use the default value of 60s
 			wsClient.setConnectionLostTimeout(0); // turn off client pings; default=60s
+
+			if(setAddr.startsWith("wss")) {
+				if(insecureTlsFlag) {
+					Log.d(TAG,"connectHost allow insecure wss");
+					try {
+						TrustManager[] trustAllCerts = new TrustManager[] { 
+							new X509TrustManager() {
+								public X509Certificate[] getAcceptedIssuers() {
+									X509Certificate[] myTrustedAnchors = new X509Certificate[0];
+									return myTrustedAnchors;
+								}
+								@Override
+								public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+
+								@Override
+								public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+							}
+						};
+						SSLContext sslContext = SSLContext.getInstance("TLS");
+						sslContext.init(null, trustAllCerts, new SecureRandom());
+						SSLSocketFactory factory = sslContext.getSocketFactory();
+						wsClient.setSocket(factory.createSocket());
+						// onSetSSLParameters() will now be called
+					} catch(Exception ex) {
+						Log.w(TAG,"connectHost allow insecure wss ex="+ex);
+					}
+				}
+			}
+
 			if(extendedLogsFlag) {
 				Log.d(TAG,"connectHost connectBlocking...");
 			}
 			boolean isOpen = wsClient.connectBlocking();
+			// ssl error: onError ex javax.net.ssl.SSLHandshakeException:
+			// java.security.cert.CertPathValidatorException: Trust anchor for certification path not found
 			Log.d(TAG,"connectHost connectBlocking done isOpen="+isOpen);
 			if(isOpen) {
 			// Self hostVerify
@@ -2772,7 +2883,7 @@ public class WebCallService extends Service {
 			// are only needed for API < 24 "N"
 			// github.com/TooTallNate/Java-WebSocket/wiki/No-such-method-error-setEndpointIdentificationAlgorithm
 				boolean hostVerifySuccess = true;
-				if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+				if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) { // < 24 (< Android 7)
 					Log.d(TAG,"connectHost self hostVerify");
 					HostnameVerifier hv = HttpsURLConnection.getDefaultHostnameVerifier();
 					SSLSocket socket = (SSLSocket)wsClient.getSocket();

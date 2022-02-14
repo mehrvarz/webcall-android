@@ -8,9 +8,9 @@ const divspinnerframe = document.querySelector('div#spinnerframe');
 const divspinner = document.querySelector('div#spinner');
 const clearCookies = document.querySelector('input#clearCookies');
 const clearCache = document.querySelector('input#clearCache');
+const insecureTls = document.querySelector('input#insecureTls');
+const insecureTlsLabel = document.querySelector('label#insecureTlsLabel');
 const submitButton = document.querySelector('input#submit');
-//const howtoElement = document.querySelector('a#howto');
-//const latestNewsElement = document.querySelector('a#latestNews');
 
 var domain = "";
 var username = "";
@@ -99,6 +99,16 @@ window.onload = function() {
 	formDomain.value = domain;
 	formUsername.value = username;
 
+	insecureTls.addEventListener('change', function() {
+		if(this.checked) {
+			console.log("insecureTls checked");
+			insecureTlsLabel.style.color = "#f44";
+		} else {
+			console.log("insecureTls unchecked");
+			insecureTlsLabel.style.color = "";
+		}
+	});
+
 	// remove focus from any of the elements (to prevent accidental modification)
 	document.activeElement.blur();
 	// will proceed in submitFormDone()
@@ -141,6 +151,13 @@ function submitFormDone(theForm) {
 			console.log('wsClearCache');
 			Android.wsClearCache();
 		}
+		if(insecureTls.checked) {
+			console.log('insecureTls true');
+			Android.insecureTls(true);
+		} else {
+			console.log('insecureTls false');
+			Android.insecureTls(false);
+		}
 	}
 
 	if(valueUsername=="") {
@@ -170,6 +187,14 @@ function submitFormDone(theForm) {
 			divspinnerframe.style.display = "block";
 		},200);
 	}
+	setTimeout(function() {
+		// if we are still here after 8s, window.location.replace has failed
+		// maybe an ssl issue
+		console.log('window.location.replace has failed');
+		divspinnerframe.style.display = "none";
+		document.activeElement.blur();
+	},8000);
+
 	let url = "https://"+valueDomain+"/callee/"+valueUsername+"?auto=1";
 	console.log('load main '+url);
 	window.location.replace(url);

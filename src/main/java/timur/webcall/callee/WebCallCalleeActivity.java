@@ -119,15 +119,15 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		PackageInfo packageInfo = getCurrentWebViewPackageInfo();
 		if(packageInfo == null) {
 			if(Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
-				Log.d(TAG, "onCreate No System WebView installed "+
-					Build.VERSION.SDK_INT+" "+Build.VERSION_CODES.LOLLIPOP);
-				startupFail = true;
-				Toast.makeText(context, "WebCall cannot start. No System WebView installed.",
-					Toast.LENGTH_LONG).show();
-				return;
+				Log.d(TAG, "onCreate no WebView packageInfo on "+
+					Build.VERSION.SDK_INT+" > "+Build.VERSION_CODES.M);
+				//startupFail = true;
+				//Toast.makeText(context, "WebCall cannot start. No System WebView installed.",
+				//	Toast.LENGTH_LONG).show();
+				//return;
 			}
 		} else {
-			Log.d(TAG, "onCreate webview "+packageInfo.packageName+" "+packageInfo.versionName);
+			Log.d(TAG, "onCreate webview packageInfo "+packageInfo.packageName+" "+packageInfo.versionName);
 		}
 
 		try {
@@ -968,7 +968,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(webCallServiceBinder!=null) {
 			// tell our service that the activity is being destroyed
 			webCallServiceBinder.activityDestroyed();
-			if(serviceConnection!=null && !startupFail) {
+			if(serviceConnection!=null /*&& !startupFail*/) {
 				Log.d(TAG, "onDestroy unbindService");
 				unbindService(serviceConnection);
 			}
@@ -1346,9 +1346,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		PackageInfo pInfo = null;
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 			//starting with Android O (API 26) they added a new method specific for this
-			if(extendedLogsFlag) {
-				Log.d(TAG, "getCurrentWebViewPackageInfo for O+");
-			}
+			Log.d(TAG, "getCurrentWebViewPackageInfo for O+");
 			pInfo = WebView.getCurrentWebViewPackage();
 		} else if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 			//with Android Lollipop (API 21) they started to update the WebView 
@@ -1356,29 +1354,23 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			//getLoadedPackageInfo() method to the WebViewFactory class and this
 			//should handle the Android 7.0 behaviour changes too
 			try {
-				if(extendedLogsFlag) {
-					Log.d(TAG, "getCurrentWebViewPackageInfo for L+");
-				}
+				Log.d(TAG, "getCurrentWebViewPackageInfo for M+");
 				Class webViewFactory = Class.forName("android.webkit.WebViewFactory");
 				Method method = webViewFactory.getMethod("getLoadedPackageInfo");
 				pInfo = (PackageInfo) method.invoke(null);
 			} catch(Exception e) {
 				//e.printStackTrace();
-				if(extendedLogsFlag) {
-					Log.d(TAG, "getCurrentWebViewPackageInfo for L+ ex="+e);
-				}
+				Log.d(TAG, "getCurrentWebViewPackageInfo for M+ ex="+e);
 			}
 			if(pInfo==null) {
 				try {
-					if(extendedLogsFlag) {
-						Log.d(TAG, "getCurrentWebViewPackageInfo for L+ (2)");
-					}
+					Log.d(TAG, "getCurrentWebViewPackageInfo for M+ (2)");
 					Class webViewFactory = Class.forName("com.google.android.webview.WebViewFactory");
 					Method method = webViewFactory.getMethod("getLoadedPackageInfo");
 					pInfo = (PackageInfo) method.invoke(null);
 				} catch(Exception e2) {
 					//e.printStackTrace();
-					Log.d(TAG, "getCurrentWebViewPackageInfo for L+ (2) ex="+e2);
+					Log.d(TAG, "getCurrentWebViewPackageInfo for M+ (2) ex="+e2);
 				}
 			}
 		} else {
