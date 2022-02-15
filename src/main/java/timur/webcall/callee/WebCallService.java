@@ -585,11 +585,13 @@ public class WebCallService extends Service {
 							connectToSignalingServerIsWanted && 
 							(!reconnectBusy || reconnectWaitNetwork)) {
 						// call scheduler.schedule()
-						if(/*!charging &&*/ keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
+						if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"networkState keepAwakeWakeLock.acquire");
 							keepAwakeWakeLock.acquire(30 * 60 * 1000);
 							keepAwakeWakeLockStartTime = (new Date()).getTime();
 						}
+						// set haveNetworkInt before scheduler in case scheduler starts reconnecter immediately
+						haveNetworkInt = newNetworkInt;
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							// why wait for the scheduled reconnecter job
 							// let's cancel it and start it immediately
@@ -646,7 +648,7 @@ public class WebCallService extends Service {
 						    // the device is now in doze mode
 							dozeIdle = true;
 							Log.d(TAG,"dozeState idle");
-							if(/*!charging &&*/ keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
+							if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 								Log.d(TAG,"dozeState idle keepAwakeWakeLock.acquire");
 								// stay awake 2s to defend against doze
 								keepAwakeWakeLock.acquire(2000);
@@ -699,7 +701,7 @@ public class WebCallService extends Service {
 								return;
 							}
 
-							if(/*!charging &&*/ keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
+							if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 								Log.d(TAG,"dozeState awake keepAwakeWakeLock.acquire");
 								// stay awake 2s to defend against doze
 								keepAwakeWakeLock.acquire(2000);
@@ -1879,7 +1881,7 @@ public class WebCallService extends Service {
 						}
 					}
 
-					if(/*!charging &&*/ keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
+					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"onClose keepAwakeWakeLock.acquire");
 						keepAwakeWakeLock.acquire(30 * 60 * 1000);
 						keepAwakeWakeLockStartTime = (new Date()).getTime();
@@ -1934,7 +1936,7 @@ public class WebCallService extends Service {
 						reconnectSchedFuture = null;
 					}
 					reconnectBusy = false;
-					if(/*!charging &&*/ keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+					if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 						long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 						Log.d(TAG,"networkState keepAwakeWakeLock.release +"+wakeMS);
 						keepAwakeWakeLockMS += wakeMS;
@@ -2040,7 +2042,7 @@ public class WebCallService extends Service {
 			}
 
 			pingCounter++;
-			if(/*!charging &&*/ keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+			if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 				// in case keepAwakeWakeLock was acquired before, say, by "dozeStateReceiver idle"
 				long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 				Log.d(TAG,"onWebsocketPing keepAwakeWakeLock.release +"+wakeMS);
@@ -2457,7 +2459,7 @@ public class WebCallService extends Service {
 					if(reconnectCounter < ReconnectCounterMax) {
 						// just wait for a new-network event via networkCallback or networkStateReceiver
 						// for this to work we keep reconnectBusy set, but we release keepAwakeWakeLock
-						if(/*!charging &&*/ keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 							Log.d(TAG,"reconnecter waiting for net keepAwakeWakeLock.release +"+wakeMS);
 							keepAwakeWakeLockMS += wakeMS;
@@ -2575,7 +2577,7 @@ public class WebCallService extends Service {
 							statusMessage("Given up reconnecting",true,true);
 							reconnectBusy = false;
 						}
-						if(/*!charging &&*/ keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 							Log.d(TAG,"reconnecter keepAwakeWakeLock.release +"+wakeMS);
 							keepAwakeWakeLockMS += wakeMS;
@@ -2630,7 +2632,7 @@ public class WebCallService extends Service {
 							// offlineAction(): disable offline-button and enable online-button
 							runJS("offlineAction();",null);
 						}
-						if(/*!charging &&*/ keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 							Log.d(TAG,"reconnecter keepAwakeWakeLock.release +"+wakeMS);
 							keepAwakeWakeLockMS += wakeMS;
@@ -2652,7 +2654,7 @@ public class WebCallService extends Service {
 							statusMessage("Login failed. Giving up.",true,true);
 							reconnectBusy = false;
 						}
-						if(/*!charging &&*/ keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 							Log.d(TAG,"reconnecter keepAwakeWakeLock.release +"+wakeMS);
 							keepAwakeWakeLockMS += wakeMS;
@@ -2755,7 +2757,7 @@ public class WebCallService extends Service {
 							//}
 						}
 					}
-					if(/*!charging &&*/ keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+					if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 						// we need to delay keepAwakeWakeLock.release() a bit, 
 						// so that runJS("wakeGoOnline()") can finish in async fashion
 						try {
@@ -2806,7 +2808,7 @@ public class WebCallService extends Service {
 							// offlineAction(): disable offline-button and enable online-button
 							runJS("offlineAction();",null);
 						}
-						if(/*!charging &&*/ keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 							Log.d(TAG,"reconnecter keepAwakeWakeLock.release +"+wakeMS);
 							keepAwakeWakeLockMS += wakeMS;
@@ -3068,7 +3070,7 @@ public class WebCallService extends Service {
 				// or B) reconnecter IS in progress, but is waiting idly for network to come back
 				if(restartReconnectOnNetwork) {
 					reconnectWaitNetwork = false; // set false will prevent another reconnecter being started
-					if(/*!charging &&*/ keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
+					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to wifi keepAwakeWakeLock.acquire");
 						keepAwakeWakeLock.acquire(30 * 60 * 1000);
 						keepAwakeWakeLockStartTime = (new Date()).getTime();
@@ -3113,7 +3115,7 @@ public class WebCallService extends Service {
 				// let's cancel it and start it right away
 				if(restartReconnectOnNetwork) {
 					reconnectWaitNetwork = false; // set false will prevent another reconnecter being started
-					if(/*!charging &&*/ keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
+					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to net keepAwakeWakeLock.acquire");
 						keepAwakeWakeLock.acquire(30 * 60 * 1000);
 						keepAwakeWakeLockStartTime = (new Date()).getTime();
@@ -3168,7 +3170,7 @@ public class WebCallService extends Service {
 				updateNotification("","",true,false); // offline
 			}
 			if(!reconnectBusy) {
-				if(/*!charging &&*/ keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+				if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 					long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 					Log.d(TAG,"networkState keepAwakeWakeLock.release +"+wakeMS);
 					keepAwakeWakeLockMS += wakeMS;
