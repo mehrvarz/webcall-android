@@ -872,9 +872,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public void onNewIntent(Intent intent) {
 		Uri data = intent.getData();
-		Log.d(TAG, "onNewIntent data="+data);
 		String dialId = null;
 		if(data!=null) {
+			Log.d(TAG, "onNewIntent data="+data);
 			String path = data.getPath();
 			int idxUser = path.indexOf("/user/");
 			if(idxUser>=0) {

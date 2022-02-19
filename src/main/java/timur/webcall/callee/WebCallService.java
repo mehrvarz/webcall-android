@@ -2084,16 +2084,24 @@ public class WebCallService extends Service {
 			if(intent.getAction().equals(Intent.ACTION_POWER_CONNECTED)) {
 				Log.d(TAG,"POWER_CONNECTED");
 				charging = true;
-				// keep keepAwakeWakeLock to prevent doze while charging
-				//keepAwakeWakeLock.acquire(24 * 60 * 60 * 1000);
 
 			} else if(intent.getAction().equals(Intent.ACTION_POWER_DISCONNECTED)) {
 				Log.d(TAG,"POWER_DISCONNECTED");
 				charging = false;
-				//if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-				//	Log.d(TAG,"not charging -> keepAwakeWakeLock.release()");
-				//	keepAwakeWakeLock.release();
-				//}
+			}
+
+			if(wsClient!=null) {
+				Log.d(TAG, "wsClient is set: checkLastPing");
+				checkLastPing(true,0);
+			} else {
+				if(!connectToSignalingServerIsWanted) {
+					Log.d(TAG,"wsClient not set, no connectToSignalingServerIsWanted");
+				} else if(reconnectBusy) {
+					Log.d(TAG,"wsClient not set, reconnectBusy");
+				} else {
+					Log.d(TAG,"wsClient not set, startReconnecter");
+					startReconnecter(true,0);
+				}
 			}
 		}
 	}
