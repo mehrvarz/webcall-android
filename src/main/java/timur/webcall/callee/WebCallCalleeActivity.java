@@ -107,7 +107,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private int proximitySensorMode = 0; // 0=off, 1=on
 	private int proximitySensorAction = 0; // 0=screen off, 1=screen dim
 	private volatile boolean webviewBlocked = false;
-	private volatile String dialId = null;
+	private volatile String dialId = null; // set by onCreate() + getIntent() or by onNewIntent()
 
 
 	@Override
@@ -116,13 +116,13 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
 		context = this;
 
-		// call getCurrentWebViewPackageInfo() to get webview versionName, but it may fail (on old Android vers.)
+		// call getCurrentWebViewPackageInfo() to get webview versionName, may fail on old Android / old webview
 		PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
 		if(webviewPackageInfo != null) {
 			Log.d(TAG, "onCreate webview packageInfo "+
 				webviewPackageInfo.packageName+" "+webviewPackageInfo.versionName);
 		}
-		// the real webview test comes here and we MUST do it in a try/catch
+		// the real webview test comes here and we MUST try/catch
 		try {
 			setContentView(R.layout.activity_main);
 		} catch(Exception ex) {
@@ -333,22 +333,37 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onCreate registerForContextMenu");
 		}
 		registerForContextMenu(mainView);
-		if(extendedLogsFlag) {
-			Log.d(TAG, "onCreate done");
+
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
+			String packageName = context.getPackageName();
+			boolean ignoreOpti = powerManager.isIgnoringBatteryOptimizations(packageName);
+			Log.d(TAG, "onCreate isIgnoreBattOpti="+ignoreOpti);
+			if(!ignoreOpti) {
+				// battery optimizations must be deactivated
+				// this allows us to use a wakelock against doze
+				// this may be needed for reconnecting after disconnect
+				disableBattOptimizations();
+				return;
+			}
 		}
 
+		// check getIntent() for VIEW URL
 		Intent intent = getIntent();
 		Uri data = intent.getData();
-		Log.d(TAG, "onCreate data="+data);
 		dialId = null;
 		if(data!=null) {
+			Log.d(TAG, "onCreate getIntent data="+data);
 			String path = data.getPath();
 			int idxUser = path.indexOf("/user/");
 			if(idxUser>=0) {
 				dialId = path.substring(idxUser+6);
 				Log.d(TAG, "onCreate dialId="+dialId);
-				// will be executed in onServiceConnected
+				// dialId will be executed in onServiceConnected
 			}
+		}
+
+		if(extendedLogsFlag) {
+			Log.d(TAG, "onCreate done");
 		}
 	}
 
@@ -804,13 +819,19 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	}
 
 	@Override
+	public void onRestart() {
+		Log.d(TAG, "onRestart");
+		super.onRestart();
+	}
+
+	@Override
 	public void onStart() {
 		super.onStart();
 		if(startupFail) {
 			Log.d(TAG, "onStart abort on startupFail");
 			return;
 		}
-		// ask user a provide basic permissions for mic and camera
+		// ask user to provide basic permissions for mic and camera
 		boolean permMicNeeed = checkCallingOrSelfPermission(android.Manifest.permission.RECORD_AUDIO)
 					!= PackageManager.PERMISSION_GRANTED;
 		boolean permCamNeeed = checkCallingOrSelfPermission(android.Manifest.permission.CAMERA)
@@ -844,6 +865,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			alertbox.show();
 			return;
 		}
+/*
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
 			String packageName = context.getPackageName();
 			boolean ignoreOpti = powerManager.isIgnoringBatteryOptimizations(packageName);
@@ -858,6 +880,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				return;
 			}
 		}
+*/
 		if(webCallServiceBinder!=null) {
 			// connected to service already
 			activityStart(); // may need to turn on screen, etc.
@@ -1356,11 +1379,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Method method = webViewFactory.getMethod("getLoadedPackageInfo");
 					pInfo = (PackageInfo) method.invoke(null);
 				} catch(Exception e2) {
-					Log.d(TAG, "getCurrentWebViewPackageInfo for M+ (2) ex="+e2);
+					//Log.d(TAG, "getCurrentWebViewPackageInfo for M+ (2) ex="+e2);
 				}
 			}
 		} else {
 			// no info before Lollipop
+		}
+		if(pInfo!=null) {
+			Log.d(TAG, "getCurrentWebViewPackageInfo pInfo set");
 		}
 		return pInfo;
 	}

@@ -57,7 +57,7 @@ window.onload = function() {
 					bubbleElement.classList.add("speechbubble2");
 					bubbleElement.id = "speechBubble";
 					bubbleElement.style = "left:4%;top:245px;max-width:75%;width:320px;padding:20px;";
-					bubbleElement.innerHTML = "Clear password cookie to enforce the password form.";
+					bubbleElement.innerHTML = "Clear password cookie: force password form";
 					bubbleElement.onclick = function () {
 						this.parentElement.removeChild(this);
 
@@ -65,10 +65,22 @@ window.onload = function() {
 						bubbleElement = document.createElement("div");
 						bubbleElement.classList.add("speechbubble2");
 						bubbleElement.id = "speechBubble";
-						bubbleElement.style = "left:3%;top:265px;max-width:75%;width:320px;padding:20px;";
-						bubbleElement.innerHTML = "Clear cache to force reloading the web application. You may receive an updated version.";
+						bubbleElement.style = "left:3%;top:285px;max-width:75%;width:320px;padding:20px;";
+						bubbleElement.innerHTML = "Clear cache: reload WebCall core";
 						bubbleElement.onclick = function () {
 							this.parentElement.removeChild(this);
+
+							setTimeout(function() {
+							bubbleElement = document.createElement("div");
+							bubbleElement.classList.add("speechbubble2");
+							bubbleElement.id = "speechBubble";
+							bubbleElement.style = "left:3%;top:320px;max-width:75%;width:320px;padding:20px;";
+							bubbleElement.innerHTML = "Allow insecure TLS: skip certificate authentication";
+							bubbleElement.onclick = function () {
+								this.parentElement.removeChild(this);
+							}
+							container.appendChild(bubbleElement);
+							},300);
 						}
 						container.appendChild(bubbleElement);
 						},300);
