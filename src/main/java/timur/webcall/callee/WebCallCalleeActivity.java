@@ -169,7 +169,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			@Override
 			public void onSensorChanged(SensorEvent event) {
 				if(event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
-					Log.d(TAG, "proximitySensorEvent TYPE_PROXIMITY "+event.values[0]);
+					if(extendedLogsFlag) {
+						Log.d(TAG, "proximitySensorEvent TYPE_PROXIMITY "+event.values[0]);
+					}
 					if(event.values[0] < event.sensor.getMaximumRange()){
 						proximityNear();
 					} else {
