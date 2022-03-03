@@ -6,5 +6,5 @@ You can receive calls from anybody on the web. You can establish phone calls via
 
 WebCall works best with stock Android System WebView 80.0.3987 and newer. 
 
-WebCall may NOT work with some 3rd party System WebViews due to a known WebRTC bug. More info: https://timur.mobi/webcall/android
+WebCall may NOT work with some 3rd party System WebViews due to a known WebRTC bug. More info: https://timur.mobi/webcall/android/#webview
 
