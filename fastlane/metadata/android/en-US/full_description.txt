@@ -1,6 +1,10 @@
-WebCall for Android is a WebRTC telephony app
+WebCall is a telephony app based on WebRTC
 
-It offers high quality audio and video.
+WebCall offers high quality audio + video plus two-way file exchange.
 
-Anybody on the web, who knows your personal WebCall link (aka your WebCall phone number) can give you a call. You can also establish phone calls with NFC. No special software is needed on the other device. WebCall also lets you send files in both directions. WebCall makes use of low-latency P2P connections. All WebCall links are always e2e-encrypted. And if you want, you can also run your own WebCall server.
+You can receive calls from anybody on the web. You can establish phone calls via NFC touch. WebCall works over direct P2P links. All communication E2E-encrypted.
+
+WebCall works best with stock Android System WebView 80.0.3987 and newer. 
+
+WebCall may NOT work with some 3rd party System WebViews due to a known WebRTC bug. More info: https://timur.mobi/webcall/android
 
