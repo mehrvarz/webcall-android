@@ -38,6 +38,10 @@ WebCall for Android has very moderate power requirements. It can run in the back
 
 You can use WebCall for Android as your only phone software (say, on your Wifi-only Android tablet) or as a companion phone solution. Find more about WebCall for Android and [download the APK.](https://timur.mobi/webcall/android)
 
+[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
+     alt="Get it on F-Droid"
+     height="80">](https://f-droid.org/packages/timur.webcall.callee/)
+
 ## Building the APK
 
 You need Java 11 and Gradle 7.3.3. You can build this project by running:
