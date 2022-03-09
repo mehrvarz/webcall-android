@@ -42,6 +42,8 @@ You can use WebCall for Android as your only phone software (say, on your Wifi-o
      alt="Get it on F-Droid"
      height="80">](https://f-droid.org/packages/timur.webcall.callee/)
 
+Or search for "webcall" inside the F-Droid app.
+
 ## Building the APK
 
 You need Java 11 and Gradle 7.3.3. You can build this project by running:
