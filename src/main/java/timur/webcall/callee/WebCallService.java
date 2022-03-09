@@ -959,11 +959,14 @@ public class WebCallService extends Service {
 			myWebView.setWebViewClient(new WebViewClient() {
 				//@Override
 				//public void onLoadResource(WebView view, String url) {
-				//	super.onLoadResource(view, url);
+				//	if(url.indexOf("googleapis.com/")>=0 || url.indexOf("google-analytics.com/")>=0) {
+				//		Log.d(TAG, "onLoadResource deny: " + url);
+				//		return;
+				//	}
 				//	Log.d(TAG, "onLoadResource: " + url);
+				//	super.onLoadResource(view, url);
 				//}
 
-// tmtmtm
 				@Override
 				public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
 					// this is called when webview does a https PAGE request and fails
