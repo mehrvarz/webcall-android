@@ -36,7 +36,7 @@ WebCall for Android has very moderate power requirements. It can run in the back
 
 ## More info + APK Download
 
-You can use WebCall for Android as your only phone software (say, on your Wifi-only Android tablet) or as a companion phone solution. Find out more about [WebCall for Android](https://timur.mobi/webcall/android) and [download the APK.](https://timur.mobi/webcall/android#download)
+You can use WebCall for Android as your only phone software (say, on your Wifi-only Android tablet) or as a companion phone solution. Find out more about [WebCall for Android](https://timur.mobi/webcall/android) and download the APK.
 
 [<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
      alt="Get it on F-Droid"
