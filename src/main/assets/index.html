@@ -216,17 +216,20 @@ input[type=submit]:focus {
 <h1 id="title">WebCall Android</h1>
 
 <form action="javascript:;" onsubmit="submitFormDone(this)"	style="margin-top:20px;" id="formFrame">
-	<label for="domain">Server domain:</label>
+	<label for="domain">Server address:</label>
 	<br>
 	<input autocomplete="domain" id="domain" type="text" class="formtext" autofocus required>
 	<span onclick="clearForm(0)" style="margin-left:5px; user-select:none; cursor:pointer;">X</span>
 
 	<br>
-	<label for="username" style="margin-top:14px;">ID:</label>
+	<label for="username" style="margin-top:14px;">User ID:</label>
 	<br>
 	<input autocomplete="username" id="username" type="text" class="formtext" _placeholder="webcall id"
 		autofocus _required>
 	<span onclick="clearForm(1)" style="margin-left:5px; user-select:none; cursor:pointer;">X</span>
+	<br>
+	<div style="font-size:0.85em;">(leave empty to request a new ID)</div>
+	
 
 	<br>
 	<input type="submit" name="Submit" id="submit" value="OK"

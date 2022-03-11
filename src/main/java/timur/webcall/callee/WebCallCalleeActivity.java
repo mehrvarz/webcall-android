@@ -75,7 +75,10 @@ import timur.webcall.callee.BuildConfig;
 
 public class WebCallCalleeActivity extends Activity implements CreateNdefMessageCallback {
 	private static final String TAG = "WebCallActivity";
-	private static final int SENSOR_SENSITIVITY = 3;
+	private static final int MY_PERMISSIONS_RECORD_AUDIO = 1;
+	private static final int MY_PERMISSIONS_CAMERA = 2;
+	private static final int MY_PERMISSIONS_WRITE_EXTERNAL_STORAGE = 3;
+	private static final int FILE_REQ_CODE = 1341;	// onActivityResult
 
 	private WebCallService.WebCallServiceBinder webCallServiceBinder = null;
 	private volatile boolean boundService = false;
@@ -94,8 +97,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private SharedPreferences prefs = null;
 	private volatile boolean activityStartNeeded = false;
 	private WakeLock wakeLockScreen = null;
-	private final static int FILE_REQ_CODE = 1341;
-	private final static int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 1342;
 	private	Context context;
 	private NfcAdapter nfcAdapter;
 	private boolean startupFail = false;
@@ -295,27 +296,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 		};
 		registerReceiver(broadcastReceiver, new IntentFilter("webcall"));
-
-		// get runtime permissions (will be executed only once)
-		if(ContextCompat.checkSelfPermission(this,
-				Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-
-			// Should we show an explanation?
-			if(ActivityCompat.shouldShowRequestPermissionRationale(
-					this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-				// Show an expanation to the user *asynchronously* -- don't block
-				// this thread waiting for the user's response! After the user
-				// sees the explanation, try again to request the permission.
-			} else {
-				// No explanation needed, we can request the permission.
-				ActivityCompat.requestPermissions(this,
-					new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-					MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
-				// MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE is an
-				// app-defined int constant. The callback method gets the
-				// result of the request.
-			}
-		}
 
 		Intent serviceIntent = new Intent(this, WebCallService.class);
 		serviceIntent.putExtra("onstart", "donothing");
@@ -833,56 +813,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onStart abort on startupFail");
 			return;
 		}
-		// ask user to provide basic permissions for mic and camera
-		boolean permMicNeeed = checkCallingOrSelfPermission(android.Manifest.permission.RECORD_AUDIO)
-					!= PackageManager.PERMISSION_GRANTED;
-		boolean permCamNeeed = checkCallingOrSelfPermission(android.Manifest.permission.CAMERA)
-					!= PackageManager.PERMISSION_GRANTED;
-		if(permMicNeeed || permCamNeeed) {
-			AlertDialog.Builder alertbox = new AlertDialog.Builder(context);
-			alertbox.setTitle("Permission needed");
-			String msg = "";
-			if(permMicNeeed && permCamNeeed) {
-				msg = "Permissions needed for WebView to use microphone and camera.";
-			} else if(permMicNeeed) {
-				msg = "A permission is needed for WebView to use the microphone.";
-			} else if(permCamNeeed) {
-				msg = "A permission is needed for WebView to use the camera.";
-			}
-			msg += "\nOpen 'Permissions' and allow these devices to be used.";
-			msg += "\n\nOn some devices you may also need to enable 'Keep running while screen off'.";
-			alertbox.setMessage(msg);
-			alertbox.setPositiveButton("Continue", new DialogInterface.OnClickListener() {
-				@Override
-				public void onClick(DialogInterface dialog, int which) {
-					Intent myAppSettings = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-						Uri.parse("package:" + getPackageName()));
-					myAppSettings.addCategory(Intent.CATEGORY_DEFAULT);
-					myAppSettings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-					//myAppSettings.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
-					myAppSettings.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
-					context.startActivity(myAppSettings);
-				}
-			});
-			alertbox.show();
-			return;
-		}
-/*
-		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
-			String packageName = context.getPackageName();
-			boolean ignoreOpti = powerManager.isIgnoringBatteryOptimizations(packageName);
-			if(extendedLogsFlag) {
-				Log.d(TAG, "onStart isIgnoreBattOpti="+ignoreOpti);
-			}
-			if(!ignoreOpti) {
-				// battery optimizations must be deactivated
-				// this allows us to use a wakelock against doze
-				// this may be needed for reconnecting after disconnect
-				disableBattOptimizations();
-				return;
-			}
-		}
-*/
+
 		if(webCallServiceBinder!=null) {
 			// connected to service already
 			activityStart(); // may need to turn on screen, etc.
@@ -1126,6 +1057,79 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 	////////// private functions //////////////////////////////////////
 
+	private void checkPermissions() {
+		Log.d(TAG, "checkPermissions");
+		if(ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+				!= PackageManager.PERMISSION_GRANTED) {
+			Log.d(TAG, "checkPermissions RECORD_AUDIO not yet granted");
+			if(ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO)) {
+				Toast.makeText(this, "Please grant permissions to record audio", Toast.LENGTH_LONG).show();
+			}
+			ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO},
+			    MY_PERMISSIONS_RECORD_AUDIO); // -> onRequestPermissionsResult()
+			return;
+		}
+
+		if(ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+				!= PackageManager.PERMISSION_GRANTED) {
+			Log.d(TAG, "checkPermissions CAMERA not yet granted");
+			if(ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
+				Toast.makeText(this, "Please grant permissions to use camera", Toast.LENGTH_LONG).show();
+			}
+			ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA},
+			    MY_PERMISSIONS_CAMERA); // -> onRequestPermissionsResult()
+			return;
+		}
+
+		// get runtime permissions (will be executed only once)
+		if(ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+				!= PackageManager.PERMISSION_GRANTED) {
+			Log.d(TAG, "checkPermissions WRITE_EXTERNAL_STORAGE not yet granted");
+			if(ActivityCompat.shouldShowRequestPermissionRationale(this,
+					Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+				Toast.makeText(this, "Please grant permissions to use ext storage", Toast.LENGTH_LONG).show();
+			}
+			ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+				MY_PERMISSIONS_WRITE_EXTERNAL_STORAGE); // -> onRequestPermissionsResult()
+			return;
+		}
+
+/*
+		// ask user to provide basic permissions for mic and camera
+		boolean permMicNeeed = checkCallingOrSelfPermission(android.Manifest.permission.RECORD_AUDIO)
+					!= PackageManager.PERMISSION_GRANTED;
+		boolean permCamNeeed = checkCallingOrSelfPermission(android.Manifest.permission.CAMERA)
+					!= PackageManager.PERMISSION_GRANTED;
+		Log.d(TAG, "onStart permMicNeeed="+permMicNeeed+" permCamNeeed="+permCamNeeed);
+		if(permMicNeeed || permCamNeeed) {
+			AlertDialog.Builder alertbox = new AlertDialog.Builder(context);
+			alertbox.setTitle("Permission needed");
+			String msg = "";
+			if(permMicNeeed && permCamNeeed) {
+				msg = "Permissions needed for WebView to use microphone and camera.";
+			} else if(permMicNeeed) {
+				msg = "A permission is needed for WebView to use the microphone.";
+			} else if(permCamNeeed) {
+				msg = "A permission is needed for WebView to use the camera.";
+			}
+			msg += "\nOpen 'Permissions' and allow media devices to be used.";
+			alertbox.setMessage(msg);
+			alertbox.setPositiveButton("Continue", new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					Intent myAppSettings = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+						Uri.parse("package:" + getPackageName()));
+					myAppSettings.addCategory(Intent.CATEGORY_DEFAULT);
+					myAppSettings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+					myAppSettings.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+					context.startActivity(myAppSettings);
+				}
+			});
+			alertbox.show();
+		}
+*/
+	}
+
 	private void proximityNear() {
 		if(proximitySensorMode==0) {
 			return;
@@ -1348,14 +1352,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}, 3000);
 
 		} else {
-			if(extendedLogsFlag) {
-				Log.d(TAG, "activityStart no special wakeup");
-			}
+			Log.d(TAG, "activityStart no special wakeup");
 			// set screenBrightness only if LowBrightness (0.01f) occured more than 2s ago
 			if(System.currentTimeMillis() - lastSetLowBrightness >= 2000) {
 				mParams.screenBrightness = -1f;
 				getWindow().setAttributes(mParams);
 			}
+
+			checkPermissions();
 		}
 	}
 
@@ -1393,75 +1397,40 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		return pInfo;
 	}
 
-	/*
-	//Requesting run-time permissions
-
-	//Create placeholder for user's consent to record_audio permission.
-	//This will be used in handling callback
-	private final int MY_PERMISSIONS_RECORD_AUDIO = 1;
-
-	private void requestAudioPermissions() {
-		if(ContextCompat.checkSelfPermission(this,
-				Manifest.permission.RECORD_AUDIO)
-				!= PackageManager.PERMISSION_GRANTED) {
-
-			//When permission is not granted by user, show them message why this permission is needed.
-			if(ActivityCompat.shouldShowRequestPermissionRationale(this,
-					Manifest.permission.RECORD_AUDIO)) {
-				Toast.makeText(this, "Please grant permissions to record audio", Toast.LENGTH_LONG).show();
-
-				//Give user option to still opt-in the permissions
-				ActivityCompat.requestPermissions(this,
-				        new String[]{Manifest.permission.RECORD_AUDIO},
-				        MY_PERMISSIONS_RECORD_AUDIO);
-
-			} else {
-			    // Show user dialog to grant permission to record audio
-			    ActivityCompat.requestPermissions(this,
-			            new String[]{Manifest.permission.RECORD_AUDIO},
-			            MY_PERMISSIONS_RECORD_AUDIO);
-			}
-		}
-		//If permission is granted, then go ahead recording audio
-		else if(ContextCompat.checkSelfPermission(this,
-			    Manifest.permission.RECORD_AUDIO)
-			    == PackageManager.PERMISSION_GRANTED) {
-
-			//Go ahead with recording audio now
-			recordAudio();
-		}
-	}
-	*/
-
-	private static final int PERMISSION_REQUEST_RW_EXTERNAL_STORAGE = 11141;
-
 	@Override
 	public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
 		Log.d(TAG, "onRequestPermissionsResult "+requestCode);
 		switch(requestCode) {
-			/*
 			case MY_PERMISSIONS_RECORD_AUDIO:
-				Log.d(TAG, "onRequestPermissionsResult MY_PERMISSIONS_RECORD_AUDIO");
 				if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-					// permission granted
-					Log.d(TAG, "onRequestPermissionsResult Permissions granted");
+					Log.d(TAG, "onRequestPermissionsResult RECORD_AUDIO granted "+grantResults.length);
+					Toast.makeText(this, "Permission RECORD_AUDIO granted", Toast.LENGTH_SHORT).show();
+					checkPermissions();
 				} else {
-					// permission denied
-					Log.d(TAG, "onRequestPermissionsResult Permissions denied");
+					Log.d(TAG, "onRequestPermissionsResult RECORD_AUDIO denied "+grantResults.length);
+					Toast.makeText(this, "Permission RECORD_AUDIO denied", Toast.LENGTH_SHORT).show();
 				}
-				return;
-			*/
-			case PERMISSION_REQUEST_RW_EXTERNAL_STORAGE:
-				Log.d(TAG, "onRequestPermissionsResult PERMISSION_REQUEST_RW_EXTERNAL_STORAGE");
+				break;
+			case MY_PERMISSIONS_CAMERA:
 				if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-					// permission granted
-					Log.d(TAG, "onRequestPermissionsResult Permissions granted");
+					Log.d(TAG, "onRequestPermissionsResult CAMERA granted");
+					Toast.makeText(this, "Permission CAMERA granted", Toast.LENGTH_SHORT).show();
+					checkPermissions();
 				} else {
-					// permission denied
-					Log.d(TAG, "onRequestPermissionsResult Permissions denied");
+					Log.d(TAG, "onRequestPermissionsResult CAMERA denied");
+					Toast.makeText(this, "Permission CAMERA denied", Toast.LENGTH_SHORT).show();
 				}
-				return;
-
+				break;
+			case MY_PERMISSIONS_WRITE_EXTERNAL_STORAGE:
+				if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+					Log.d(TAG, "onRequestPermissionsResult WRITE_EXTERNAL_STORAGE granted");
+					Toast.makeText(this, "Permission WRITE_EXTERNAL_STORAGE granted", Toast.LENGTH_SHORT).show();
+					checkPermissions();
+				} else {
+					Log.d(TAG, "onRequestPermissionsResult WRITE_EXTERNAL_STORAGE denied");
+					Toast.makeText(this, "Permission WRITE_EXTERNAL_STORAGE denied", Toast.LENGTH_SHORT).show();
+				}
+				break;
 			default:
 				super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 		}
