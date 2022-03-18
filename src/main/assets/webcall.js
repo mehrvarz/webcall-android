@@ -31,9 +31,10 @@ window.onload = function() {
 		if(lastUsedVersionName=="") {
 			// the user has upgraded (or downgraded) the webcall apk
 			console.log("upgrade from lastUsedVersionName "+lastUsedVersionName);
-
+			var bubbleElement;
+/*
 			setTimeout(function() {
-			var bubbleElement = document.createElement("div");
+			bubbleElement = document.createElement("div");
 			bubbleElement.classList.add("speechbubble");
 			bubbleElement.id = "speechBubble";
 			// TODO it would of course be much better if we could aligh the bubbles with 
@@ -51,12 +52,12 @@ window.onload = function() {
 				bubbleElement.innerHTML = "To create a new phone number use a blank ID and click OK.";
 				bubbleElement.onclick = function () {
 					this.parentElement.removeChild(this);
-
+*/
 					setTimeout(function() {
 					bubbleElement = document.createElement("div");
 					bubbleElement.classList.add("speechbubble2");
 					bubbleElement.id = "speechBubble";
-					bubbleElement.style = "left:4%;top:245px;max-width:75%;width:320px;padding:20px;";
+					bubbleElement.style = "left:4%;top:300px;max-width:75%;width:320px;padding:20px;";
 					bubbleElement.innerHTML = "Clear password cookie: force password form";
 					bubbleElement.onclick = function () {
 						this.parentElement.removeChild(this);
@@ -65,7 +66,7 @@ window.onload = function() {
 						bubbleElement = document.createElement("div");
 						bubbleElement.classList.add("speechbubble2");
 						bubbleElement.id = "speechBubble";
-						bubbleElement.style = "left:3%;top:285px;max-width:75%;width:320px;padding:20px;";
+						bubbleElement.style = "left:3%;top:350px;max-width:75%;width:320px;padding:20px;";
 						bubbleElement.innerHTML = "Clear cache: reload WebCall core";
 						bubbleElement.onclick = function () {
 							this.parentElement.removeChild(this);
@@ -74,7 +75,7 @@ window.onload = function() {
 							bubbleElement = document.createElement("div");
 							bubbleElement.classList.add("speechbubble2");
 							bubbleElement.id = "speechBubble";
-							bubbleElement.style = "left:3%;top:320px;max-width:75%;width:320px;padding:20px;";
+							bubbleElement.style = "left:3%;top:390px;max-width:75%;width:320px;padding:20px;";
 							bubbleElement.innerHTML = "Allow insecure TLS: skip certificate authentication";
 							bubbleElement.onclick = function () {
 								this.parentElement.removeChild(this);
@@ -87,12 +88,14 @@ window.onload = function() {
 					}
 					container.appendChild(bubbleElement);
 					},300);
+/*
 				}
 				container.appendChild(bubbleElement);
 				},300);
 			}
 			container.appendChild(bubbleElement);
 			},300);
+*/
 		}
 		if(lastUsedVersionName!=versionName) {
 			if(clearCache)
