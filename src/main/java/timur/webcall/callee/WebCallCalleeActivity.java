@@ -1379,7 +1379,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 			Log.d(TAG, "getCurrentWebViewPackageInfo for O+");
 			pInfo = WebView.getCurrentWebViewPackage();
-		} else if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+		} else {
 			try {
 				Log.d(TAG, "getCurrentWebViewPackageInfo for M+");
 				Class webViewFactory = Class.forName("android.webkit.WebViewFactory");
@@ -1408,8 +1408,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					//Log.d(TAG, "getCurrentWebViewPackageInfo for M+ (3) ex="+e2);
 				}
 			}
-		} else {
-			// no info before Lollipop
 		}
 		if(pInfo!=null) {
 			Log.d(TAG, "getCurrentWebViewPackageInfo pInfo set");
