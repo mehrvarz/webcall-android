@@ -133,6 +133,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				Toast.LENGTH_LONG).show();
 			return;
 		}
+		if(webviewPackageInfo == null) {
+			// on Android 6 + 7: reflection + getLoadedPackageInfo() will only work AFTER webview was activated
+			Log.d(TAG, "onCreate webviewPackageInfo not set");
+			webviewPackageInfo = getCurrentWebViewPackageInfo();
+			if(webviewPackageInfo != null) {
+				Log.d(TAG, "onCreate webview packageInfo "+
+					webviewPackageInfo.packageName+" "+webviewPackageInfo.versionName);
+				//webviewVersionString = webviewPackageInfo.versionName+" ("+webviewPackageInfo.packageName+")";
+			}
+		}
 
 		activityStartNeeded = false;
 
@@ -1376,7 +1386,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				Method method = webViewFactory.getMethod("getLoadedPackageInfo");
 				pInfo = (PackageInfo)method.invoke(null);
 			} catch(Exception e) {
-				Log.d(TAG, "getCurrentWebViewPackageInfo for M+ ex="+e);
+				//Log.d(TAG, "getCurrentWebViewPackageInfo for M+ ex="+e);
 			}
 			if(pInfo==null) {
 				try {
@@ -1386,6 +1396,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					pInfo = (PackageInfo) method.invoke(null);
 				} catch(Exception e2) {
 					//Log.d(TAG, "getCurrentWebViewPackageInfo for M+ (2) ex="+e2);
+				}
+			}
+			if(pInfo==null) {
+				try {
+					Log.d(TAG, "getCurrentWebViewPackageInfo for M+ (3)");
+					Class webViewFactory = Class.forName("com.android.webview.WebViewFactory");
+					Method method = webViewFactory.getMethod("getLoadedPackageInfo");
+					pInfo = (PackageInfo)method.invoke(null);
+				} catch(Exception e2) {
+					//Log.d(TAG, "getCurrentWebViewPackageInfo for M+ (3) ex="+e2);
 				}
 			}
 		} else {

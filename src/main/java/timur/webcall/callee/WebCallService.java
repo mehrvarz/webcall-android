@@ -1899,6 +1899,7 @@ public class WebCallService extends Service {
 						wsClient = null;
 						// closeBlocking() makes no sense here bc we received a 1006
 						tmpWsClient.close();
+						runJS("wsOnClose()",null); // set wsConn=null; will abort blinkButtonFunc()
 						Log.d(TAG,"onClose wsClient.close() done");
 					}
 
