@@ -682,7 +682,8 @@ public class WebCallService extends Service {
 									} else if(username.equals("")) {
 										Log.d(TAG,"dozeState idle no username");
 									} else {
-										loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
+										loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
+													"&ver="+ BuildConfig.VERSION_NAME;
 										Log.d(TAG,"dozeState idle re-login now url="+loginUrl);
 										// hopefully network is avilable
 										reconnectSchedFuture =
@@ -739,7 +740,8 @@ public class WebCallService extends Service {
 								} else if(username==null || username.equals("")) {
 									Log.d(TAG,"dozeState awake cannot reconnect no username");
 								} else {
-									loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
+									loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
+												"&ver="+ BuildConfig.VERSION_NAME;
 									Log.d(TAG,"dozeState awake re-login in 2s url="+loginUrl);
 									// hopefully network is avilable in 2s again
 									reconnectSchedFuture =
@@ -781,7 +783,8 @@ public class WebCallService extends Service {
 						if(extraCommand.equals("connect")) {
 							if(webcalldomain!=null && !webcalldomain.equals("") &&
 									username!=null && !username.equals("")) {
-								loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
+								loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
+											"&ver="+ BuildConfig.VERSION_NAME;
 								Log.d(TAG, "onStartCommand loginUrl="+loginUrl);
 								if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 									Log.d(TAG,"onStartCommand cancel reconnectSchedFuture");
@@ -1924,7 +1927,8 @@ public class WebCallService extends Service {
 						} else if(username.equals("")) {
 							Log.d(TAG,"onClose cannot reconnect: username is not set");
 						} else {
-							loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
+							loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
+										"&ver="+ BuildConfig.VERSION_NAME;
 							Log.d(TAG,"onClose re-login in 8s url="+loginUrl);
 							// hopefully network is avilable in 8s again
 							// TODO on P9 in some cases this reconnecter does NOT come
@@ -2223,7 +2227,8 @@ public class WebCallService extends Service {
 			webcalldomain = prefs.getString("webcalldomain", "")
 				.toLowerCase(Locale.getDefault());
 			username = prefs.getString("username", "");
-			loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username;
+			loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
+						"&ver="+ BuildConfig.VERSION_NAME;
 		}
 		// TODO do we need to copy cookies here?
 		if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
