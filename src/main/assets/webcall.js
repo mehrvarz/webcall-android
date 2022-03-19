@@ -32,70 +32,42 @@ window.onload = function() {
 			// the user has upgraded (or downgraded) the webcall apk
 			console.log("upgrade from lastUsedVersionName "+lastUsedVersionName);
 			var bubbleElement;
-/*
+
 			setTimeout(function() {
 			bubbleElement = document.createElement("div");
-			bubbleElement.classList.add("speechbubble");
+			bubbleElement.classList.add("speechbubble2");
 			bubbleElement.id = "speechBubble";
-			// TODO it would of course be much better if we could aligh the bubbles with 
-			// the elements they refer to
-			bubbleElement.style = "left:5%;top:155px;max-width:75%;width:320px;padding:20px;";
-			bubbleElement.innerHTML = "To use your own WebCall server, enter your domain name here.";
+			bubbleElement.style = "left:4%;top:300px;max-width:75%;width:320px;padding:20px;";
+			bubbleElement.innerHTML = "Clear password cookie: force password form";
 			bubbleElement.onclick = function () {
 				this.parentElement.removeChild(this);
 
 				setTimeout(function() {
 				bubbleElement = document.createElement("div");
-				bubbleElement.classList.add("speechbubble");
+				bubbleElement.classList.add("speechbubble2");
 				bubbleElement.id = "speechBubble";
-				bubbleElement.style = "left:5%;top:230px;max-width:80%;width:320px;padding:20px;";
-				bubbleElement.innerHTML = "To create a new phone number use a blank ID and click OK.";
+				bubbleElement.style = "left:3%;top:350px;max-width:75%;width:320px;padding:20px;";
+				bubbleElement.innerHTML = "Clear cache: reload WebCall core";
 				bubbleElement.onclick = function () {
 					this.parentElement.removeChild(this);
-*/
+
 					setTimeout(function() {
 					bubbleElement = document.createElement("div");
 					bubbleElement.classList.add("speechbubble2");
 					bubbleElement.id = "speechBubble";
-					bubbleElement.style = "left:4%;top:300px;max-width:75%;width:320px;padding:20px;";
-					bubbleElement.innerHTML = "Clear password cookie: force password form";
+					bubbleElement.style = "left:3%;top:390px;max-width:75%;width:320px;padding:20px;";
+					bubbleElement.innerHTML = "Allow insecure TLS: skip certificate authentication";
 					bubbleElement.onclick = function () {
 						this.parentElement.removeChild(this);
-
-						setTimeout(function() {
-						bubbleElement = document.createElement("div");
-						bubbleElement.classList.add("speechbubble2");
-						bubbleElement.id = "speechBubble";
-						bubbleElement.style = "left:3%;top:350px;max-width:75%;width:320px;padding:20px;";
-						bubbleElement.innerHTML = "Clear cache: reload WebCall core";
-						bubbleElement.onclick = function () {
-							this.parentElement.removeChild(this);
-
-							setTimeout(function() {
-							bubbleElement = document.createElement("div");
-							bubbleElement.classList.add("speechbubble2");
-							bubbleElement.id = "speechBubble";
-							bubbleElement.style = "left:3%;top:390px;max-width:75%;width:320px;padding:20px;";
-							bubbleElement.innerHTML = "Allow insecure TLS: skip certificate authentication";
-							bubbleElement.onclick = function () {
-								this.parentElement.removeChild(this);
-							}
-							container.appendChild(bubbleElement);
-							},300);
-						}
-						container.appendChild(bubbleElement);
-						},300);
 					}
 					container.appendChild(bubbleElement);
 					},300);
-/*
 				}
 				container.appendChild(bubbleElement);
 				},300);
 			}
 			container.appendChild(bubbleElement);
 			},300);
-*/
 		}
 		if(lastUsedVersionName!=versionName) {
 			if(clearCache)
@@ -165,6 +137,8 @@ function submitFormDone(theForm) {
 		if(clearCache.checked) {
 			console.log('wsClearCache');
 			Android.wsClearCache();
+		} else {
+			// TODO Android.wsClearCache() also after a certain time
 		}
 		if(insecureTls.checked) {
 			console.log('insecureTls true');
@@ -219,7 +193,7 @@ function submitFormDone(theForm) {
 	window.location.replace(url);
 */
 
-	let api = "https://"+valueDomain+"/rtcsig/online?id="+valueUsername;
+	let api = "https://"+valueDomain+"/rtcsig/online?id="+valueUsername+"&ver="+Android.getVersionName();
 	console.log('xhr api '+api);
 	ajaxFetch(new XMLHttpRequest(), "GET", api, function(xhr) {
 		if(xhr.responseText.startsWith("error")) {
@@ -247,14 +221,14 @@ function submitFormDone(theForm) {
 		abort = true;
 		divspinnerframe.style.display = "none";
 		document.activeElement.blur();
-		Android.toast("Connect error. Something is wrong with the server address or with your user ID.");
+		Android.toast("Connection failed. Please check your server address and user ID.");
 	}, function(errString,errcode) {
 		console.log('xhr error ('+errString+') errcode='+errcode);
 		abort = true;
 		console.log('xhr spinner off');
 		divspinnerframe.style.display = "none";
 		document.activeElement.blur();
-		Android.toast("Connect error. Something is wrong with the server address or with your user ID.");
+		Android.toast("Connection failed. Please check your server address and user ID.");
 	});
 }
 
