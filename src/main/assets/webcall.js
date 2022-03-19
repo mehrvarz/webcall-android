@@ -196,12 +196,17 @@ function submitFormDone(theForm) {
 		}
 	}
 
+	var abort = false;
 	if(divspinnerframe) {
 		// show divspinnerframe only if loading of main page is delayed
 		setTimeout(function() {
-			divspinnerframe.style.display = "block";
+			if(!abort) {
+				divspinnerframe.style.display = "block";
+			}
 		},200);
 	}
+
+/*
 	setTimeout(function() {
 		// if we are still here after 8s, window.location.replace has failed
 		// maybe an ssl issue
@@ -209,9 +214,79 @@ function submitFormDone(theForm) {
 		divspinnerframe.style.display = "none";
 		document.activeElement.blur();
 	},8000);
-
 	let url = "https://"+valueDomain+"/callee/"+valueUsername+"?auto=1";
 	console.log('load main '+url);
 	window.location.replace(url);
+*/
+
+	let api = "https://"+valueDomain+"/rtcsig/online?id="+valueUsername;
+	console.log('xhr api '+api);
+	ajaxFetch(new XMLHttpRequest(), "GET", api, function(xhr) {
+		if(xhr.responseText.startsWith("error")) {
+			console.log('xhr response '+xhr.responseText);
+		} else if(xhr.responseText.startsWith("busy")) {
+			console.log('xhr response '+xhr.responseText);
+		} else if(xhr.responseText.startsWith("notavail")) {
+			console.log('xhr response ('+xhr.responseText+')');
+			setTimeout(function() {
+				// if we are still here after 8s, window.location.replace has failed
+				// maybe an ssl issue
+				console.log('window.location.replace has failed');
+				divspinnerframe.style.display = "none";
+				document.activeElement.blur();
+			},8000);
+			let url = "https://"+valueDomain+"/callee/"+valueUsername+"?auto=1";
+			console.log('load main '+url);
+			window.location.replace(url);
+			return;
+		} else { // empty or other
+			console.log('xhr response '+xhr.responseText+' (ignore)');
+			return;
+		}
+		console.log('xhr spinner off');
+		abort = true;
+		divspinnerframe.style.display = "none";
+		document.activeElement.blur();
+		Android.toast("Connect error. Something is wrong with the server address or with your user ID.");
+	}, function(errString,errcode) {
+		console.log('xhr error ('+errString+') errcode='+errcode);
+		abort = true;
+		console.log('xhr spinner off');
+		divspinnerframe.style.display = "none";
+		document.activeElement.blur();
+		Android.toast("Connect error. Something is wrong with the server address or with your user ID.");
+	});
+}
+
+var xhrTimeout = 25000;
+function ajaxFetch(xhr, type, api, processData, errorFkt, postData) {
+	xhr.onreadystatechange = function() {
+		if(xhr.readyState == 4 && (xhr.status==200 || xhr.status==0)) {
+			processData(xhr);
+		} else if(xhr.readyState==4) {
+			errorFkt("fetch error",xhr.status);
+		}
+	}
+	xhr.timeout = xhrTimeout;
+	xhr.ontimeout = function() {
+		errorFkt("timeout",0);
+	}
+	xhr.onerror= function(e) {
+		errorFkt("fetching",xhr.status);
+	};
+	// cross-browser compatible approach to bypassing the cache
+	if(api.indexOf("?")>=0) {
+		api += "&_="+new Date().getTime();
+	} else {
+		api += "?_="+new Date().getTime();
+	}
+	console.log('xhr '+api);
+	xhr.open(type, api, true);
+	xhr.setRequestHeader("Content-type", "text/plain; charset=utf-8");
+	if(postData) {
+		xhr.send(postData);
+	} else {
+		xhr.send();
+	}
 }
 

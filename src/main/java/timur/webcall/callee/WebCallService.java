@@ -1570,6 +1570,13 @@ public class WebCallService extends Service {
 		}
 
 		@android.webkit.JavascriptInterface
+		public void toast(String msg) {
+			Intent intent = new Intent("webcall");
+			intent.putExtra("toast", msg);
+			sendBroadcast(intent);
+		}
+
+		@android.webkit.JavascriptInterface
 		public void menu() {
 			Intent intent = new Intent("webcall");
 			intent.putExtra("cmd", "menu");
