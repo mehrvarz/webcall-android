@@ -138,7 +138,18 @@ function submitFormDone(theForm) {
 			console.log('wsClearCache');
 			Android.wsClearCache();
 		} else {
-			// TODO Android.wsClearCache() also after a certain time
+			// Android.wsClearCache() also after 7 days
+			var lastClearCache = Android.readPreferenceLong("lastClearCache");
+			console.log("lastClearCache="+lastClearCache);
+			if(lastClearCache>0) {
+				var nowTime = new Date().getTime();
+				var diffSecs = (nowTime - lastClearCache)/1000;
+				console.log("nowTime="+nowTime+" diffSecs="+diffSecs);
+				if(diffSecs > 7*24*3600) {
+					console.log("time triggered wsClearCache");
+					Android.wsClearCache();
+				}
+			}
 		}
 		if(insecureTls.checked) {
 			console.log('insecureTls true');

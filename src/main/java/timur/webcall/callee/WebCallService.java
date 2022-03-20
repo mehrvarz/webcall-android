@@ -172,7 +172,7 @@ public class WebCallService extends Service {
 
 	private Context context = null;
 	private SharedPreferences preferences = null;
-	private SharedPreferences.Editor prefEditor = null;
+//	private SharedPreferences.Editor prefEditor = null;
     private Binder mBinder = new WebCallServiceBinder();
 	private BroadcastReceiver networkStateReceiver = null; // for api < 24
 	private BroadcastReceiver dozeStateReceiver = null;
@@ -1597,6 +1597,8 @@ public class WebCallService extends Service {
 						myWebView.clearCache(true);
 					}
 				});
+				long nowSecs = new Date().getTime();
+				storePrefsLong("lastClearCache", nowSecs);
 			} else {
 				Log.d(TAG,"wsClearCache myWebView==null");
 			}
