@@ -37,7 +37,7 @@ window.onload = function() {
 			bubbleElement = document.createElement("div");
 			bubbleElement.classList.add("speechbubble2");
 			bubbleElement.id = "speechBubble";
-			bubbleElement.style = "left:4%;top:300px;max-width:75%;width:320px;padding:20px;";
+			bubbleElement.style = "left:4%;top:290px;max-width:75%;width:320px;padding:20px;";
 			bubbleElement.innerHTML = "Clear password cookie: force password form";
 			bubbleElement.onclick = function () {
 				this.parentElement.removeChild(this);
@@ -46,7 +46,7 @@ window.onload = function() {
 				bubbleElement = document.createElement("div");
 				bubbleElement.classList.add("speechbubble2");
 				bubbleElement.id = "speechBubble";
-				bubbleElement.style = "left:3%;top:350px;max-width:75%;width:320px;padding:20px;";
+				bubbleElement.style = "left:3%;top:330px;max-width:75%;width:320px;padding:20px;";
 				bubbleElement.innerHTML = "Clear cache: reload WebCall core";
 				bubbleElement.onclick = function () {
 					this.parentElement.removeChild(this);
@@ -55,7 +55,7 @@ window.onload = function() {
 					bubbleElement = document.createElement("div");
 					bubbleElement.classList.add("speechbubble2");
 					bubbleElement.id = "speechBubble";
-					bubbleElement.style = "left:3%;top:390px;max-width:75%;width:320px;padding:20px;";
+					bubbleElement.style = "left:3%;top:370px;max-width:75%;width:320px;padding:20px;";
 					bubbleElement.innerHTML = "Allow insecure TLS: skip certificate authentication";
 					bubbleElement.onclick = function () {
 						this.parentElement.removeChild(this);
@@ -225,7 +225,7 @@ function submitFormDone(theForm) {
 			window.location.replace(url);
 			return;
 		} else { // empty or other
-			console.log('xhr response '+xhr.responseText+' (ignore)');
+			console.log('xhr response ('+xhr.responseText+') (ignore)');
 			return;
 		}
 		console.log('xhr spinner off');
@@ -236,7 +236,7 @@ function submitFormDone(theForm) {
 	}, function(errString,errcode) {
 		console.log('xhr error ('+errString+') errcode='+errcode);
 		abort = true;
-		console.log('xhr spinner off');
+		//console.log('xhr spinner off');
 		divspinnerframe.style.display = "none";
 		document.activeElement.blur();
 		Android.toast("Connection failed. Please check your server address and user ID.");
@@ -257,6 +257,7 @@ function ajaxFetch(xhr, type, api, processData, errorFkt, postData) {
 		errorFkt("timeout",0);
 	}
 	xhr.onerror= function(e) {
+		console.log('xhr.onerror '+e.type+' '+e.loaded);
 		errorFkt("fetching",xhr.status);
 	};
 	// cross-browser compatible approach to bypassing the cache
