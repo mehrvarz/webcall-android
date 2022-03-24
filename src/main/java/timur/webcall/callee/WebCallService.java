@@ -562,7 +562,9 @@ public class WebCallService extends Service {
 							Log.d(TAG,"networkCallback wifiLock.release");
 							wifiLock.release();
 						}
-						statusMessage("Connecting via other network",true,false);
+						if(connectToSignalingServerIsWanted) {
+							statusMessage("Connecting via other network",true,false);
+						}
 					}
 					if(newNetworkInt==2 && haveNetworkInt!=2) {
 						// gaining wifi
@@ -577,7 +579,9 @@ public class WebCallService extends Service {
 							Log.d(TAG,"networkCallback wifiLock.acquire");
 							wifiLock.acquire();
 						}
-						statusMessage("Connecting via Wifi network",true,false);
+						if(connectToSignalingServerIsWanted) {
+							statusMessage("Connecting via Wifi network",true,false);
+						}
 					}
 
 					// the intended criteria: is goOnline activated
@@ -667,7 +671,7 @@ public class WebCallService extends Service {
 									wsClient = null;
 								}
 							}
-							if(wsClient==null) {
+							if(wsClient==null && connectToSignalingServerIsWanted) {
 								// let's go straight to reconnecter
 								statusMessage("Disconnected from WebCall server...",true,true);
 
