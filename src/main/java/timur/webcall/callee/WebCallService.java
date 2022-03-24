@@ -2634,6 +2634,11 @@ public class WebCallService extends Service {
 					wsAddr = tokens[0];
 					if(wsAddr.equals("fatal") || wsAddr.equals("error") || tokens.length<3) {
 						// login error: retry
+						if(wsClient!=null) {
+							// wsClient must be null before we start reconnecter
+							wsClient.close();
+							wsClient = null;
+						}
 						if(reconnectCounter<ReconnectCounterMax) {
 							int delaySecs = reconnectCounter*5;
 							if(delaySecs>30) {
