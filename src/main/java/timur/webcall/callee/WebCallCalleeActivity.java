@@ -109,6 +109,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private int proximitySensorAction = 0; // 0=screen off, 1=screen dim
 	private volatile boolean webviewBlocked = false;
 	private volatile String dialId = null; // set by onCreate() + getIntent() or by onNewIntent()
+	private volatile boolean writeExtStoragePermissionDenied = false;
 
 
 	@Override
@@ -438,11 +439,13 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG,"onCreateContextMenu abort on no webCallServiceBinder");
 			return;
 		}
+/*
+// TODO why was this added?
 		if(webCallServiceBinder.callInProgress()>0) {
 			Log.d(TAG,"onCreateContextMenu abort on callInProgress");
 			return;
 		}
-
+*/
 		final int none = ContextMenu.NONE;
 		// for the context menu to be shown, our service must be connected to webcall server
 		// and our webview url must contain "/callee/"
@@ -523,9 +526,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				menu.add(none,menuProximityActionOff,none,R.string.msg_proximity_action_screen_off);
 			}
 
-			menu.add(none,menuCaptureLogs,none,R.string.msg_capture_logs);
-			if(lastLogfileName!=null) {
-				menu.add(none,menuOpenLogs,none,R.string.msg_open_logs);
+			if(!writeExtStoragePermissionDenied) {
+				menu.add(none,menuCaptureLogs,none,R.string.msg_capture_logs);
+				if(lastLogfileName!=null) {
+					menu.add(none,menuOpenLogs,none,R.string.msg_open_logs);
+				}
 			}
 
 			if(touchY<100) {
@@ -1446,7 +1451,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					checkPermissions();
 				} else {
 					Log.d(TAG, "onRequestPermissionsResult WRITE_EXTERNAL_STORAGE denied");
-					Toast.makeText(this, "Permission WRITE_EXTERNAL_STORAGE denied", Toast.LENGTH_SHORT).show();
+					//Toast.makeText(this, "Permission WRITE_EXTERNAL_STORAGE denied", Toast.LENGTH_SHORT).show();
+					// TODO when we get this, we should NOT offer "Capture logs now"
+					writeExtStoragePermissionDenied = true;
 				}
 				break;
 			default:

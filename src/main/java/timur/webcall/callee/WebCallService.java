@@ -1356,9 +1356,10 @@ public class WebCallService extends Service {
 			// activity is telling us that it is being destroyed
 			// TODO this should set webviewPageLoaded=false, needed for next incoming call ???
 			if(wsClient!=null) {
-				Log.d(TAG, "activityDestroyed got wsClient");
-				endPeerConAndWebView();
+				Log.d(TAG, "activityDestroyed got wsClient - do nothing");
+				//endPeerConAndWebView();
 			} else if(reconnectBusy) {
+				Log.d(TAG, "activityDestroyed got reconnectBusy - do nothing");
 				// do nothing
 			} else {
 				Log.d(TAG, "activityDestroyed exitService()");
@@ -2346,7 +2347,11 @@ public class WebCallService extends Service {
 			try {
 				final Uri contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
 				Log.d(TAG,"B store to "+contentUri+" (andr "+Build.VERSION.SDK_INT+" >=29)");
-				uri = resolver.insert(contentUri, values);
+				try {
+					uri = resolver.insert(contentUri, values);
+				} catch(Exception ex) {
+					Log.d(TAG,"resolver.insert ex="+ex);
+				}
 
 				if (uri == null)
 					throw new IOException("Failed to create new MediaStore record.");
@@ -3223,6 +3228,7 @@ public class WebCallService extends Service {
 
 	private void endPeerConAndWebView() {
 		// hangup peercon, reset webview, clear callPickedUpFlag
+		// called by Exit button
 		Log.d(TAG, "endPeerConAndWebView");
 		if(wsClient!=null) {
 			if(myWebView!=null && webviewMainPageLoaded) {
