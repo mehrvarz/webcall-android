@@ -1,1 +1,3 @@
 - fixed an issue related to Android 11 + 12
+- prevent activity restart on mouse un/plug
+
