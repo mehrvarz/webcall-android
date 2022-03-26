@@ -1,0 +1,8 @@
+- check server address and user id before switch to main page
+- fixed doze related issue
+- fixed websocket 1006 related issue
+- fixed reconnect related issue after login error
+- auto wsClearCache()
+- android.hardware.camera and android.hardware.camera.front no more required features
+- manifest: set android:required='false' on all uses-feature tags, except on android.hardware.microphone
+
