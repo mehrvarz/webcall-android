@@ -1358,7 +1358,7 @@ public class WebCallService extends Service {
 			if(connectToSignalingServerIsWanted) {
 				Log.d(TAG, "activityDestroyed got connectToSignalingServerIsWanted - do nothing");
 				// do nothing
-			} else if(reconnectBusy)
+			} else if(reconnectBusy) {
 				Log.d(TAG, "activityDestroyed got reconnectBusy - do nothing");
 				// do nothing
 			} else {

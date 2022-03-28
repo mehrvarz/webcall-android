@@ -1005,8 +1005,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			// if we are not connected to webcall server, we close the activity
 			// (which will end our service as well)
 			Log.d(TAG, "onBackPressed connectType="+connectType+" -> destroy activity");
+			finish();
 		} else {
 			Log.d(TAG, "onBackPressed webCallServiceBinder==null -> destroy activity");
+			finish();
 		}
 		// service is idle (not connected and not reconnecting)
 		// so it is fine to endPeerConAndWebView(), unbind and destroy the activity
