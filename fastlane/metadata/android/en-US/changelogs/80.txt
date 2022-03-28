@@ -1,0 +1,15 @@
+v0.9.80
+- terminate service if activity closed while not connected
+  (bugfix for v0.9.79)
+v0.9.79
+- fixed an issue related to Android 11 + 12
+- prevent activity restart on mouse un/plug
+v0.9.78
+- check server address and user id before switch to main page
+- fixed doze related issue
+- fixed websocket 1006 related issue
+- fixed reconnect related issue after login error
+- auto wsClearCache()
+- android.hardware.camera and android.hardware.camera.front no more required features
+- manifest: set android:required='false' on all uses-feature tags, except on android.hardware.microphone
+
