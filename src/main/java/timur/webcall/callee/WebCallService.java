@@ -1355,10 +1355,10 @@ public class WebCallService extends Service {
 		public void activityDestroyed() {
 			// activity is telling us that it is being destroyed
 			// TODO this should set webviewPageLoaded=false, needed for next incoming call ???
-			if(wsClient!=null) {
-				Log.d(TAG, "activityDestroyed got wsClient - do nothing");
-				//endPeerConAndWebView();
-			} else if(reconnectBusy) {
+			if(connectToSignalingServerIsWanted) {
+				Log.d(TAG, "activityDestroyed got connectToSignalingServerIsWanted - do nothing");
+				// do nothing
+			} else if(reconnectBusy)
 				Log.d(TAG, "activityDestroyed got reconnectBusy - do nothing");
 				// do nothing
 			} else {
@@ -2004,6 +2004,7 @@ public class WebCallService extends Service {
 			}
 
 			if(myWebView!=null && webviewMainPageLoaded) {
+				// NOTE: message MUST NOT contain apostroph (') characters
 				String argStr = "wsOnMessage2('"+message+"');";
 				//Log.d(TAG,"onMessage runJS "+argStr);
 				runJS(argStr,null);
