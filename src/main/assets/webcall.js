@@ -77,6 +77,16 @@ window.onload = function() {
 			Android.storePreference("versionName", versionName);
 			//Android.storePreferenceLong("keepAwakeWakeLockMS", 0);
 		}
+
+		document.getElementById("webcallversion").innerHTML = Android.getVersionName();
+
+		var webviewVersion = Android.webviewVersion();
+		if(!webviewVersion) {
+			webviewVersion = "no version, old webview?";
+		} else if(webviewVersion<"80.0") {
+			webviewVersion = webviewVersion + " (very old?)";
+		}
+		document.getElementById("webviewversion").innerHTML = webviewVersion;
 	}
 	if(domain=="") {
 		domain = "timur.mobi";

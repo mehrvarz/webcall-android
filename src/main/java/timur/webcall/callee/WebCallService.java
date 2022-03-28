@@ -37,6 +37,7 @@ import android.content.BroadcastReceiver;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.pm.PackageInfo;
 import android.content.ContentValues;
 import android.content.ContentResolver;
 import android.preference.PreferenceManager;
@@ -128,6 +129,7 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.lang.reflect.Method;
 
 import java.security.GeneralSecurityException;
 import java.security.cert.X509Certificate;
@@ -195,6 +197,7 @@ public class WebCallService extends Service {
 	private AudioManager audioManager = null;
 	private IntentFilter batteryStatusfilter = null;
 	private Intent batteryStatus = null;
+	private String webviewVersionString = null;
 
 	// wakeUpWakeLock used for wakeup from doze: FULL_WAKE_LOCK|ACQUIRE_CAUSES_WAKEUP (screen on)
 	// wakeUpWakeLock is released by activity
@@ -891,7 +894,6 @@ public class WebCallService extends Service {
 	@SuppressLint("SetJavaScriptEnabled")
 	class WebCallServiceBinder extends Binder {
 		public void startWebView(View view) {
-
 			String username = prefs.getString("username", "");
 			Log.d(TAG, "startWebView creating myWebView for user="+username);
 
@@ -960,8 +962,8 @@ public class WebCallService extends Service {
 						downloadManager.enqueue(request);
 						Log.d(TAG,"Downloading File...");
 					}
-                }
-            });
+				}
+			});
 
 			myWebView.setWebViewClient(new WebViewClient() {
 				//@Override
@@ -1265,6 +1267,13 @@ public class WebCallService extends Service {
 			}
 			Log.d(TAG, "startWebView load currentUrl="+currentUrl);
 			myWebView.loadUrl(currentUrl);
+
+			PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
+			if(webviewPackageInfo != null) {
+//				webviewVersionString = webviewPackageInfo.versionName+" ("+webviewPackageInfo.packageName+")";
+				webviewVersionString = webviewPackageInfo.versionName;
+				Log.d(TAG, "startWebView version "+webviewVersionString);
+			}
 		}
 
 		// webcallConnectType returns >0 if we are connected to webcall server signalling
@@ -1569,6 +1578,11 @@ public class WebCallService extends Service {
 		public void wsClearCookies() {
 			// used by WebCallAndroid
 			clearCookies();
+		}
+
+		@android.webkit.JavascriptInterface
+		public String webviewVersion() {
+			return webviewVersionString;
 		}
 
 		@android.webkit.JavascriptInterface
@@ -3608,6 +3622,48 @@ public class WebCallService extends Service {
 
 	private String currentDateTimeString() {
 		return new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date());
+	}
+
+	@SuppressWarnings({"unchecked", "JavaReflectionInvocation"})
+	private PackageInfo getCurrentWebViewPackageInfo() {
+		PackageInfo pInfo = null;
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			Log.d(TAG, "getCurrentWebViewPackageInfo for O+");
+			pInfo = WebView.getCurrentWebViewPackage();
+		} else {
+			try {
+				Log.d(TAG, "getCurrentWebViewPackageInfo for M+");
+				Class webViewFactory = Class.forName("android.webkit.WebViewFactory");
+				Method method = webViewFactory.getMethod("getLoadedPackageInfo");
+				pInfo = (PackageInfo)method.invoke(null);
+			} catch(Exception e) {
+				//Log.d(TAG, "getCurrentWebViewPackageInfo for M+ ex="+e);
+			}
+			if(pInfo==null) {
+				try {
+					Log.d(TAG, "getCurrentWebViewPackageInfo for M+ (2)");
+					Class webViewFactory = Class.forName("com.google.android.webview.WebViewFactory");
+					Method method = webViewFactory.getMethod("getLoadedPackageInfo");
+					pInfo = (PackageInfo) method.invoke(null);
+				} catch(Exception e2) {
+					//Log.d(TAG, "getCurrentWebViewPackageInfo for M+ (2) ex="+e2);
+				}
+			}
+			if(pInfo==null) {
+				try {
+					Log.d(TAG, "getCurrentWebViewPackageInfo for M+ (3)");
+					Class webViewFactory = Class.forName("com.android.webview.WebViewFactory");
+					Method method = webViewFactory.getMethod("getLoadedPackageInfo");
+					pInfo = (PackageInfo)method.invoke(null);
+				} catch(Exception e2) {
+					//Log.d(TAG, "getCurrentWebViewPackageInfo for M+ (3) ex="+e2);
+				}
+			}
+		}
+		if(pInfo!=null) {
+			Log.d(TAG, "getCurrentWebViewPackageInfo pInfo set");
+		}
+		return pInfo;
 	}
 }
 

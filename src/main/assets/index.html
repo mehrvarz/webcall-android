@@ -210,7 +210,7 @@ input[type=submit]:focus {
 	<div id="spinner" class="spinner"></div>
 </div>
 <img src="phone.svg"
-  style="position:absolute;right:0;top:2vh;width:440px;max-height:80vh;padding:2%;opacity:0.1;z-index:-1;">
+  style="position:absolute;right:0;top:2vh;width:720px;max-height:80vh;padding:2%;opacity:0.1;z-index:-1;">
 
 <div id="container">
 <h1 id="title">WebCall Android</h1>
@@ -228,28 +228,42 @@ input[type=submit]:focus {
 		autofocus _required>
 	<span onclick="clearForm(1)" style="margin-left:5px; user-select:none; cursor:pointer;">X</span>
 	<br>
-	<div style="font-size:0.85em;">(leave empty to request a new ID)</div>
+	<div style="font-size:0.85em; margin-top:3px;">(leave empty to request a new ID)</div>
 	
 
 	<br>
 	<input type="submit" name="Submit" id="submit" value="OK"
-		style="width:120px; margin-top:50px; margin-bottom:40px;">
+		style="width:120px; margin-top:40px; margin-bottom:50px;">
 
 	<br>
 	<div style="font-size:1.1em">
-	<label id="clearCookiesLabel" style="margin-left:-4px; margin-top:16px; user-select:none;">
+	<label id="clearCookiesLabel" style="margin-top:16px; user-select:none;">
 		<input type="checkbox" id="clearCookies" class="checkbox"> Clear password cookie</label>
 	</label>
 
 	<br>
-	<label id="clearCacheLabel" style="margin-left:-4px; margin-top:16px; user-select:none;">
+	<label id="clearCacheLabel" style="margin-top:16px; user-select:none;">
 		<input type="checkbox" id="clearCache" class="checkbox"> Clear cache</label>
 	</label>
 
 	<br>
-	<label id="insecureTlsLabel" style="margin-left:-4px; margin-top:16px; user-select:none;">
+	<label id="insecureTlsLabel" style="margin-top:16px; user-select:none;">
 		<input type="checkbox" id="insecureTls" class="checkbox"> Allow insecure TLS</label>
 	</label>
+
+	<br>
+
+	<table style="font-size:0.8em; margin-top:55px; line-height:1.2em; opacity:0.9;">
+	<tr>
+		<td>WebCall:</td>
+		<td><span id="webcallversion"></span></td>
+	</tr>
+	<tr>
+		<td>WebView:&nbsp;</td>
+		<td><span id="webviewversion"></span></td>
+	</tr>
+	</table>
+
 </form>
 </div>
 

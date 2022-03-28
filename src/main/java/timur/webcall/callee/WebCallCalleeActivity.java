@@ -141,7 +141,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			if(webviewPackageInfo != null) {
 				Log.d(TAG, "onCreate webview packageInfo "+
 					webviewPackageInfo.packageName+" "+webviewPackageInfo.versionName);
-				//webviewVersionString = webviewPackageInfo.versionName+" ("+webviewPackageInfo.packageName+")";
 			}
 		}
 
