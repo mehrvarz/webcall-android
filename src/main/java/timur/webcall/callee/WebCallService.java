@@ -197,7 +197,7 @@ public class WebCallService extends Service {
 	private AudioManager audioManager = null;
 	private IntentFilter batteryStatusfilter = null;
 	private Intent batteryStatus = null;
-	private String webviewVersionString = null;
+	private String webviewVersionString = "";
 
 	// wakeUpWakeLock used for wakeup from doze: FULL_WAKE_LOCK|ACQUIRE_CAUSES_WAKEUP (screen on)
 	// wakeUpWakeLock is released by activity
@@ -690,7 +690,7 @@ public class WebCallService extends Service {
 										Log.d(TAG,"dozeState idle no username");
 									} else {
 										loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-													"&ver="+ BuildConfig.VERSION_NAME;
+													"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
 										Log.d(TAG,"dozeState idle re-login now url="+loginUrl);
 										// hopefully network is avilable
 										reconnectSchedFuture =
@@ -748,7 +748,7 @@ public class WebCallService extends Service {
 									Log.d(TAG,"dozeState awake cannot reconnect no username");
 								} else {
 									loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-												"&ver="+ BuildConfig.VERSION_NAME;
+												"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
 									Log.d(TAG,"dozeState awake re-login in 2s url="+loginUrl);
 									// hopefully network is avilable in 2s again
 									reconnectSchedFuture =
@@ -791,7 +791,7 @@ public class WebCallService extends Service {
 							if(webcalldomain!=null && !webcalldomain.equals("") &&
 									username!=null && !username.equals("")) {
 								loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-											"&ver="+ BuildConfig.VERSION_NAME;
+											"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
 								Log.d(TAG, "onStartCommand loginUrl="+loginUrl);
 								if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 									Log.d(TAG,"onStartCommand cancel reconnectSchedFuture");
@@ -1949,7 +1949,7 @@ public class WebCallService extends Service {
 							Log.d(TAG,"onClose cannot reconnect: username is not set");
 						} else {
 							loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-										"&ver="+ BuildConfig.VERSION_NAME;
+										"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
 							Log.d(TAG,"onClose re-login in 8s url="+loginUrl);
 							// hopefully network is avilable in 8s again
 							// TODO on P9 in some cases this reconnecter does NOT come
@@ -2250,7 +2250,7 @@ public class WebCallService extends Service {
 				.toLowerCase(Locale.getDefault());
 			username = prefs.getString("username", "");
 			loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-						"&ver="+ BuildConfig.VERSION_NAME;
+						"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
 		}
 		// TODO do we need to copy cookies here?
 		if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
@@ -2605,6 +2605,12 @@ public class WebCallService extends Service {
 						Log.d(TAG,"reconnecter con.connect()/getInputStream() ex="+ex);
 					}
 					if(status!=200) {
+						// network error: retry login
+						if(wsClient!=null) {
+							// wsClient must be null before we start reconnecter
+							wsClient.close();
+							wsClient = null;
+						}
 						if(reconnectCounter < ReconnectCounterMax) {
 							int delaySecs = reconnectCounter*5;
 							if(delaySecs>30) {
@@ -2652,8 +2658,10 @@ public class WebCallService extends Service {
 					String[] tokens = response.split("\\|");
 					Log.d(TAG,"reconnecter response tokens length="+tokens.length);
 					wsAddr = tokens[0];
+
+/*
 					if(wsAddr.equals("fatal") || wsAddr.equals("error") || tokens.length<3) {
-						// login error: retry
+						// login error: fail
 						if(wsClient!=null) {
 							// wsClient must be null before we start reconnecter
 							wsClient.close();
@@ -2676,6 +2684,7 @@ public class WebCallService extends Service {
 								scheduler.schedule(reconnecter,delaySecs,TimeUnit.SECONDS);
 							return;
 						}
+
 						Log.d(TAG,"reconnecter login fail "+wsAddr+" give up");
 						if(reconnectBusy) {
 							if(beepOnLostNetworkMode>0) {
@@ -2699,7 +2708,9 @@ public class WebCallService extends Service {
 						return;
 
 					} else if(wsAddr.equals("noservice") ||	wsAddr.equals("notregistered")) {
-						// login error: give up
+*/
+					if(wsAddr.equals("fatal") || wsAddr.equals("error") || wsAddr.equals("busy") || 					   wsAddr.equals("noservice") || wsAddr.equals("notregistered") || tokens.length<3) {
+						// login error: give up reconnecter
 						Log.d(TAG,"reconnecter login fail "+wsAddr+" give up "+reader.readLine()+
 							" "+reader.readLine()+" "+reader.readLine()+" "+reader.readLine());
 						if(reconnectBusy) {
@@ -2707,7 +2718,10 @@ public class WebCallService extends Service {
 								playSoundAlarm();
 							}
 							statusMessage("Login failed. Giving up.",true,true);
-							reconnectBusy = false;
+						}
+						if(myWebView!=null && webviewMainPageLoaded) {
+							// offlineAction(): disable offline-button and enable online-button
+							runJS("offlineAction();",null);
 						}
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
@@ -2716,6 +2730,7 @@ public class WebCallService extends Service {
 							storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
 							keepAwakeWakeLock.release();
 						}
+						reconnectBusy = false;
 						reconnectCounter = 0;
 						return;
 					}
@@ -2729,8 +2744,6 @@ public class WebCallService extends Service {
 						reconnectCounter = 0;
 						return;
 					}
-
-					// TODO on P9 this happened once: after login has worked, connectHost() failed
 
 					statusMessage("Connecting..",true,false);
 					//Log.d(TAG,"reconnecter connectHost("+wsAddr+")");
