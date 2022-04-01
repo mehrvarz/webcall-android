@@ -1,7 +1,7 @@
 v0.9.81
 - improved reconnect handling based on server response string
-- bugfix: wakeGoOnline() check keepAwakeWakeLock.isHeld() after sleep
-- now showing webcall version + webview version on base page
+- bugfix: wakeGoOnline() check keepAwakeWakeLock.isHeld() after
+- now showing WebCall version + WebView version on base page
 v0.9.80
 - terminate service if activity closed while not connected
   (bugfix for v0.9.79)
