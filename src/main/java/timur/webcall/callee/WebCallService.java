@@ -2661,7 +2661,7 @@ public class WebCallService extends Service {
 
 /*
 					if(wsAddr.equals("fatal") || wsAddr.equals("error") || tokens.length<3) {
-						// login error: fail
+						// login error: try reconnect
 						if(wsClient!=null) {
 							// wsClient must be null before we start reconnecter
 							wsClient.close();
@@ -2992,9 +2992,7 @@ public class WebCallService extends Service {
 							prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 						String username = prefs.getString("username", "");
 						currentUrl = "https://"+webcalldomain+"/callee/"+username;
-						//if(extendedLogsFlag) {
-							Log.d(TAG,"connectHost set currentUrl="+currentUrl);
-						//}
+						Log.d(TAG,"connectHost set currentUrl="+currentUrl);
 					}
 
 					if(currentUrl!=null) {
