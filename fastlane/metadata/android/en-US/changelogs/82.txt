@@ -1,0 +1,7 @@
+v0.9.82
+- improved reconnect handling while in deep sleep
+v0.9.81
+- improved reconnect handling based on server response string
+- bugfix: wakeGoOnline() check keepAwakeWakeLock.isHeld() after
+- now showing WebCall version + WebView version on base page
+
