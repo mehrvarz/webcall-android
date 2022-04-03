@@ -1932,7 +1932,8 @@ public class WebCallService extends Service {
 						wsClient = null;
 						// closeBlocking() makes no sense here bc we received a 1006
 						tmpWsClient.close();
-						runJS("wsOnClose()",null); // set wsConn=null; will abort blinkButtonFunc()
+						runJS("wsOnClose2()",null); // set wsConn=null; will abort blinkButtonFunc()
+// tmtmtm
 						Log.d(TAG,"onClose wsClient.close() done");
 					}
 
@@ -2800,6 +2801,14 @@ public class WebCallService extends Service {
 							playSoundConfirm();
 						}
 
+						if(currentUrl==null) {
+							String webcalldomain =
+								prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+							String username = prefs.getString("username", "");
+							currentUrl = "https://"+webcalldomain+"/callee/"+username;
+							Log.d(TAG,"reconnecter set currentUrl="+currentUrl);
+						}
+
 						if(myWebView!=null && webviewMainPageLoaded) {
 							// wakeGoOnline() makes sure:
 							// - js:wsConn is set (to wsClient)
@@ -2808,19 +2817,17 @@ public class WebCallService extends Service {
 							runJS("wakeGoOnline();", new ValueCallback<String>() {
 								@Override
 								public void onReceiveValue(String s) {
+									reconnectBusy = false;
+									reconnectCounter = 0;
 									if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-										keepAwakeWakeLock.release();
 										long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 										Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
 										keepAwakeWakeLockMS += wakeMS;
 										storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+										keepAwakeWakeLock.release();
 									}
-									reconnectBusy = false;
-									reconnectCounter = 0;
 								}
 							});
-
-
 						} else {
 							// send 'init' to register as callee
 							// otherwise the server will kick us out
@@ -2832,23 +2839,15 @@ public class WebCallService extends Service {
 								// TODO
 							}
 
+							reconnectBusy = false;
+							reconnectCounter = 0;
 							if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-								keepAwakeWakeLock.release();
 								long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 								Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
 								keepAwakeWakeLockMS += wakeMS;
 								storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+								keepAwakeWakeLock.release();
 							}
-							reconnectBusy = false;
-							reconnectCounter = 0;
-						}
-
-						if(currentUrl==null) {
-							String webcalldomain =
-								prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-							String username = prefs.getString("username", "");
-							currentUrl = "https://"+webcalldomain+"/callee/"+username;
-							Log.d(TAG,"reconnecter set currentUrl="+currentUrl);
 						}
 					}
 				} catch(Exception ex) {
