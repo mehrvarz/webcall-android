@@ -733,7 +733,7 @@ public class WebCallService extends Service {
 								Log.d(TAG,"dozeState awake wsClient==null");
 							}
 
-							statusMessage("Disconnected from WebCall server...",true,true);
+							//statusMessage("Disconnected from WebCall server...",true,true);
 
 							if(reconnectSchedFuture==null) {
 								// if no reconnecter is scheduled at this time (by checkLastPing())
@@ -1047,7 +1047,7 @@ public class WebCallService extends Service {
 						// uri is valid; continue below
 					} else {
 						// uri is NOT valid
-						Log.i(TAG, "handleUri uri not valied; forward to ext browser");
+						Log.i(TAG, "handleUri uri not valid; forward to ext browser");
 						Intent intent = new Intent("webcall");
 						intent.putExtra("browse", uri.toString());
 						sendBroadcast(intent);
