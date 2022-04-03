@@ -1158,6 +1158,7 @@ public class WebCallService extends Service {
 							final Runnable runnable2 = new Runnable() {
 								public void run() {
 									// processWebRtcMessages() will be called after "init|" was sent
+									// see: wsSend(String str)
 									sendRtcMessagesAfterInit=true;
 
 									// page is now loaded
@@ -1525,6 +1526,7 @@ public class WebCallService extends Service {
 				} catch(Exception ex) {
 					Log.d(TAG,"wsSend ex="+ex);
 					// TODO
+					return;
 				}
 				if(sendRtcMessagesAfterInit && str.startsWith("init|")) {
 					// after callee has registered as callee, we can process queued WebRtc messages
@@ -2780,6 +2782,7 @@ public class WebCallService extends Service {
 						return;
 					}
 
+					// wsClient is set
 					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 						reconnectSchedFuture.cancel(false);	
 						reconnectSchedFuture = null;
@@ -2802,7 +2805,22 @@ public class WebCallService extends Service {
 							// - js:wsConn is set (to wsClient)
 							// - will send "init|" to register callee
 							// - UI in online state (green led + goOfflineButton enabled)
-							runJS("wakeGoOnline();",null);
+							runJS("wakeGoOnline();", new ValueCallback<String>() {
+								@Override
+								public void onReceiveValue(String s) {
+									if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+										keepAwakeWakeLock.release();
+										long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+										Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
+										keepAwakeWakeLockMS += wakeMS;
+										storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+									}
+									reconnectBusy = false;
+									reconnectCounter = 0;
+								}
+							});
+
+
 						} else {
 							// send 'init' to register as callee
 							// otherwise the server will kick us out
@@ -2813,6 +2831,16 @@ public class WebCallService extends Service {
 								Log.d(TAG,"reconnecter send init ex="+ex);
 								// TODO
 							}
+
+							if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+								keepAwakeWakeLock.release();
+								long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+								Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
+								keepAwakeWakeLockMS += wakeMS;
+								storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+							}
+							reconnectBusy = false;
+							reconnectCounter = 0;
 						}
 
 						if(currentUrl==null) {
@@ -2820,29 +2848,9 @@ public class WebCallService extends Service {
 								prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 							String username = prefs.getString("username", "");
 							currentUrl = "https://"+webcalldomain+"/callee/"+username;
-							//if(extendedLogsFlag) {
-								Log.d(TAG,"reconnecter set currentUrl="+currentUrl);
-							//}
+							Log.d(TAG,"reconnecter set currentUrl="+currentUrl);
 						}
 					}
-					if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-						// we need to delay keepAwakeWakeLock.release() a bit, 
-						// so that runJS("wakeGoOnline()") can finish in async fashion
-						try {
-							Thread.sleep(500);
-						} catch(Exception ex) {
-							Log.d(TAG, "reconnecter sleep ex="+ex);
-						}
-						long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-						Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
-						keepAwakeWakeLockMS += wakeMS;
-						storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
-						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-							keepAwakeWakeLock.release();
-						}
-					}
-					reconnectBusy = false;
-					reconnectCounter = 0;
 				} catch(Exception ex) {
 					// this can be caused by webview not installed or just now uninstalled
 					// "android.webkit.WebViewFactory$MissingWebViewPackageException: "
