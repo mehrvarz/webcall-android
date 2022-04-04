@@ -1666,7 +1666,7 @@ public class WebCallService extends Service {
 						context.startActivity(wakeIntent);
 						scheduler.schedule(this, 3, TimeUnit.SECONDS);
 					} else {
-						Log.d(TAG,"rtcConnect() bringActivityToFront abort");
+						Log.d(TAG,"rtcConnect() bringActivityToFront end");
 					}
 				}
 			};
@@ -2747,6 +2747,7 @@ public class WebCallService extends Service {
 						return;
 					}
 
+					//tmtmtm
 					statusMessage("Connecting..",true,false);
 					//Log.d(TAG,"reconnecter connectHost("+wsAddr+")");
 					connectHost(wsAddr); // will set wsClient on success
@@ -2789,16 +2790,14 @@ public class WebCallService extends Service {
 					}
 					if(reconnectBusy) {
 						// success
-						Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
-						statusMessage("Online. Waiting for calls.",false,false);
 
 						// an alarm event (checkLastPing) striking now could report "diff TOO OLD"
 						// we want to prevent that from happening
 						lastPingDate = new Date();
 
-						if(beepOnLostNetworkMode>0) {
-							playSoundConfirm();
-						}
+						//if(beepOnLostNetworkMode>0) {
+						//	playSoundConfirm();
+						//}
 
 						if(currentUrl==null) {
 							String webcalldomain =
@@ -2808,6 +2807,7 @@ public class WebCallService extends Service {
 							Log.d(TAG,"reconnecter set currentUrl="+currentUrl);
 						}
 
+						//tmtmtm
 						if(myWebView!=null && webviewMainPageLoaded) {
 							// wakeGoOnline() makes sure:
 							// - js:wsConn is set (to wsClient)
@@ -2818,6 +2818,8 @@ public class WebCallService extends Service {
 								public void onReceiveValue(String s) {
 									reconnectBusy = false;
 									reconnectCounter = 0;
+									Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
+									statusMessage("Online. Waiting for calls.",false,false);
 									if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 										long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 										Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
@@ -2840,6 +2842,8 @@ public class WebCallService extends Service {
 
 							reconnectBusy = false;
 							reconnectCounter = 0;
+							Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
+							statusMessage("Online. Waiting for calls.",false,false);
 							if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 								long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 								Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
