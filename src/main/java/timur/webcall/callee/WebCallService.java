@@ -1306,8 +1306,10 @@ public class WebCallService extends Service {
 				checkNetworkState(false);
 			}
 			if(wsClient!=null) {
-				Log.d(TAG, "wakeupType() wsClient is set: checkLastPing");
-				checkLastPing(true,0);
+				//Log.d(TAG, "wakeupType() wsClient is set: checkLastPing");
+				// tmtmtm if TOO LATE strikes, this is bad for receiving calls
+				//checkLastPing(true,0);
+				Log.d(TAG, "wakeupType() wsClient is set");
 			} else {
 				if(!connectToSignalingServerIsWanted) {
 					Log.d(TAG,"wakeupType() wsClient not set, no connectToSignalingServerIsWanted");
@@ -2273,11 +2275,11 @@ public class WebCallService extends Service {
 			// and the server has given up on us: we need to start reconnecter
 			Date newDate = new Date();
 			long diffInMillies = Math.abs(newDate.getTime() - lastPingDate.getTime());
-			if(diffInMillies > serverPingPeriodPlus*1000) {
+			if(diffInMillies > serverPingPeriodPlus*1000) { // 80000ms
 				// server pings have dropped, we need to start a reconnector
 				needKeepAwake = true;
 				needReconnecter = true;
-				Log.d(TAG,"checkLastPing diff="+diffInMillies+" TOO OLD");
+				Log.d(TAG,"checkLastPing diff="+diffInMillies+"ms TOO OLD");
 			} else {
 				if(extendedLogsFlag) {
 					Log.d(TAG,"checkLastPing diff="+diffInMillies+" < "+(serverPingPeriodPlus*1000));
@@ -2832,7 +2834,7 @@ public class WebCallService extends Service {
 						} else {
 							// send 'init' to register as callee
 							// otherwise the server will kick us out
-							Log.d(TAG,"reconnecter send init");
+							Log.d(TAG,"reconnecter send init "+(myWebView!=null)+" "+webviewMainPageLoaded);
 							try {
 								wsClient.send("init|");
 							} catch(Exception ex) {
