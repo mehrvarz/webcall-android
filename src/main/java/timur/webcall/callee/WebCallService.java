@@ -388,10 +388,6 @@ public class WebCallService extends Service {
 			// set initial charging state
 			charging = isPowerConnected(context);
 			Log.d(TAG,"onStartCommand charging="+charging);
-			//if(charging) {
-			//	Log.d(TAG,"onStartCommand charging keepAwakeWakeLock");
-			//	keepAwakeWakeLock.acquire(24 * 60 * 60 * 1000);
-			//}
 
 			powerConnectionReceiver = new PowerConnectionReceiver();
 			IntentFilter ifilter = new IntentFilter();
@@ -594,7 +590,7 @@ public class WebCallService extends Service {
 						// call scheduler.schedule()
 						if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"networkState keepAwakeWakeLock.acquire");
-							keepAwakeWakeLock.acquire(30 * 60 * 1000);
+							keepAwakeWakeLock.acquire(3 * 60 * 1000);
 							keepAwakeWakeLockStartTime = (new Date()).getTime();
 						}
 						// set haveNetworkInt before scheduler in case scheduler starts reconnecter immediately
@@ -1921,7 +1917,7 @@ public class WebCallService extends Service {
 
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"onClose keepAwakeWakeLock.acquire");
-						keepAwakeWakeLock.acquire(30 * 60 * 1000);
+						keepAwakeWakeLock.acquire(3 * 60 * 1000);
 						keepAwakeWakeLockStartTime = (new Date()).getTime();
 					}
 
@@ -2306,7 +2302,7 @@ public class WebCallService extends Service {
 				Log.d(TAG,"checkLastPing charging, no keepAwakeWakeLock change");
 			} else*/ if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 				Log.d(TAG,"checkLastPing keepAwakeWakeLock.acquire");
-				keepAwakeWakeLock.acquire(30 * 60 * 1000);
+				keepAwakeWakeLock.acquire(3 * 60 * 1000);
 				keepAwakeWakeLockStartTime = (new Date()).getTime();
 			} else if(keepAwakeWakeLock!=null) {
 				Log.d(TAG,"checkLastPing keepAwakeWakeLock.isHeld");
@@ -3152,7 +3148,7 @@ public class WebCallService extends Service {
 					reconnectWaitNetwork = false; // set false will prevent another reconnecter being started
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to wifi keepAwakeWakeLock.acquire");
-						keepAwakeWakeLock.acquire(30 * 60 * 1000);
+						keepAwakeWakeLock.acquire(3 * 60 * 1000);
 						keepAwakeWakeLockStartTime = (new Date()).getTime();
 					}
 					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
@@ -3197,7 +3193,7 @@ public class WebCallService extends Service {
 					reconnectWaitNetwork = false; // set false will prevent another reconnecter being started
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to net keepAwakeWakeLock.acquire");
-						keepAwakeWakeLock.acquire(30 * 60 * 1000);
+						keepAwakeWakeLock.acquire(3 * 60 * 1000);
 						keepAwakeWakeLockStartTime = (new Date()).getTime();
 					}
 					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
