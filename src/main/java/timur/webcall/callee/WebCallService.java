@@ -2667,7 +2667,7 @@ public class WebCallService extends Service {
 						reconnectCounter = 0;
 						Log.d(TAG,"reconnecter login fail "+wsAddr+" give up "+reader.readLine()+
 							" "+reader.readLine()+" "+reader.readLine()+" "+reader.readLine());
-						statusMessage("Reconnect failed. Giving up.",true,true);
+						statusMessage("Reconnect failed. Giving up. "+response,true,true);
 						if(myWebView!=null && webviewMainPageLoaded) {
 							// offlineAction(): disable offline-button and enable online-button
 							runJS("offlineAction();", new ValueCallback<String>() {
