@@ -1,0 +1,8 @@
+v0.9.85
+- if there is a reconnect error string, it is now shown in UI
+v0.9.84
+- removed checkLastPing() from wakeupType() if wsClient is set
+  it was possible for this to cause a disconnect on device wake
+v0.9.83
+- improved reconnect handling while in deep sleep
+
