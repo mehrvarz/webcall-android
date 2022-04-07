@@ -2659,79 +2659,51 @@ public class WebCallService extends Service {
 					Log.d(TAG,"reconnecter response tokens length="+tokens.length);
 					wsAddr = tokens[0];
 
-/*
-					if(wsAddr.equals("fatal") || wsAddr.equals("error") || tokens.length<3) {
-						// login error: try reconnect
-						if(wsClient!=null) {
-							// wsClient must be null before we start reconnecter
-							wsClient.close();
-							wsClient = null;
-						}
-						if(reconnectCounter<ReconnectCounterMax) {
-							int delaySecs = reconnectCounter*5;
-							if(delaySecs>30) {
-								delaySecs=30;
-							}
-							Log.d(TAG,"reconnecter login fail '"+wsAddr+"' retry "+delaySecs+"...");
-							statusMessage("Login failed. Will try again...",true,false);
-							if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-								reconnectSchedFuture.cancel(false);	
-								reconnectSchedFuture = null;
-							}
-							// TODO P9 this may not come back as planned (in 30s) - but maybe in 7m
-							// and this despite keepAwakeWakeLock being acquired by onClose (and WIFI being back)
-							reconnectSchedFuture =
-								scheduler.schedule(reconnecter,delaySecs,TimeUnit.SECONDS);
-							return;
-						}
-
-						Log.d(TAG,"reconnecter login fail "+wsAddr+" give up");
-						if(reconnectBusy) {
-							if(beepOnLostNetworkMode>0) {
-								playSoundAlarm();
-							}
-							statusMessage("Login failed. Giving up.",true,true);
-						}
-						if(myWebView!=null && webviewMainPageLoaded) {
-							// offlineAction(): disable offline-button and enable online-button
-							runJS("offlineAction();",null);
-						}
-						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-							Log.d(TAG,"reconnecter keepAwakeWakeLock.release +"+wakeMS);
-							keepAwakeWakeLockMS += wakeMS;
-							storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
-							keepAwakeWakeLock.release();
-						}
-						reconnectBusy = false;
-						reconnectCounter = 0;
-						return;
-
-					} else if(wsAddr.equals("noservice") ||	wsAddr.equals("notregistered")) {
-*/
-					if(wsAddr.equals("fatal") || wsAddr.equals("error") || wsAddr.equals("busy") || 					   wsAddr.equals("noservice") || wsAddr.equals("notregistered") || tokens.length<3) {
+					if(wsAddr.equals("fatal") || wsAddr.equals("error") || wsAddr.equals("busy") ||
+					   wsAddr.equals("noservice") || wsAddr.equals("notregistered") || tokens.length<3) {
 						// login error: give up reconnecter
 						Log.d(TAG,"reconnecter login fail "+wsAddr+" give up "+reader.readLine()+
 							" "+reader.readLine()+" "+reader.readLine()+" "+reader.readLine());
-						if(reconnectBusy) {
-							if(beepOnLostNetworkMode>0) {
-								playSoundAlarm();
-							}
-							statusMessage("Login failed. Giving up.",true,true);
-						}
-						if(myWebView!=null && webviewMainPageLoaded) {
-							// offlineAction(): disable offline-button and enable online-button
-							runJS("offlineAction();",null);
-						}
-						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-							Log.d(TAG,"reconnecter keepAwakeWakeLock.release +"+wakeMS);
-							keepAwakeWakeLockMS += wakeMS;
-							storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
-							keepAwakeWakeLock.release();
-						}
+						boolean wasReconnectBusy = reconnectBusy;
 						reconnectBusy = false;
 						reconnectCounter = 0;
+						if(myWebView!=null && webviewMainPageLoaded) {
+							// offlineAction(): disable offline-button and enable online-button
+							runJS("offlineAction();", new ValueCallback<String>() {
+								@Override
+								public void onReceiveValue(String s) {
+									if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+										long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+										Log.d(TAG,"reconnecter keepAwakeWakeLock.release +"+wakeMS);
+										keepAwakeWakeLockMS += wakeMS;
+										storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+
+										if(wasReconnectBusy) {
+											if(beepOnLostNetworkMode>0) {
+												playSoundAlarm();
+											}
+											statusMessage("Login failed. Giving up.",true,true);
+										}
+										keepAwakeWakeLock.release();
+									}
+								}
+							});
+						} else {
+							if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+								long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+								Log.d(TAG,"reconnecter keepAwakeWakeLock.release +"+wakeMS);
+								keepAwakeWakeLockMS += wakeMS;
+								storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+
+								if(wasReconnectBusy) {
+									if(beepOnLostNetworkMode>0) {
+										playSoundAlarm();
+									}
+									statusMessage("Login failed. Giving up.",true,true);
+								}
+								keepAwakeWakeLock.release();
+							}
+						}
 						return;
 					}
 
