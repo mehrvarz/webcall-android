@@ -2662,11 +2662,12 @@ public class WebCallService extends Service {
 					if(wsAddr.equals("fatal") || wsAddr.equals("error") || wsAddr.equals("busy") ||
 					   wsAddr.equals("noservice") || wsAddr.equals("notregistered") || tokens.length<3) {
 						// login error: give up reconnecter
-						Log.d(TAG,"reconnecter login fail "+wsAddr+" give up "+reader.readLine()+
-							" "+reader.readLine()+" "+reader.readLine()+" "+reader.readLine());
 						boolean wasReconnectBusy = reconnectBusy;
 						reconnectBusy = false;
 						reconnectCounter = 0;
+						Log.d(TAG,"reconnecter login fail "+wsAddr+" give up "+reader.readLine()+
+							" "+reader.readLine()+" "+reader.readLine()+" "+reader.readLine());
+						statusMessage("Reconnect failed. Giving up.",true,true);
 						if(myWebView!=null && webviewMainPageLoaded) {
 							// offlineAction(): disable offline-button and enable online-button
 							runJS("offlineAction();", new ValueCallback<String>() {
@@ -2682,7 +2683,6 @@ public class WebCallService extends Service {
 											if(beepOnLostNetworkMode>0) {
 												playSoundAlarm();
 											}
-											statusMessage("Login failed. Giving up.",true,true);
 										}
 										keepAwakeWakeLock.release();
 									}
@@ -2699,7 +2699,6 @@ public class WebCallService extends Service {
 									if(beepOnLostNetworkMode>0) {
 										playSoundAlarm();
 									}
-									statusMessage("Login failed. Giving up.",true,true);
 								}
 								keepAwakeWakeLock.release();
 							}
