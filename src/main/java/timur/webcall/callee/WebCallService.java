@@ -2655,7 +2655,7 @@ public class WebCallService extends Service {
 					}
 
 					String response = reader.readLine();
-					String[] tokens = response.split("\\|");
+					String[] tokens = response.split("\\|"); // this means split on pipe (backslash as escape)
 					Log.d(TAG,"reconnecter response tokens length="+tokens.length);
 					wsAddr = tokens[0];
 
