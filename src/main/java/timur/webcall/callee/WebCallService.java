@@ -1955,12 +1955,12 @@ public class WebCallService extends Service {
 						} else {
 							loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
 										"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
-							Log.d(TAG,"onClose re-login in 8s url="+loginUrl);
+							Log.d(TAG,"onClose re-login in 5s url="+loginUrl);
 							// hopefully network is avilable in 8s again
 							// TODO on P9 in some cases this reconnecter does NOT come
 							// these are cases where the cause of the 1006 was wifi being gone (client side)
 							// shortly after this 1006 we then receive a networkStateReceiver event with all null
-							reconnectSchedFuture = scheduler.schedule(reconnecter,8,TimeUnit.SECONDS);
+							reconnectSchedFuture = scheduler.schedule(reconnecter,5,TimeUnit.SECONDS);
 						}
 					}
 
