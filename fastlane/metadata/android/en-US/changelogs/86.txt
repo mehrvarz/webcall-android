@@ -1,0 +1,9 @@
+v0.9.86
+- added JavascriptInterface public long keepAwakeMS()
+- on 1006 onClose re-login in 5s (instead of 8s)
+v0.9.85
+- if there is a reconnect error string, it is now shown in UI
+v0.9.84
+- removed checkLastPing() from wakeupType() if wsClient is set
+  it was possible for this to cause a disconnect on device wake
+
