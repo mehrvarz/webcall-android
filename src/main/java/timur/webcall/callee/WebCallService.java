@@ -1586,6 +1586,11 @@ public class WebCallService extends Service {
 		}
 
 		@android.webkit.JavascriptInterface
+		public long keepAwakeMS() {
+			return keepAwakeWakeLockMS;
+		}
+
+		@android.webkit.JavascriptInterface
 		public void insecureTls(boolean flag) {
 			insecureTlsFlag = flag;
 			Log.d(TAG,"insecureTlsFlag="+insecureTlsFlag);
