@@ -78,7 +78,7 @@ window.onload = function() {
 			//Android.storePreferenceLong("keepAwakeWakeLockMS", 0);
 		}
 
-		document.getElementById("webcallversion").innerHTML = Android.getVersionName();
+		document.getElementById("webcallversion").innerHTML = "v"+Android.getVersionName();
 
 		var webviewVersion = Android.webviewVersion();
 		if(!webviewVersion) {
@@ -86,7 +86,7 @@ window.onload = function() {
 		} else if(webviewVersion<"80.0") {
 			webviewVersion = webviewVersion + " (very old?)";
 		}
-		document.getElementById("webviewversion").innerHTML = webviewVersion;
+		document.getElementById("webviewversion").innerHTML = "v"+webviewVersion;
 	}
 	if(domain=="") {
 		domain = "timur.mobi";
@@ -107,7 +107,10 @@ window.onload = function() {
 	});
 
 	// remove focus from any of the elements (to prevent accidental modification)
-	document.activeElement.blur();
+	setTimeout(function() {
+		document.activeElement.blur();
+	},400);
+
 	// will proceed in submitFormDone()
 }
 
