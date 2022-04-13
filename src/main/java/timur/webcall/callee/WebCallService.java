@@ -162,9 +162,9 @@ public class WebCallService extends Service {
 	private final static String startAlarmString = "timur.webcall.callee.START_ALARM";
 	private final static Intent startAlarmIntent = new Intent(startAlarmString);
 
-	// serverPingPeriodPlus corresponds to pingPeriod in wsClient.go
-	// after serverPingPeriodPlus secs we consider the pings from the server have stopped
-	private final static int serverPingPeriodPlus = 60+20;
+	// serverPingPeriodPlus corresponds to pingPeriod=60 in wsClient.go
+	// after serverPingPeriodPlus secs with no pings, checkLastPing() considers server connection gone
+	private final static int serverPingPeriodPlus = 2*60+10;
 
 	// we do up to ReconnectCounterMax loops when we try to reconnect
 	// loops are done in ca. 30s intervals; so 40 loops will take up close to 20min
@@ -1304,7 +1304,7 @@ public class WebCallService extends Service {
 			if(wsClient!=null) {
 				//Log.d(TAG, "wakeupType() wsClient is set: checkLastPing");
 				// tmtmtm if TOO LATE strikes, this is bad for receiving calls
-				//checkLastPing(true,0);
+				checkLastPing(true,0);
 				Log.d(TAG, "wakeupType() wsClient is set");
 			} else {
 				if(!connectToSignalingServerIsWanted) {
@@ -2276,7 +2276,7 @@ public class WebCallService extends Service {
 			// and the server has given up on us: we need to start reconnecter
 			Date newDate = new Date();
 			long diffInMillies = Math.abs(newDate.getTime() - lastPingDate.getTime());
-			if(diffInMillies > serverPingPeriodPlus*1000) { // 80000ms
+			if(diffInMillies > serverPingPeriodPlus*1000) { // 130000ms
 				// server pings have dropped, we need to start a reconnector
 				needKeepAwake = true;
 				needReconnecter = true;
