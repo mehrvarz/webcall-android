@@ -217,7 +217,8 @@ function submitFormDone(theForm) {
 	window.location.replace(url);
 */
 
-	let api = "https://"+valueDomain+"/rtcsig/online?id="+valueUsername+"&ver="+Android.getVersionName();
+	let api = "https://"+valueDomain+"/rtcsig/online?id="+valueUsername+
+		"&ver="+Android.getVersionName()+"_"+Android.webviewVersion();
 	console.log('xhr api '+api);
 	ajaxFetch(new XMLHttpRequest(), "GET", api, function(xhr) {
 		if(xhr.responseText.startsWith("error")) {

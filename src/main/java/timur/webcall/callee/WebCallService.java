@@ -1267,7 +1267,6 @@ public class WebCallService extends Service {
 
 			PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
 			if(webviewPackageInfo != null) {
-//				webviewVersionString = webviewPackageInfo.versionName+" ("+webviewPackageInfo.packageName+")";
 				webviewVersionString = webviewPackageInfo.versionName;
 				Log.d(TAG, "startWebView version "+webviewVersionString);
 			}
