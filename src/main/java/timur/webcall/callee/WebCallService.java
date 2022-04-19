@@ -2286,6 +2286,9 @@ public class WebCallService extends Service {
 	}
 
 	private void checkLastPing(boolean wakeIfNoNet, int reconnectDelaySecs) {
+		if(!connectToSignalingServerIsWanted) {
+			return;
+		}
 		if(extendedLogsFlag) {
 			Log.d(TAG,"checkLastPing");
 		}
