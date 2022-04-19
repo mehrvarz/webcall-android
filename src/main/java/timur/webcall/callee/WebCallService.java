@@ -1303,8 +1303,8 @@ public class WebCallService extends Service {
 			if(wsClient!=null) {
 				//Log.d(TAG, "wakeupType() wsClient is set: checkLastPing");
 				// tmtmtm if TOO LATE strikes, this is bad for receiving calls
+				Log.d(TAG, "wakeupType() wsClient is set -> checkLastPing()");
 				checkLastPing(true,0);
-				Log.d(TAG, "wakeupType() wsClient is set");
 			} else {
 				if(!connectToSignalingServerIsWanted) {
 					Log.d(TAG,"wakeupType() wsClient not set, no connectToSignalingServerIsWanted");
@@ -2141,10 +2141,12 @@ public class WebCallService extends Service {
 			} else if(intent.getAction().equals(Intent.ACTION_POWER_DISCONNECTED)) {
 				Log.d(TAG,"POWER_DISCONNECTED");
 				charging = false;
+			} else {
+				Log.d(TAG,"POWER_? "+intent.getAction());
 			}
 
 			if(wsClient!=null) {
-				Log.d(TAG, "wsClient is set: checkLastPing");
+				Log.d(TAG, "power event wsClient is set: checkLastPing");
 				checkLastPing(true,0);
 			} else {
 				if(!connectToSignalingServerIsWanted) {
@@ -2204,6 +2206,7 @@ public class WebCallService extends Service {
 			}
 
 			if(wsClient!=null) {
+				Log.d(TAG,"alarm checkLastPing()");
 				checkLastPing(true,0);
 			} else {
 				if(!connectToSignalingServerIsWanted) {
@@ -2313,10 +2316,9 @@ public class WebCallService extends Service {
 		if(reconnectBusy) {
 			// if we are in a reconnect already (after a detected disconnect)
 			// get a KeepAwake wakelock (it will be released automatically)
-			if(extendedLogsFlag) {
-				Log.d(TAG,"checkLastPing reconnectBusy");
-			}
+			Log.d(TAG,"checkLastPing reconnectBusy");
 			needKeepAwake = true;
+			needReconnecter = false;
 		}
 
 		if(needKeepAwake) {
@@ -3333,9 +3335,7 @@ public class WebCallService extends Service {
 			probablyInDoze = true;
 		}
 
-		if(extendedLogsFlag) {
-			Log.d(TAG,"wakeUpOnLoopCount net="+haveNetworkInt+" inDoze="+probablyInDoze);
-		}
+		Log.d(TAG,"wakeUpOnLoopCount net="+haveNetworkInt+" inDoze="+probablyInDoze);
 		if(probablyInDoze) {
 			if(reconnectCounter==ReconnectCounterBeep) {
 				if(beepOnLostNetworkMode>0) {
