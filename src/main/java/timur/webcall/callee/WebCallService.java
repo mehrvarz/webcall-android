@@ -2206,7 +2206,7 @@ public class WebCallService extends Service {
 			}
 
 			if(wsClient!=null) {
-				Log.d(TAG,"alarm checkLastPing()");
+				//Log.d(TAG,"alarm checkLastPing()");
 				checkLastPing(true,0);
 			} else {
 				if(!connectToSignalingServerIsWanted) {
@@ -2694,6 +2694,7 @@ public class WebCallService extends Service {
 						boolean wasReconnectBusy = reconnectBusy;
 						reconnectBusy = false;
 						reconnectCounter = 0;
+						connectToSignalingServerIsWanted = false;
 						Log.d(TAG,"reconnecter login fail "+wsAddr+" give up "+reader.readLine()+
 							" "+reader.readLine()+" "+reader.readLine()+" "+reader.readLine());
 						statusMessage("Reconnect failed. Giving up. "+response,true,true);
