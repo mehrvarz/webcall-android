@@ -2150,11 +2150,11 @@ public class WebCallService extends Service {
 				checkLastPing(true,0);
 			} else {
 				if(!connectToSignalingServerIsWanted) {
-					Log.d(TAG,"wsClient not set, no connectToSignalingServerIsWanted");
+					Log.d(TAG,"power event wsClient not set, no connectToSignalingServerIsWanted");
 				} else if(reconnectBusy) {
-					Log.d(TAG,"wsClient not set, reconnectBusy");
+					Log.d(TAG,"power event wsClient not set, reconnectBusy");
 				} else {
-					Log.d(TAG,"wsClient not set, startReconnecter");
+					Log.d(TAG,"power event wsClient not set, startReconnecter");
 					startReconnecter(true,0);
 				}
 			}
@@ -2335,6 +2335,7 @@ public class WebCallService extends Service {
 			}
 		}
 		if(needReconnecter) {
+			Log.d(TAG,"checkLastPing startReconnecter");
 			startReconnecter(wakeIfNoNet,reconnectDelaySecs);
 		}
 	}
@@ -2521,9 +2522,13 @@ public class WebCallService extends Service {
 					reconnectBusy = false;
 					return;
 				}
+				if(reconnectBusy) {
+					Log.d(TAG,"reconnecter already busy, skip start");
+					return;
+				}
+				reconnectBusy = true;
 				Log.d(TAG,"reconnecter start "+reconnectCounter+" net="+haveNetworkInt+" "+
 					currentDateTimeString());
-				reconnectBusy = true;
 				wakeupTypeInt = -1;
 				wakeUpOnLoopCount(context);
 				reconnectCounter++;
