@@ -2173,6 +2173,11 @@ public class WebCallService extends Service {
 			pendingAlarm = null;
 			alarmPendingDate = null;
 
+			if(!connectToSignalingServerIsWanted) {
+				Log.w(TAG,"!connectToSignalingServerIsWanted");
+				return;
+			}
+
 			batteryStatus = context.registerReceiver(null, batteryStatusfilter);
 			//int chargePlug = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
 			//boolean usbCharge = chargePlug == BatteryManager.BATTERY_PLUGGED_USB;
