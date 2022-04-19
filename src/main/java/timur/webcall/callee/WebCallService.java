@@ -1581,6 +1581,12 @@ public class WebCallService extends Service {
 
 		@android.webkit.JavascriptInterface
 		public String webviewVersion() {
+			if(webviewVersionString=="") {
+				PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
+				if(webviewPackageInfo != null) {
+					webviewVersionString = webviewPackageInfo.versionName;
+				}
+			}
 			return webviewVersionString;
 		}
 
@@ -1952,6 +1958,12 @@ public class WebCallService extends Service {
 						} else if(username.equals("")) {
 							Log.d(TAG,"onClose cannot reconnect: username is not set");
 						} else {
+							if(webviewVersionString=="") {
+								PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
+								if(webviewPackageInfo != null) {
+									webviewVersionString = webviewPackageInfo.versionName;
+								}
+							}
 							loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
 										"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
 							Log.d(TAG,"onClose re-login in 5s url="+loginUrl);
@@ -2253,6 +2265,12 @@ public class WebCallService extends Service {
 			webcalldomain = prefs.getString("webcalldomain", "")
 				.toLowerCase(Locale.getDefault());
 			username = prefs.getString("username", "");
+			if(webviewVersionString=="") {
+				PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
+				if(webviewPackageInfo != null) {
+					webviewVersionString = webviewPackageInfo.versionName;
+				}
+			}
 			loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
 						"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
 		}
