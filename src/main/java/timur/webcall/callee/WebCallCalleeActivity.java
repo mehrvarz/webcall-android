@@ -1109,41 +1109,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				MY_PERMISSIONS_WRITE_EXTERNAL_STORAGE); // -> onRequestPermissionsResult()
 			return;
 		}
-
-/*
-		// ask user to provide basic permissions for mic and camera
-		boolean permMicNeeed = checkCallingOrSelfPermission(android.Manifest.permission.RECORD_AUDIO)
-					!= PackageManager.PERMISSION_GRANTED;
-		boolean permCamNeeed = checkCallingOrSelfPermission(android.Manifest.permission.CAMERA)
-					!= PackageManager.PERMISSION_GRANTED;
-		Log.d(TAG, "onStart permMicNeeed="+permMicNeeed+" permCamNeeed="+permCamNeeed);
-		if(permMicNeeed || permCamNeeed) {
-			AlertDialog.Builder alertbox = new AlertDialog.Builder(context);
-			alertbox.setTitle("Permission needed");
-			String msg = "";
-			if(permMicNeeed && permCamNeeed) {
-				msg = "Permissions needed for WebView to use microphone and camera.";
-			} else if(permMicNeeed) {
-				msg = "A permission is needed for WebView to use the microphone.";
-			} else if(permCamNeeed) {
-				msg = "A permission is needed for WebView to use the camera.";
-			}
-			msg += "\nOpen 'Permissions' and allow media devices to be used.";
-			alertbox.setMessage(msg);
-			alertbox.setPositiveButton("Continue", new DialogInterface.OnClickListener() {
-				@Override
-				public void onClick(DialogInterface dialog, int which) {
-					Intent myAppSettings = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-						Uri.parse("package:" + getPackageName()));
-					myAppSettings.addCategory(Intent.CATEGORY_DEFAULT);
-					myAppSettings.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-					myAppSettings.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
-					context.startActivity(myAppSettings);
-				}
-			});
-			alertbox.show();
-		}
-*/
 	}
 
 	private void proximityNear() {
@@ -1272,6 +1237,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 			// method 2: we show a dialog that says: 
 			alertbox.setTitle("Permission needed");
+			// msg_noopti2 = "A permission is needed for reliable connection handling."
 			alertbox.setMessage(getString(R.string.msg_noopti2));
 
 			alertbox.setPositiveButton("Continue", new DialogInterface.OnClickListener() {
