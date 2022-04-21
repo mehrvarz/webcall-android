@@ -1,11 +1,10 @@
 v1.0.0-rc2
 - display KeepAwake time under Call Statistics
-- timur.mobi updates link on base page
+- link to status + updates on base page
 - improved reconnect handling
-- fixed reconnect login issue
 - fixed missing webview version issue
 - service: do showStatus() if screen is off
-- service: don't call scheduler.schedule(reconnecter...) if reconnectBusy is set
+- service: don't schedule reconnecter if reconnectBusy is set
 - service: added JavascriptInterface keepAwakeMS()
-- service: on 1006 disconnect, re-login after 5s (instead of 8s)
+- service: on 1006 disconnect, re-login after 5s (was 8s)
 
