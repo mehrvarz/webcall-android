@@ -4,6 +4,8 @@ v1.0.0-rc2
 - improved reconnect handling
 - fixed reconnect login issue
 - fixed missing webview version issue
+- service: do showStatus() if screen is off
+- service: don't call scheduler.schedule(reconnecter...) if reconnectBusy is set
 - service: added JavascriptInterface keepAwakeMS()
 - service: on 1006 disconnect, re-login after 5s (instead of 8s)
 
