@@ -2,9 +2,9 @@ v1.0.0-rc2
 - display KeepAwake time under Call Statistics
 - link to status + updates on base page
 - improved reconnect handling
-- fixed missing webview version issue
+- fixed webview version missing issue
 - service: do showStatus() if screen is off
-- service: don't schedule reconnecter if reconnectBusy is set
+- service: don't schedule reconnecter if reconnectBusy
 - service: added JavascriptInterface keepAwakeMS()
-- service: on 1006 disconnect, re-login after 5s (was 8s)
+- service: on 1006 disconnect re-login after 5s (was 8s)
 
