@@ -110,6 +110,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private volatile boolean webviewBlocked = false;
 	private volatile String dialId = null; // set by onCreate() + getIntent() or by onNewIntent()
 	private volatile boolean writeExtStoragePermissionDenied = false;
+	private volatile int callInProgress = 0;
 
 
 	@Override
@@ -433,7 +434,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public void onCreateContextMenu(ContextMenu menu, View view,
 						ContextMenu.ContextMenuInfo menuInfo) {
-		int callInProgress = 0;
+//		int callInProgress = 0;
 		if(webCallServiceBinder==null) {
 			Log.d(TAG,"onCreateContextMenu abort on no webCallServiceBinder");
 			return;
@@ -1119,12 +1120,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 		proximityNear = true;
-		int callInProgress = 0;
+		callInProgress = 0;
 		if(webCallServiceBinder!=null) {
 			callInProgress = webCallServiceBinder.callInProgress();
 		}
-		//Log.d(TAG, "SensorEvent near "+event.values[0]+" "+callInProgress);
 		if(callInProgress>0) {
+			Log.d(TAG, "SensorEvent near "+callInProgress);
+		}
+		if(callInProgress>1) {
 			// device is in-a-call: shut the screen on proximity
 			Log.d(TAG, "SensorEvent near, block screen");
 			webviewBlocked = true;
@@ -1169,11 +1172,20 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 		proximityNear = false;
 
+		callInProgress = 0;
+		if(webCallServiceBinder!=null) {
+			callInProgress = webCallServiceBinder.callInProgress();
+		}
+
 		if(wakeLockProximity!=null && wakeLockProximity.isHeld()) {
-			Log.d(TAG, "SensorEvent "+from+" wakeLockProximity.release");
+			if(callInProgress>0) {
+				Log.d(TAG, "SensorEvent away from="+from+" wakeLockProximity.release");
+			}
 			wakeLockProximity.release(PowerManager.RELEASE_FLAG_WAIT_FOR_NO_PROXIMITY);
 		} else {
-			Log.d(TAG, "SensorEvent near, un-dim screen");
+			if(callInProgress>0) {
+				Log.d(TAG, "SensorEvent away from="+from+", un-dim screen");
+			}
 			mParams.screenBrightness = -1f;
 			getWindow().setAttributes(mParams);
 		}
@@ -1188,7 +1200,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			keyguardLock = null;
 		}
 
-		Log.d(TAG, "SensorEvent "+from+", unblock screen");
+		if(callInProgress>0) {
+			Log.d(TAG, "SensorEvent away from="+from+", unblock screen");
+		}
 
 		// do this with a little delay to avoid immediate touch events and screenOrientation change
 		final Handler handler = new Handler(Looper.getMainLooper());
@@ -1197,7 +1211,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			public void run() {
 				if(!proximityNear) {
 					webviewBlocked = false;
-					screenOrientationRelease("away");
+					if(callInProgress>0) {
+						screenOrientationRelease("away");
+					}
 				}
 			}
 		}, 500);

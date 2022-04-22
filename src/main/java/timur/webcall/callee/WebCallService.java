@@ -249,9 +249,6 @@ public class WebCallService extends Service {
 	// reconnectBusy can be set false to abort reconnecter
 	private volatile boolean reconnectBusy = false;
 
-	// reconnectWaitNetwork is set true if reconnecter is running but idle waiting for some network
-	private volatile boolean reconnectWaitNetwork = false;
-
 	// reconnectCounter is the reconnecter loop counter
 	private volatile int reconnectCounter = 0;
 
@@ -585,8 +582,7 @@ public class WebCallService extends Service {
 
 					// the intended criteria: is goOnline activated
 					if(newNetworkInt>0 && haveNetworkInt<=0 &&
-							connectToSignalingServerIsWanted && 
-							(!reconnectBusy || reconnectWaitNetwork)) {
+							connectToSignalingServerIsWanted && !reconnectBusy) {
 						// call scheduler.schedule()
 						if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"networkState keepAwakeWakeLock.acquire");
@@ -596,7 +592,7 @@ public class WebCallService extends Service {
 						// set haveNetworkInt before scheduler in case scheduler starts reconnecter immediately
 						haveNetworkInt = newNetworkInt;
 
-						if(!reconnectBusy || reconnectWaitNetwork) {
+						if(!reconnectBusy) {
 							if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 								// why wait for the scheduled reconnecter job
 								// let's cancel it and start it immediately
@@ -611,8 +607,7 @@ public class WebCallService extends Service {
 								reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
 							}
 						} else {
-							Log.d(TAG,"networkState no reconnecter: reconnectBusy="+
-								reconnectBusy+" reconnectWaitNetwork="+reconnectWaitNetwork);
+							Log.d(TAG,"networkState no reconnecter: reconnectBusy="+reconnectBusy);
 						}
 					}
 					haveNetworkInt = newNetworkInt;
@@ -680,7 +675,7 @@ public class WebCallService extends Service {
 								// let's go straight to reconnecter
 								statusMessage("Disconnected from WebCall server...",true,true);
 
-								if(reconnectSchedFuture==null && (!reconnectBusy || reconnectWaitNetwork)) {
+								if(reconnectSchedFuture==null && !reconnectBusy) {
 									// if no reconnecter is scheduled at this time...
 									// schedule a new reconnecter right away
 									String webcalldomain = prefs.getString("webcalldomain", "")
@@ -699,8 +694,7 @@ public class WebCallService extends Service {
 											scheduler.schedule(reconnecter,0,TimeUnit.SECONDS);
 									}
 								} else {
-									Log.d(TAG,"dozeState idle no reconnecter: reconnectBusy="+
-										reconnectBusy+" reconnectWaitNetwork="+reconnectWaitNetwork);
+									Log.d(TAG,"dozeState idle no reconnecter: reconnectBusy="+reconnectBusy);
 								}
 							}
 
@@ -740,7 +734,7 @@ public class WebCallService extends Service {
 
 							//statusMessage("Disconnected from WebCall server...",true,true);
 
-							if(reconnectSchedFuture==null && (!reconnectBusy || reconnectWaitNetwork)) {
+							if(reconnectSchedFuture==null && !reconnectBusy) {
 								// if no reconnecter is scheduled at this time (by checkLastPing())
 								// then schedule a new reconnecter
 								// in 8s to give server some time to detect the discon
@@ -760,8 +754,7 @@ public class WebCallService extends Service {
 										scheduler.schedule(reconnecter,2,TimeUnit.SECONDS);
 								}
 							} else {
-								Log.d(TAG,"dozeState awake no reconnecter: reconnectBusy="+
-									reconnectBusy+" reconnectWaitNetwork="+reconnectWaitNetwork);
+								Log.d(TAG,"dozeState awake no reconnecter: reconnectBusy="+reconnectBusy);
 							}
 
 						} else if(powerManager.isPowerSaveMode()) {
@@ -798,7 +791,7 @@ public class WebCallService extends Service {
 						if(extraCommand.equals("connect")) {
 							if(webcalldomain!=null && !webcalldomain.equals("") &&
 									username!=null && !username.equals("")) {
-								if(!reconnectBusy || reconnectWaitNetwork) {
+								if(!reconnectBusy) {
 									loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
 												"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
 									Log.d(TAG, "onStartCommand loginUrl="+loginUrl);
@@ -813,8 +806,7 @@ public class WebCallService extends Service {
 									reconnectSchedFuture =
 										scheduler.schedule(reconnecter, 16, TimeUnit.SECONDS);
 								} else {
-									Log.d(TAG,"onStartCommand no reconnecter: reconnectBusy="+
-										reconnectBusy+" reconnectWaitNetwork="+reconnectWaitNetwork);
+									Log.d(TAG,"onStartCommand no reconnecter: reconnectBusy="+reconnectBusy);
 								}
 							}
 						}
@@ -1555,7 +1547,6 @@ public class WebCallService extends Service {
 			// called by JS:goOffline()
 			Log.d(TAG,"wsClose");
 			connectToSignalingServerIsWanted = false;
-			reconnectWaitNetwork = false;
 			if(pendingAlarm!=null) {
 				alarmManager.cancel(pendingAlarm);
 				pendingAlarm = null;
@@ -1963,7 +1954,7 @@ public class WebCallService extends Service {
 
 					statusMessage("Disconnected from WebCall server...",true,true);
 
-					if(reconnectSchedFuture==null && (!reconnectBusy || reconnectWaitNetwork)) {
+					if(reconnectSchedFuture==null && !reconnectBusy) {
 						// if no reconnecter is scheduled at this time (say, by checkLastPing())
 						// then schedule a new reconnecter
 						// schedule in 8s to give server some time to detect the discon
@@ -1991,8 +1982,7 @@ public class WebCallService extends Service {
 							reconnectSchedFuture = scheduler.schedule(reconnecter,5,TimeUnit.SECONDS);
 						}
 					} else {
-						Log.d(TAG,"onClose no reconnecter: reconnectBusy="+
-							reconnectBusy+" reconnectWaitNetwork="+reconnectWaitNetwork);
+						Log.d(TAG,"onClose no reconnecter: reconnectBusy="+reconnectBusy);
 					}
 
 				} else {
@@ -2302,7 +2292,7 @@ public class WebCallService extends Service {
 			loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
 						"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
 		}
-		if(!reconnectBusy || reconnectWaitNetwork) {
+		if(!reconnectBusy) {
 			// TODO do we need to copy cookies here?
 			if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 				reconnectSchedFuture.cancel(false);
@@ -2310,8 +2300,7 @@ public class WebCallService extends Service {
 			}
 			reconnectSchedFuture = scheduler.schedule(reconnecter, reconnectDelaySecs, TimeUnit.SECONDS);
 		} else {
-			Log.d(TAG,"startReconnecter no reconnecter: reconnectBusy="+
-				reconnectBusy+" reconnectWaitNetwork="+reconnectWaitNetwork);
+			Log.d(TAG,"startReconnecter no reconnecter: reconnectBusy="+reconnectBusy);
 		}
 	}
 
@@ -2330,7 +2319,7 @@ public class WebCallService extends Service {
 			Date newDate = new Date();
 			long diffInMillies = Math.abs(newDate.getTime() - lastPingDate.getTime());
 			if(diffInMillies > serverPingPeriodPlus*1000) { // 130000ms
-				// server pings have dropped, we need to start a reconnector
+				// server pings have dropped, we need to start a reconnecter
 				needKeepAwake = true;
 				needReconnecter = true;
 				Log.d(TAG,"checkLastPing diff="+diffInMillies+"ms TOO OLD");
@@ -2338,12 +2327,6 @@ public class WebCallService extends Service {
 				if(extendedLogsFlag) {
 					Log.d(TAG,"checkLastPing diff="+diffInMillies+" < "+(serverPingPeriodPlus*1000));
 				}
-			}
-			if(reconnectBusy && !reconnectWaitNetwork) {
-				// reconnector is active, do NOT start it again
-				needKeepAwake = false;
-				needReconnecter = false;
-				Log.d(TAG,"checkLastPing old reconnector currently active");
 			}
 		}
 		if(reconnectBusy) {
@@ -2367,7 +2350,7 @@ public class WebCallService extends Service {
 				Log.d(TAG,"checkLastPing cannot keepAwakeWakeLock.acquire");
 			}
 		}
-		if(needReconnecter) {
+		if(connectToSignalingServerIsWanted && needReconnecter) {
 			Log.d(TAG,"checkLastPing startReconnecter");
 			startReconnecter(wakeIfNoNet,reconnectDelaySecs);
 		}
@@ -2544,7 +2527,6 @@ public class WebCallService extends Service {
 			// loginUrl must be set before reconnecter is called
 			public void run() {
 				reconnectSchedFuture = null;
-				reconnectWaitNetwork = false;
 				if(wsClient!=null) {
 					Log.d(TAG,"reconnecter already connected");
 					reconnectCounter = 0;
@@ -2575,10 +2557,9 @@ public class WebCallService extends Service {
 							keepAwakeWakeLock.release();
 						}
 
-						// from here on we do nothing other than to wait (for networkState event or alarm)
-						// if reconnectWaitNetwork is set, checkLastPing() and checkNetworkState()
-						// will schedule a new reconnecter, even if reconnectBusy is set
-						reconnectWaitNetwork = true;
+						// we abort reconnecter; if network comes back, checkNetworkState() will
+						// schedule a new reconnecter if connectToSignalingServerIsWanted is set
+						reconnectBusy = false;
 
 						if(screenForWifiMode>0) {
 							Log.d(TAG,"reconnecter wakeUpFromDoze "+reconnectCounter);
@@ -2834,7 +2815,6 @@ public class WebCallService extends Service {
 							Log.d(TAG,"reconnecter set currentUrl="+currentUrl);
 						}
 
-						//tmtmtm
 						if(myWebView!=null && webviewMainPageLoaded) {
 							// wakeGoOnline() makes sure:
 							// - js:wsConn is set (to wsClient)
@@ -3170,17 +3150,16 @@ public class WebCallService extends Service {
 				Log.d(TAG,"networkState wifiLock.acquire");
 				wifiLock.acquire();
 			}
-			if(connectToSignalingServerIsWanted && (!reconnectBusy || reconnectWaitNetwork)) {
+			if(connectToSignalingServerIsWanted && !reconnectBusy) {
 				// if we are supposed to be connected and A) reconnecter is NOT in progress 
 				// or B) reconnecter IS in progress, but is waiting idly for network to come back
 				if(restartReconnectOnNetwork) {
-					reconnectWaitNetwork = false; // set false will prevent another reconnecter being started
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to wifi keepAwakeWakeLock.acquire");
 						keepAwakeWakeLock.acquire(3 * 60 * 1000);
 						keepAwakeWakeLockStartTime = (new Date()).getTime();
 					}
-					if(!reconnectBusy || reconnectWaitNetwork) {
+					if(!reconnectBusy) {
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							// why wait for the scheduled reconnecter (in 8 or 60s)?
 							// let's cancel it and start a new one right away
@@ -3195,8 +3174,7 @@ public class WebCallService extends Service {
 							reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
 						}
 					} else {
-						Log.d(TAG,"networkState connected wifi: no reconnecter: reconnectBusy="+
-							reconnectBusy+" reconnectWaitNetwork="+reconnectWaitNetwork);
+						Log.d(TAG,"networkState connected wifi: no reconnecter: reconnectBusy="+reconnectBusy);
 					}
 				}
 			} else {
@@ -3219,17 +3197,16 @@ public class WebCallService extends Service {
 				wifiLock.release();
 			}
 			haveNetworkInt=1;
-			if(connectToSignalingServerIsWanted && (!reconnectBusy || reconnectWaitNetwork)) {
+			if(connectToSignalingServerIsWanted && !reconnectBusy) {
 				// we don't like to wait for the scheduled reconnecter job
 				// let's cancel it and start it right away
 				if(restartReconnectOnNetwork) {
-					reconnectWaitNetwork = false; // set false will prevent another reconnecter being started
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"networkState connected to net keepAwakeWakeLock.acquire");
 						keepAwakeWakeLock.acquire(3 * 60 * 1000);
 						keepAwakeWakeLockStartTime = (new Date()).getTime();
 					}
-					if(!reconnectBusy || reconnectWaitNetwork) {
+					if(!reconnectBusy) {
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							// why wait for the scheduled reconnecter job
 							// let's cancel and start it right away
@@ -3244,8 +3221,7 @@ public class WebCallService extends Service {
 							reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
 						}
 					} else {
-						Log.d(TAG,"networkState connected other: no reconnecter: reconnectBusy="+
-							reconnectBusy+" reconnectWaitNetwork="+reconnectWaitNetwork);
+						Log.d(TAG,"networkState connected other: no reconnecter: reconnectBusy="+reconnectBusy);
 					}
 				}
 			} else {
@@ -3297,6 +3273,7 @@ public class WebCallService extends Service {
 					wifiLock.release();
 				}
 			}
+			reconnectBusy = false;
 		}
 	}
 
