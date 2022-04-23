@@ -2545,37 +2545,31 @@ public class WebCallService extends Service {
 				reconnectCounter++;
 
 				if(haveNetworkInt<=0) {
-					// we have no network: it makes no sense to try to reconnect now
-					if(reconnectCounter < ReconnectCounterMax) {
-						// just wait for a new-network event via networkCallback or networkStateReceiver
-						// for this to work we keep reconnectBusy set, but we release keepAwakeWakeLock
-						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-							Log.d(TAG,"reconnecter waiting for net keepAwakeWakeLock.release +"+wakeMS);
-							keepAwakeWakeLockMS += wakeMS;
-							storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
-							keepAwakeWakeLock.release();
-						}
-
-						// we abort reconnecter; if network comes back, checkNetworkState() will
-						// schedule a new reconnecter if connectToSignalingServerIsWanted is set
-						reconnectBusy = false;
-
-						if(screenForWifiMode>0) {
-							Log.d(TAG,"reconnecter wakeUpFromDoze "+reconnectCounter);
-							wakeUpFromDoze();
-						}
-						return;
+					// we have no network: it makes no sense to try to reconnect any longer
+					// we just wait for a new-network event via networkCallback or networkStateReceiver
+					// we release keepAwakeWakeLock
+					if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+						long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+						Log.d(TAG,"reconnecter waiting for net; keepAwakeWakeLock.release +"+wakeMS);
+						keepAwakeWakeLockMS += wakeMS;
+						storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+						keepAwakeWakeLock.release();
 					}
 
+					// for very old Android releases
+					if(screenForWifiMode>0) {
+						Log.d(TAG,"reconnecter wakeUpFromDoze "+reconnectCounter);
+						wakeUpFromDoze();
+					}
+					if(beepOnLostNetworkMode>0) {
+						playSoundAlarm();
+					}
+
+					// we abort reconnecter; if network comes back, checkNetworkState() will
+					// schedule a new reconnecter if connectToSignalingServerIsWanted is set
 					Log.d(TAG,"reconnecter no network, giving up reconnect...");
-					if(reconnectBusy) {
-						if(beepOnLostNetworkMode>0) {
-							playSoundAlarm();
-						}
-						statusMessage("No network. Giving up.",true,true);
-						reconnectBusy = false;
-					}
+					statusMessage("No network. Giving up.",true,true);
+					reconnectBusy = false;
 					reconnectCounter = 0;
 					return;
 				}

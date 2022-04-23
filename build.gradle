@@ -7,8 +7,8 @@ android {
 		applicationId "timur.webcall.callee"
 		minSdkVersion 21
 		targetSdkVersion 31
-		versionCode 89
-		versionName "1.0.0-rc3f"
+		versionCode 90
+		versionName "1.0.0-rc4f"
 	}
 	buildTypes {
 		release {
