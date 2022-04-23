@@ -23,6 +23,7 @@ import android.view.MenuInflater;
 import android.graphics.Color;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.WebView.HitTestResult;
 import android.util.Log;
 import android.content.Context;
 import android.content.IntentFilter;
@@ -375,6 +376,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				Log.d(TAG, "onServiceConnected startWebView");
 				myWebView = findViewById(R.id.webview);
 				myWebView.setBackgroundColor(Color.TRANSPARENT);
+				registerForContextMenu(myWebView);
 
 				String appCachePath = getCacheDir().getAbsolutePath();
 				if(extendedLogsFlag) {
@@ -434,113 +436,136 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public void onCreateContextMenu(ContextMenu menu, View view,
 						ContextMenu.ContextMenuInfo menuInfo) {
-//		int callInProgress = 0;
 		if(webCallServiceBinder==null) {
-			Log.d(TAG,"onCreateContextMenu abort on no webCallServiceBinder");
+			Log.d(TAG,"onCreateContextMenu abort: no webCallServiceBinder");
 			return;
 		}
 /*
-// TODO why was this added?
+		// prevent the context menu while in-call
 		if(webCallServiceBinder.callInProgress()>0) {
 			Log.d(TAG,"onCreateContextMenu abort on callInProgress");
 			return;
 		}
 */
-		final int none = ContextMenu.NONE;
-		// for the context menu to be shown, our service must be connected to webcall server
-		// and our webview url must contain "/callee/"
-		String webviewUrl = webCallServiceBinder.getCurrentUrl();
-		if(extendedLogsFlag) {
-			Log.d(TAG,"onCreateContextMenu currentUrl="+webviewUrl+" touchY="+touchY);
-		}
-		if(webviewUrl.indexOf("/callee/")<0) {
-			if(extendedLogsFlag) {
-				Log.d(TAG,"onCreateContextMenu user is not on mainpage");
+
+	    HitTestResult result = myWebView.getHitTestResult();
+		// result.getType(); 5=IMAGE_TYPE, 7=SRC_ANCHOR_TYPE
+		//Log.d(TAG,"onCreateContextMenu result="+result+" "+result.getType()+" "+result.getExtra());
+
+		if(result.getType()==HitTestResult.SRC_ANCHOR_TYPE) {
+			// longpress on a link: copy link-url in to clipboard (result.getExtra())
+			String clipText = result.getExtra();
+			if(clipText!=null && clipText!="") {
+				Log.d(TAG, "broadcastReceiver clipText "+clipText);
+				ClipData clipData = ClipData.newPlainText(null,clipText);
+				ClipboardManager clipboard =
+					(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
+				if(clipboard!=null) {
+					clipboard.setPrimaryClip(clipData);
+					Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_LONG).show();
+				}
+				return;
 			}
+			
 		} else {
+			// longpress on the background
+			// show device menu
+			final int none = ContextMenu.NONE;
+			// for the context menu to be shown, our service must be connected to webcall server
+			// and our webview url must contain "/callee/"
+			String webviewUrl = webCallServiceBinder.getCurrentUrl();
 			if(extendedLogsFlag) {
-				Log.d(TAG,"onCreateContextMenu user is on mainpage");
+				Log.d(TAG,"onCreateContextMenu currentUrl="+webviewUrl+" touchY="+touchY);
 			}
-			menu.setHeaderTitle("WebCall Android "+BuildConfig.VERSION_NAME);
-			if(!nearbyMode) {
-				if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // <=9 <=api28
-					menu.add(none,menuNearbyOn,none,R.string.msg_nfcconnect_on);
-				} else {
-					// TODO turn nearby On for Android 10+ (not yet implemented)
-					//menu.add(none,menuNearbyOn,none,R.string.msg_nearby_on);
+			if(webviewUrl.indexOf("/callee/")<0) {
+				if(extendedLogsFlag) {
+					Log.d(TAG,"onCreateContextMenu user is not on mainpage");
 				}
 			} else {
-				if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // <=9 <=api28
-					menu.add(none,menuNearbyOff,none,R.string.msg_nfcconnect_off);
-				} else {
-					// TODO turn nearby Off for Android 10+ (not yet implemented)
-					//menu.add(none,menuNearbyOff,none,R.string.msg_nearby_off);
+				if(extendedLogsFlag) {
+					Log.d(TAG,"onCreateContextMenu user is on mainpage");
 				}
-			}
-
-			if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) { // <=8 <=api27
-				if(webCallServiceBinder.audioToSpeaker(-1)==0) {
-					menu.add(none,menuRingOnSpeakerOn,none,R.string.msg_ring_on_speaker_on);
+				menu.setHeaderTitle("WebCall Android "+BuildConfig.VERSION_NAME);
+				if(!nearbyMode) {
+					if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // <=9 <=api28
+						menu.add(none,menuNearbyOn,none,R.string.msg_nfcconnect_on);
+					} else {
+						// TODO turn nearby On for Android 10+ (not yet implemented)
+						//menu.add(none,menuNearbyOn,none,R.string.msg_nearby_on);
+					}
 				} else {
-					menu.add(none,menuRingOnSpeakerOff,none,R.string.msg_ring_on_speaker_off);
+					if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) { // <=9 <=api28
+						menu.add(none,menuNearbyOff,none,R.string.msg_nfcconnect_off);
+					} else {
+						// TODO turn nearby Off for Android 10+ (not yet implemented)
+						//menu.add(none,menuNearbyOff,none,R.string.msg_nearby_off);
+					}
 				}
-			} else {
-				// TODO turn ring_on_speaker On/Off for Android 9+ (not yet implemented)
-			}
 
-			if(webCallServiceBinder.beepOnLostNetwork(-1)==0) {
-				menu.add(none,menuBeepOnNoNetworkOn,none,R.string.msg_beep_on_lost_network_on);
-			} else {
-				menu.add(none,menuBeepOnNoNetworkOff,none,R.string.msg_beep_on_lost_network_off);
-			}
-
-			if(webCallServiceBinder.startOnBoot(-1)==0) {
-				menu.add(none,menuStartOnBootOn,none,R.string.msg_start_on_boot_on);
-			} else {
-				menu.add(none,menuStartOnBootOff,none,R.string.msg_start_on_boot_off);
-			}
-
-			if(webCallServiceBinder.setWifiLock(-1)==0) {
-				menu.add(none,menuWifiLockOn,none,R.string.msg_wifi_lock_is_on);
-			} else {
-				menu.add(none,menuWifiLockOff,none,R.string.msg_wifi_lock_is_off);
-			}
-
-			if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
-				if(webCallServiceBinder.screenForWifi(-1)==0) {
-					menu.add(none,menuScreenForWifiOn,none,R.string.msg_screen_for_wifi_on);
+				if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.O_MR1) { // <=8 <=api27
+					if(webCallServiceBinder.audioToSpeaker(-1)==0) {
+						menu.add(none,menuRingOnSpeakerOn,none,R.string.msg_ring_on_speaker_on);
+					} else {
+						menu.add(none,menuRingOnSpeakerOff,none,R.string.msg_ring_on_speaker_off);
+					}
 				} else {
-					menu.add(none,menuScreenForWifiOff,none,R.string.msg_screen_for_wifi_off);
+					// TODO turn ring_on_speaker On/Off for Android 9+ (not yet implemented)
 				}
-			}
 
-			if(proximitySensorMode==0) {
-				menu.add(none,menuProximitySensorOn,none,R.string.msg_proximity_sensor_on);
-			} else {
-				menu.add(none,menuProximitySensorOff,none,R.string.msg_proximity_sensor_off);
-			}
-
-			if(proximitySensorAction==0) {
-				menu.add(none,menuProximityActionDim,none,R.string.msg_proximity_action_screen_dim);
-			} else {
-				menu.add(none,menuProximityActionOff,none,R.string.msg_proximity_action_screen_off);
-			}
-
-			if(!writeExtStoragePermissionDenied) {
-				menu.add(none,menuCaptureLogs,none,R.string.msg_capture_logs);
-				if(lastLogfileName!=null) {
-					menu.add(none,menuOpenLogs,none,R.string.msg_open_logs);
-				}
-			}
-
-			if(touchY<100) {
-				// extended functionality
-				if(webCallServiceBinder.extendedLogs(-1)) {
-					// offer to turn this off, bc it is on
-					menu.add(none,menuExtendedLogsOff,none,R.string.msg_ext_logs_on);
+				if(webCallServiceBinder.beepOnLostNetwork(-1)==0) {
+					menu.add(none,menuBeepOnNoNetworkOn,none,R.string.msg_beep_on_lost_network_on);
 				} else {
-					// offer to turn this on, bc it is off
-					menu.add(none,menuExtendedLogsOn,none,R.string.msg_ext_logs_off);
+					menu.add(none,menuBeepOnNoNetworkOff,none,R.string.msg_beep_on_lost_network_off);
+				}
+
+				if(webCallServiceBinder.startOnBoot(-1)==0) {
+					menu.add(none,menuStartOnBootOn,none,R.string.msg_start_on_boot_on);
+				} else {
+					menu.add(none,menuStartOnBootOff,none,R.string.msg_start_on_boot_off);
+				}
+
+				if(webCallServiceBinder.setWifiLock(-1)==0) {
+					menu.add(none,menuWifiLockOn,none,R.string.msg_wifi_lock_is_on);
+				} else {
+					menu.add(none,menuWifiLockOff,none,R.string.msg_wifi_lock_is_off);
+				}
+
+				if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
+					if(webCallServiceBinder.screenForWifi(-1)==0) {
+						menu.add(none,menuScreenForWifiOn,none,R.string.msg_screen_for_wifi_on);
+					} else {
+						menu.add(none,menuScreenForWifiOff,none,R.string.msg_screen_for_wifi_off);
+					}
+				}
+
+				if(proximitySensorMode==0) {
+					menu.add(none,menuProximitySensorOn,none,R.string.msg_proximity_sensor_on);
+				} else {
+					menu.add(none,menuProximitySensorOff,none,R.string.msg_proximity_sensor_off);
+				}
+
+				if(proximitySensorAction==0) {
+					menu.add(none,menuProximityActionDim,none,R.string.msg_proximity_action_screen_dim);
+				} else {
+					menu.add(none,menuProximityActionOff,none,R.string.msg_proximity_action_screen_off);
+				}
+
+				if(!writeExtStoragePermissionDenied) {
+					menu.add(none,menuCaptureLogs,none,R.string.msg_capture_logs);
+					if(lastLogfileName!=null) {
+						menu.add(none,menuOpenLogs,none,R.string.msg_open_logs);
+					}
+				}
+
+				if(touchY<100) {
+					// extended functionality
+					if(webCallServiceBinder.extendedLogs(-1)) {
+						// offer to turn this off, bc it is on
+						menu.add(none,menuExtendedLogsOff,none,R.string.msg_ext_logs_on);
+					} else {
+						// offer to turn this on, bc it is off
+						menu.add(none,menuExtendedLogsOn,none,R.string.msg_ext_logs_off);
+					}
 				}
 			}
 		}
