@@ -1036,7 +1036,7 @@ public class WebCallService extends Service {
 					if(extendedLogsFlag) {
 						Log.i(TAG, "handleUri path="+path+" scheme="+uri.getScheme());
 					}
-
+/*
 					if(path.indexOf("/user/")>=0) {
 						// this is not a valid url. we store it in the clipboard
 						Log.i(TAG, "handleUri store uri in clipboard " + uri);
@@ -1047,11 +1047,12 @@ public class WebCallService extends Service {
 						sendBroadcast(intent);
 						return true; // do not load this url
 					}
+*/
 					if(uri.getScheme().startsWith("file") ||
 						(uri.getScheme().startsWith("http") && path.indexOf("/callee/")>=0)) {
-						// uri is valid; continue below
+						// uri is valid for webview; continue below
 					} else {
-						// uri is NOT valid
+						// uri is NOT for webview, forward to ext browser
 						Log.i(TAG, "handleUri uri not valid; forward to ext browser");
 						Intent intent = new Intent("webcall");
 						intent.putExtra("browse", uri.toString());
