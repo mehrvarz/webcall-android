@@ -1,6 +1,8 @@
 v1.0.0-rc4
 - longpress on links copies url to clipboard
 - service: improved full network loss behavior
+
+v1.0.0-rc3
 - show KeepAwake time under Call Statistics
 - status + updates page accessible from base page
 - improved reconnect handling
@@ -10,4 +12,3 @@ v1.0.0-rc4
 - service: added JavascriptInterface keepAwakeMS()
 - service: on 1006 disconnect re-login after 5s (was 8s)
 - service: end reconnecter on network loss (with reconnectBusy=false)
-

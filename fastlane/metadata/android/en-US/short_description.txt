@@ -1,2 +1,2 @@
-Web telephony with NFC Connect
+Web telephony SIM-free E2E-encrypted
 
