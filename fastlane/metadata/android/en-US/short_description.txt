@@ -1,2 +1,2 @@
-Web telephony SIM-free E2E-encrypted
+Web telephony No-SIM E2E-encrypted
 
