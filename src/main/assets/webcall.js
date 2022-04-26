@@ -90,6 +90,8 @@ window.onload = function() {
 	}
 	if(domain=="") {
 		domain = "timur.mobi";
+	} else if(domain==" ") {
+		domain = "";
 	}
 	console.log("domain "+domain);
 	console.log("username "+username);
@@ -129,9 +131,10 @@ function submitFormDone(theForm) {
 	console.log('valueDomain',valueDomain);
 	var valueUsername = formUsername.value;
 	console.log('valueUsername',valueUsername);
-	// store valueDomain
 	if(typeof Android !== "undefined" && Android !== null) {
-		Android.storePreference("webcalldomain", valueDomain);
+		if(valueDomain!="") {
+			Android.storePreference("webcalldomain", valueDomain);
+		}
 
 		if(valueUsername!="") {
 			console.log('store valueUsername',valueUsername);
@@ -219,13 +222,14 @@ function submitFormDone(theForm) {
 
 	let api = "https://"+valueDomain+"/rtcsig/online?id="+valueUsername+
 		"&ver="+Android.getVersionName()+"_"+Android.webviewVersion();
-	console.log('xhr api '+api);
+	//console.log('xhr api '+api);
 	ajaxFetch(new XMLHttpRequest(), "GET", api, function(xhr) {
 		if(xhr.responseText.startsWith("error")) {
 			console.log('xhr response '+xhr.responseText);
 		} else if(xhr.responseText.startsWith("busy")) {
 			console.log('xhr response '+xhr.responseText);
 		} else if(xhr.responseText.startsWith("notavail")) {
+			// user is not online! this is what we want
 			console.log('xhr response ('+xhr.responseText+')');
 			setTimeout(function() {
 				// if we are still here after 8s, window.location.replace has failed
@@ -234,23 +238,23 @@ function submitFormDone(theForm) {
 				divspinnerframe.style.display = "none";
 				document.activeElement.blur();
 			},8000);
+			// switch to callee page
 			let url = "https://"+valueDomain+"/callee/"+valueUsername+"?auto=1";
 			console.log('load main '+url);
 			window.location.replace(url);
 			return;
 		} else if(xhr.responseText.startsWith("clear")) {
 			formDomain.value = "";
-			Android.storePreference("webcalldomain", "");
+			Android.storePreference("webcalldomain", " ");
 		} else { // empty or other
 			console.log('xhr response ('+xhr.responseText+') (ignore)');
-			divspinnerframe.style.display = "none";
 			return;
 		}
 		console.log('xhr spinner off');
 		abort = true;
 		divspinnerframe.style.display = "none";
 		document.activeElement.blur();
-		Android.toast("Connection failed. Please check your server address and user ID.");
+		Android.toast("Connection failed. Please check server address and user ID.");
 	}, function(errString,errcode) {
 		console.log('xhr error ('+errString+') errcode='+errcode);
 		abort = true;
