@@ -238,8 +238,12 @@ function submitFormDone(theForm) {
 			console.log('load main '+url);
 			window.location.replace(url);
 			return;
+		} else if(xhr.responseText.startsWith("clear")) {
+			formDomain.value = "";
+			Android.storePreference("webcalldomain", "");
 		} else { // empty or other
 			console.log('xhr response ('+xhr.responseText+') (ignore)');
+			divspinnerframe.style.display = "none";
 			return;
 		}
 		console.log('xhr spinner off');
