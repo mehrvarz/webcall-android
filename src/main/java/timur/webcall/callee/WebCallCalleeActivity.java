@@ -167,7 +167,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					certFactory = CertificateFactory.getInstance("X509");
 				}
 				catch (CertificateException e) {
-					Log.e(getClass().getSimpleName(), "Exception getting CertificateFactory", e);
+					Log.d(TAG, "Exception getting CertificateFactory", e);
 				}
 				if(certFactory!=null) {
 					X509Certificate cert = null;
@@ -176,7 +176,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						cert = (X509Certificate)certFactory.generateCertificate(bin);
 					}
 					catch (CertificateException e) {
-						Log.e(getClass().getSimpleName(),"Exception getting X509Certificate", e);
+						Log.d(TAG,"Exception getting X509Certificate", e);
 					}
 					if(cert!=null) {
 						Log.d(TAG, "onCreate cert : " + cert);
