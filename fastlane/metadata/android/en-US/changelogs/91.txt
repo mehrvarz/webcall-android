@@ -1,7 +1,7 @@
-v1.0.0-rc4
+v1.0 (changes since v0.9.85)
 - longpress on links copies url to clipboard
 - service: improved full network loss behavior
-- show KeepAwake time under Call Statistics
+- showing KeepAwake time under Call Statistics
 - status + updates page accessible from base page
 - improved reconnect handling
 - fixed missing webview version

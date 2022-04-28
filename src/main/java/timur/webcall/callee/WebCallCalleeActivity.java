@@ -38,6 +38,7 @@ import android.content.DialogInterface;
 import android.content.ContentResolver;
 import android.content.pm.PackageInfo;
 import android.content.pm.ActivityInfo;
+import android.content.pm.Signature;
 import android.content.res.Configuration;
 import android.widget.Toast;
 import android.widget.PopupMenu;
@@ -68,9 +69,13 @@ import java.util.Date;
 import java.util.Locale;
 import java.text.SimpleDateFormat;
 import java.io.File;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.security.cert.CertificateFactory;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 
 import timur.webcall.callee.BuildConfig;
 
@@ -146,6 +151,49 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 		}
 
+/*
+		try {
+			Signature[] sigs = context.getPackageManager().getPackageInfo(
+				context.getPackageName(), PackageManager.GET_SIGNATURES).signatures;
+			for(Signature sig : sigs) {
+				Log.d(TAG, "onCreate Signature hashcode : " + sig.hashCode());
+				//Log.d(TAG, "onCreate Signature : " + sig.toString());
+			}
+
+			if(sigs.length>0) {
+				byte[] raw = sigs[0].toByteArray();
+				CertificateFactory certFactory = null;
+				try {
+					certFactory = CertificateFactory.getInstance("X509");
+				}
+				catch (CertificateException e) {
+					Log.e(getClass().getSimpleName(), "Exception getting CertificateFactory", e);
+				}
+				if(certFactory!=null) {
+					X509Certificate cert = null;
+					ByteArrayInputStream bin = new ByteArrayInputStream(raw);
+					try {
+						cert = (X509Certificate)certFactory.generateCertificate(bin);
+					}
+					catch (CertificateException e) {
+						Log.e(getClass().getSimpleName(),"Exception getting X509Certificate", e);
+					}
+					if(cert!=null) {
+						Log.d(TAG, "onCreate cert : " + cert);
+						Log.d(TAG, "Certificate for: " + cert.getSubjectDN());
+						Log.d(TAG, "Certificate issued by: " + cert.getIssuerDN());
+						Log.d(TAG, "The certificate is valid from " +
+							cert.getNotBefore()+" to "+cert.getNotAfter());
+						Log.d(TAG, "Certificate SN# " + cert.getSerialNumber());
+						Log.d(TAG, "Generated with " + cert.getSigAlgName());
+					}
+				}
+			}
+		} catch(Exception ex) {
+			// for instance: NameNotFoundException
+			Log.d(TAG, "onCreate PackageManager.GET_SIGNATURES ex=" + ex);
+		}
+*/
 		activityStartNeeded = false;
 
 		if(powerManager==null) {
