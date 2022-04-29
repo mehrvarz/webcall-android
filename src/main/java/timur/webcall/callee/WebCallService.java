@@ -687,7 +687,7 @@ public class WebCallService extends Service {
 										Log.d(TAG,"dozeState idle no username");
 									} else {
 										loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-													"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
+													"&ver="+ BuildConfig.VERSION_NAME+"_"+getWebviewVersion();
 										Log.d(TAG,"dozeState idle re-login now url="+loginUrl);
 										// hopefully network is avilable
 										reconnectSchedFuture =
@@ -747,7 +747,7 @@ public class WebCallService extends Service {
 									Log.d(TAG,"dozeState awake cannot reconnect no username");
 								} else {
 									loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-												"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
+												"&ver="+ BuildConfig.VERSION_NAME+"_"+getWebviewVersion();
 									Log.d(TAG,"dozeState awake re-login in 2s url="+loginUrl);
 									// hopefully network is avilable in 2s again
 									reconnectSchedFuture =
@@ -793,7 +793,7 @@ public class WebCallService extends Service {
 									username!=null && !username.equals("")) {
 								if(!reconnectBusy) {
 									loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-												"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
+												"&ver="+ BuildConfig.VERSION_NAME+"_"+getWebviewVersion();
 									Log.d(TAG, "onStartCommand loginUrl="+loginUrl);
 									if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 										Log.d(TAG,"onStartCommand cancel reconnectSchedFuture");
@@ -1275,11 +1275,7 @@ public class WebCallService extends Service {
 			Log.d(TAG, "startWebView load currentUrl="+currentUrl);
 			myWebView.loadUrl(currentUrl);
 
-			PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
-			if(webviewPackageInfo != null) {
-				webviewVersionString = webviewPackageInfo.versionName;
-				Log.d(TAG, "startWebView version "+webviewVersionString);
-			}
+			Log.d(TAG, "startWebView version "+getWebviewVersion());
 		}
 
 		// webcallConnectType returns >0 if we are connected to webcall server signalling
@@ -1590,13 +1586,7 @@ public class WebCallService extends Service {
 
 		@android.webkit.JavascriptInterface
 		public String webviewVersion() {
-			if(webviewVersionString=="") {
-				PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
-				if(webviewPackageInfo != null) {
-					webviewVersionString = webviewPackageInfo.versionName;
-				}
-			}
-			return webviewVersionString;
+			return getWebviewVersion();
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1967,14 +1957,8 @@ public class WebCallService extends Service {
 						} else if(username.equals("")) {
 							Log.d(TAG,"onClose cannot reconnect: username is not set");
 						} else {
-							if(webviewVersionString=="") {
-								PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
-								if(webviewPackageInfo != null) {
-									webviewVersionString = webviewPackageInfo.versionName;
-								}
-							}
 							loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-										"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
+										"&ver="+ BuildConfig.VERSION_NAME+"_"+getWebviewVersion();
 							Log.d(TAG,"onClose re-login in 5s url="+loginUrl);
 							// hopefully network is avilable in 8s again
 							// TODO on P9 in some cases this reconnecter does NOT come
@@ -2284,14 +2268,8 @@ public class WebCallService extends Service {
 			webcalldomain = prefs.getString("webcalldomain", "")
 				.toLowerCase(Locale.getDefault());
 			username = prefs.getString("username", "");
-			if(webviewVersionString=="") {
-				PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
-				if(webviewPackageInfo != null) {
-					webviewVersionString = webviewPackageInfo.versionName;
-				}
-			}
 			loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-						"&ver="+ BuildConfig.VERSION_NAME+"_"+webviewVersionString;
+						"&ver="+ BuildConfig.VERSION_NAME+"_"+getWebviewVersion();
 		}
 		if(!reconnectBusy) {
 			// TODO do we need to copy cookies here?
@@ -3650,6 +3628,16 @@ public class WebCallService extends Service {
 
 	private String currentDateTimeString() {
 		return new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.US).format(new Date());
+	}
+
+	private String getWebviewVersion() {
+		if(webviewVersionString=="") {
+			PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
+			if(webviewPackageInfo != null) {
+				webviewVersionString = webviewPackageInfo.versionName;
+			}
+		}
+		return webviewVersionString;
 	}
 
 	@SuppressWarnings({"unchecked", "JavaReflectionInvocation"})
