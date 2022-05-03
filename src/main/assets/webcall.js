@@ -84,7 +84,7 @@ window.onload = function() {
 		if(!webviewVersion) {
 			webviewVersion = "no version, old webview?";
 		} else if(webviewVersion<"80.0") {
-			webviewVersion = webviewVersion + " TOO OLD";
+			webviewVersion = webviewVersion + " TOO OLD!";
 		}
 		document.getElementById("webviewversion").innerHTML = "v"+webviewVersion;
 	}
