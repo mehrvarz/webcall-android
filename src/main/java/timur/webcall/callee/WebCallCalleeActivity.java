@@ -511,7 +511,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
 				if(clipboard!=null) {
 					clipboard.setPrimaryClip(clipData);
-					Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_LONG).show();
+					Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_SHORT).show();
 				}
 
 				// 2. share link via sharesheet
