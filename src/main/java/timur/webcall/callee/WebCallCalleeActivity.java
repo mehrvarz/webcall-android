@@ -501,9 +501,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		//Log.d(TAG,"onCreateContextMenu result="+result+" "+result.getType()+" "+result.getExtra());
 
 		if(result.getType()==HitTestResult.SRC_ANCHOR_TYPE) {
-			// longpress on a link: copy link-url in to clipboard (result.getExtra())
+			// longpress on a link (use result.getExtra())
 			String clipText = result.getExtra();
 			if(clipText!=null && clipText!="") {
+				// 1. copy link to clipboard
 				Log.d(TAG, "broadcastReceiver clipText "+clipText);
 				ClipData clipData = ClipData.newPlainText(null,clipText);
 				ClipboardManager clipboard =
@@ -512,9 +513,17 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					clipboard.setPrimaryClip(clipData);
 					Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_LONG).show();
 				}
+
+				// 2. share link via sharesheet
+				Intent sendIntent = new Intent();
+				sendIntent.setAction(Intent.ACTION_SEND);
+				sendIntent.putExtra(Intent.EXTRA_TEXT, clipText);
+				sendIntent.setType("text/plain");
+				Intent shareIntent = Intent.createChooser(sendIntent, "Share link with");
+				startActivity(shareIntent);
 				return;
 			}
-			
+
 		} else {
 			// longpress on the background
 			// show device menu
