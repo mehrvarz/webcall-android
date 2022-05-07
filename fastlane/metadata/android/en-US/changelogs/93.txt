@@ -1,0 +1,7 @@
+v1.0.2 (changes since v1.0)
+- now control speakermode via proximity
+- longpress on link will open Android sharesheet
+  will also copy link to clipboard
+- improved webview version reporting
+  will say TOO OLD if smaller 80.x.x.x
+
