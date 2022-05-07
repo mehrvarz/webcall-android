@@ -1343,13 +1343,15 @@ public class WebCallService extends Service {
 		public void setProximity(boolean flagNear) {
 			proximityNear = flagNear;
 			if(proximityNear) {
-				// user is is now holding device to head
+				// user is now holding device CLOSE TO HEAD
 				//Log.d(TAG, "setProximity() near, speakerphone=false");
-				//audioManager.setSpeakerphoneOn(false);
+				audioManager.setMode(AudioManager.MODE_IN_CALL); // In call audio mode. phone call is established
+				audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
 			} else {
-				// user is is now NOT holding device to head
+				// user is now now holding device AWAY FROM HEAD
 				//Log.d(TAG, "setProximity() away, speakerphone=true");
-				//audioManager.setSpeakerphoneOn(true);
+				audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
+				audioManager.setSpeakerphoneOn(true); // activates speakerphone
 			}
 		}
 
@@ -1691,6 +1693,7 @@ public class WebCallService extends Service {
 
 		@android.webkit.JavascriptInterface
 		public void prepareDial() {
+/*
 			// turn speakerphone off - the idea is to always switch audio playback to the earpiece
 			// on devices without an earpiece (tablets) this is expected to do nothing
 			// we do it now here instead of at setProximity(true), because it is more reliable this way
@@ -1701,6 +1704,7 @@ public class WebCallService extends Service {
 			Log.d(TAG, "prepareDial(), speakerphone=false");
 			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
 			audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
+*/
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1709,7 +1713,7 @@ public class WebCallService extends Service {
 			Log.d(TAG,"peerConnect() - mediaConnect");
 			peerConnectFlag=true;
 			callPickedUpFlag=false;
-
+/*
 			// turn speakerphone off - the idea is to always switch audio playback to the earpiece
 			// on devices without an earpiece (tablets) this is expected to do nothing
 			// we do it now here instead of at setProximity(true), because it is more reliable this way
@@ -1717,6 +1721,7 @@ public class WebCallService extends Service {
 			Log.d(TAG, "peerConnect(), speakerphone=false");
 			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
 			audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
+*/
 		}
 
 		@android.webkit.JavascriptInterface
