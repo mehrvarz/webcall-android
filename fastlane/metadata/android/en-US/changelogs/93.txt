@@ -1,8 +1,7 @@
-v1.0.2
 - speaker-mode controlled by proximity sensor
-  (no proximity sensor = always-on speaker-mode)
+- no proximity sensor = always-on speaker-mode
 - longpress on link will copy link to clipboard
-  will also open Android Sharesheet
+- will also open Android Sharesheet
 - improved webview version reporting
-  (will say TOO OLD if smaller than 80.x.x.x)
+- will warn 'TOO OLD' if smaller than 80.x.x.x
 
