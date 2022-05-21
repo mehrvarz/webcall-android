@@ -1749,6 +1749,13 @@ public class WebCallService extends Service {
 		}
 
 		@android.webkit.JavascriptInterface
+		public void gotoBasepage() {
+			if(myWebView!=null) {
+				myWebView.loadUrl("file:///android_asset/index.html", null);
+			}
+		}
+
+		@android.webkit.JavascriptInterface
 		public void wsExit() {
 			// called by Exit button
 			if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
