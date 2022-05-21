@@ -1470,6 +1470,7 @@ public class WebCallService extends Service {
 			if(str.startsWith("history.back()")) {
 				Log.d(TAG, "runJScode history.back()");
 			}
+// TODO apparently calling history.back() does not execute onbeforeunload
 			runJS(str,null);
 		}
 
