@@ -1751,7 +1751,15 @@ public class WebCallService extends Service {
 		@android.webkit.JavascriptInterface
 		public void gotoBasepage() {
 			if(myWebView!=null) {
-				myWebView.loadUrl("file:///android_asset/index.html", null);
+				// loadUrl() must be called on main thread
+				myWebView.post(new Runnable() {
+					@Override
+					public void run() {
+						if(myWebView!=null) {
+							myWebView.loadUrl("file:///android_asset/index.html", null);
+						}
+					}
+				});
 			}
 		}
 
