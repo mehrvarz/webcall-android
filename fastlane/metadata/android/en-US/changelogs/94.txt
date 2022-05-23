@@ -1,0 +1,5 @@
+- dial and busy sounds can now be turned off permanently in settings
+- making calls can now be done in complete silence
+- when the login cookie is cleared, the client will now switch back to the basepage
+- this enables faster ID switching
+
