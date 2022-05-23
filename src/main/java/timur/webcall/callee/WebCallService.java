@@ -1504,11 +1504,11 @@ public class WebCallService extends Service {
 			// TODO maybe if reconnectBusy is set, we should return something to make callee.js just wait?
 			// or maybe we should just wait here for wsClient!=null?
 			connectToSignalingServerIsWanted = true;
-			Intent brintent = new Intent("webcall");
-			brintent.putExtra("state", "connected");
-			sendBroadcast(brintent);
 			if(reconnectBusy && wsClient!=null) {
 				Log.d(TAG,"wsOpen reconnectBusy return existing wsClient");
+				Intent brintent = new Intent("webcall");
+				brintent.putExtra("state", "connected");
+				sendBroadcast(brintent);
 				return wsClient;
 			}
 			if(wsClient==null) {
@@ -1517,11 +1517,17 @@ public class WebCallService extends Service {
 				Log.d(TAG,"wsOpen wsClient="+(wsCli!=null));
 				if(wsCli!=null) {
 					updateNotification("","Online. Waiting for calls.",false,false);
+					Intent brintent = new Intent("webcall");
+					brintent.putExtra("state", "connected");
+					sendBroadcast(brintent);
 				}
 				return wsCli;
 			}
 
 			Log.d(TAG,"wsOpen return existing wsClient");
+			Intent brintent = new Intent("webcall");
+			brintent.putExtra("state", "connected");
+			sendBroadcast(brintent);
 			return wsClient;
 		}
 
