@@ -317,6 +317,27 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					}
 					return;
 				}
+				String state = intent.getStringExtra("state");
+				if(state!=null && state!="") {
+					Log.d(TAG, "broadcastReceiver state="+state);
+					if(state.equals("mainpage")) {
+						// if there is a dialID...
+						if(dialId!=null && dialId!="") {
+							Log.d(TAG, "broadcastReceiver state="+state+" dialId="+dialId);
+							//webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
+							//dialId = "";
+						}
+					} else if(state.equals("connected")) {
+						// if there is a dialID...
+						if(dialId!=null && dialId!="") {
+							Log.d(TAG, "broadcastReceiver state="+state+" dialId="+dialId);
+							webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
+							dialId = "";
+						}
+					} else if(state.equals("disconnected")) {
+					}
+					return;
+				}
 				String url = intent.getStringExtra("browse");
 				if(url!=null && url!=null) {
 					Log.d(TAG, "broadcastReceiver browse "+url);
@@ -441,11 +462,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					activityStartNeeded = false;
 				}
 
-				if(dialId!=null) {
+				if(dialId!=null && dialId!="") {
 					Log.d(TAG, "onServiceConnected dialId="+dialId);
 					// only execute if we are on the main page
 					if(webCallServiceBinder.getCurrentUrl().indexOf("/callee/")>=0) {
 						webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
+						dialId = "";
+					} else {
+						// not on the mainpage yet; will process dialId in broadcastReceiver state = "connected"
 					}
 				}
 			}

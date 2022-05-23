@@ -1130,6 +1130,10 @@ public class WebCallService extends Service {
 
 					if(url.indexOf("/callee/")>=0 && url.indexOf("/callee/register")<0) {
 						// webview has just finished loading the main page
+						Intent brintent = new Intent("webcall");
+						brintent.putExtra("state", "mainpage");
+						sendBroadcast(brintent);
+
 						if(wsClient==null) {
 							webviewMainPageLoaded = true;
 							Log.d(TAG, "onPageFinished main page not yet connected to server");
@@ -1160,6 +1164,9 @@ public class WebCallService extends Service {
 							// we are already connected to server (probably from before activity start)
 							// we have to bring the just loaded callee.js online, too
 							Log.d(TAG, "onPageFinished main page: already connected to server");
+							brintent = new Intent("webcall");
+							brintent.putExtra("state", "connected");
+							sendBroadcast(brintent);
 
 							final Runnable runnable2 = new Runnable() {
 								public void run() {
@@ -1497,6 +1504,9 @@ public class WebCallService extends Service {
 			// TODO maybe if reconnectBusy is set, we should return something to make callee.js just wait?
 			// or maybe we should just wait here for wsClient!=null?
 			connectToSignalingServerIsWanted = true;
+			Intent brintent = new Intent("webcall");
+			brintent.putExtra("state", "connected");
+			sendBroadcast(brintent);
 			if(reconnectBusy && wsClient!=null) {
 				Log.d(TAG,"wsOpen reconnectBusy return existing wsClient");
 				return wsClient;
