@@ -1,9 +1,9 @@
-Dial and busy sounds can now be turned off permanently in settings.
-Making calls can now be done in complete silence.
+Dial and busy sounds can be turned off permanently in settings.
+Calls can now be made in complete silenc<e.
 
-When login cookie is cleared, the client will now switch back 
+When login-cookie is cleared, the client will now switch back 
 to the basepage. This allows for quicker ID switching.
 
-Opening a WebCall link in another app, is now possible if
-WebCall was not yet started / is not currently running.
+Opening a WebCall link is now possible, even if WebCall is not
+currently running / has not been started yet.
 
