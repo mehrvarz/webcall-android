@@ -115,9 +115,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private int proximitySensorAction = 0; // 0=screen off, 1=screen dim
 	private volatile boolean webviewBlocked = false;
 	private volatile String dialId = null; // set by onCreate() + getIntent() or by onNewIntent()
+	private long lastSetDialId = 0;
 	private volatile boolean writeExtStoragePermissionDenied = false;
 	private volatile int callInProgress = 0;
-
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -330,9 +330,17 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					} else if(state.equals("connected")) {
 						// if there is a dialID...
 						if(dialId!=null && dialId!="") {
-							Log.d(TAG, "broadcastReceiver state="+state+" dialId="+dialId);
-							webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
-							dialId = "";
+							long lastSetDialIdAge = System.currentTimeMillis() - lastSetDialId;
+							if(lastSetDialIdAge <= 30000) {
+								// execute dialId only if set within the last 30s
+								Log.d(TAG, "broadcastReceiver state="+state+" dialId="+dialId);
+								webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
+								dialId = "";
+							} else {
+								// too old, do not execute
+								Log.d(TAG, "broadcastReceiver state="+state+" dialId="+dialId+
+									" too old"+lastSetDialIdAge);
+							}
 						}
 					} else if(state.equals("disconnected")) {
 					}
@@ -420,6 +428,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			int idxUser = path.indexOf("/user/");
 			if(idxUser>=0) {
 				dialId = path.substring(idxUser+6);
+				lastSetDialId = System.currentTimeMillis();
 				Log.d(TAG, "onCreate dialId="+dialId);
 				// dialId will be executed in onServiceConnected
 			}
@@ -956,6 +965,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			int idxUser = path.indexOf("/user/");
 			if(idxUser>=0) {
 				dialId = path.substring(idxUser+6);
+				lastSetDialId = System.currentTimeMillis();
 				Log.d(TAG, "onNewIntent dialId="+dialId);
 				if(webCallServiceBinder!=null) {
 					// only execute if we are on the main page
