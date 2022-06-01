@@ -246,6 +246,13 @@ function submitFormDone(theForm) {
 		} else if(xhr.responseText.startsWith("clear")) {
 			formDomain.value = "";
 			Android.storePreference("webcalldomain", " ");
+		} else if(xhr.responseText.startsWith("wss://") || xhr.responseText.startsWith("ws://")) {
+			// a callee is already logged in
+			abort = true;
+			divspinnerframe.style.display = "none";
+			document.activeElement.blur();
+			Android.toast("Busy. Already logged in from another device?");
+			return;
 		} else { // empty or other
 			console.log('xhr response ('+xhr.responseText+') (ignore)');
 			return;
