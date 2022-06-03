@@ -7,9 +7,12 @@ Calls can now be established in complete silenc<e.
 When the login-cookie is cleared, WebCall app will now switch back
 to the basepage. This allows for quicker ID switching.
 
-Basepage login now checks for 'Busy. Already logged in from another
-device'
+Basepage login now checks for 'account busy' and will in this
+case display: 'Busy. Already logged in from another device?'
 
-On long duration connection loss, screen will only light up if
-'Screen for Wifi' is enabled.
+bugfix: service reconnecter: new insecureTlsFlag handling for
+HttpsURLConnection re-login while in background.
+
+bugfix: On long duration connection loss, screen will not light up
+unless 'Screen for Wifi' is enabled.
 
