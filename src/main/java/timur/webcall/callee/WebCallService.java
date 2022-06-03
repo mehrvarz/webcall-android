@@ -2873,7 +2873,7 @@ public class WebCallService extends Service {
 									reconnectBusy = false;
 									reconnectCounter = 0;
 									Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
-									statusMessage("Online. Waiting for calls.",false,false);
+									//statusMessage("Online. Waiting for calls.",false,false);
 									if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 										long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 										Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
@@ -2897,7 +2897,7 @@ public class WebCallService extends Service {
 							reconnectBusy = false;
 							reconnectCounter = 0;
 							Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
-							statusMessage("Online. Waiting for calls.",false,false);
+							//statusMessage("Online. Waiting for calls.",false,false);
 							if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 								long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 								Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
@@ -3600,13 +3600,6 @@ public class WebCallService extends Service {
 			updateNotification("", msg, disconnected, important);
 		}
 		if(myWebView!=null && webviewMainPageLoaded) {
-/*
-			// skip runJS when the device is sleeping (when the screen is off)
-			if(!isScreenOn()) {
-				Log.d(TAG, "statusMessage("+msg+") but screen is off");
-				return;
-			}
-*/
 			if(disconnected) {
 				runJS("wsOnError2('"+msg+"');",null); // will remove green led
 			} else {
