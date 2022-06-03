@@ -984,7 +984,6 @@ public class WebCallService extends Service {
 				@Override
 				public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
 					// this is called when webview does a https PAGE request and fails
-					Log.d(TAG, "onReceivedSslError "+error);
 					// error.getPrimaryError()
 					// -1 = no error
 					// 0 = not yet valid
@@ -1000,8 +999,10 @@ public class WebCallService extends Service {
 					// however, if we do proceed here, wsOpen -> connectHost(wss://...) will fail
 					//   with onError ex javax.net.ssl.SSLHandshakeException
 					if(insecureTlsFlag) {
+						Log.d(TAG, "onReceivedSslError (proceed) "+error);
 						handler.proceed();
 					} else {
+						Log.d(TAG, "# onReceivedSslError "+error);
 						super.onReceivedSslError(view, handler, error);
 					}
 				}
@@ -2595,6 +2596,32 @@ public class WebCallService extends Service {
 				try {
 					URL url = new URL(loginUrl);
 					//Log.d(TAG,"reconnecter openCon("+url+")");
+
+					if(insecureTlsFlag) {
+						Log.d(TAG,"reconnecter allow insecure https");
+						try {
+							TrustManager[] trustAllCerts = new TrustManager[] { 
+								new X509TrustManager() {
+									public X509Certificate[] getAcceptedIssuers() {
+										X509Certificate[] myTrustedAnchors = new X509Certificate[0];
+										return myTrustedAnchors;
+									}
+									@Override
+									public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+
+									@Override
+									public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+								}
+							};
+							SSLContext sslContext = SSLContext.getInstance("TLS");
+							sslContext.init(null, trustAllCerts, new SecureRandom());
+							SSLSocketFactory factory = sslContext.getSocketFactory();
+						    HttpsURLConnection.setDefaultSSLSocketFactory(factory);
+						} catch(Exception ex) {
+							Log.w(TAG,"reconnecter allow insecure https ex="+ex);
+						}
+					}
+
 					HttpURLConnection con = (HttpURLConnection)url.openConnection();
 					con.setConnectTimeout(22000);
 					con.setReadTimeout(10000);
@@ -2632,6 +2659,17 @@ public class WebCallService extends Service {
 						Log.d(TAG,"reconnecter con.connect()");
 						// TODO when using a selfsigned cert, con.connect() may throw:
 						// javax.net.ssl.SSLHandshakeException "Trust anchor for certification path not found"
+// device console:
+// reconnecter con.connect()/getInputStream() ex=javax.net.ssl.SSLHandshakeException: java.security.cert.CertPathValidatorException: Trust anchor for certification path not found.
+
+// server side:
+// TLS handshake error from 192.168.3.119:60356: remote error: tls: unknown certificate
+
+// problem 1: 'unknown certificate'
+// solution 1: if(insecureTlsFlag) -> HttpsURLConnection.setDefaultSSLSocketFactory(factory)
+
+// problem 2: if we still get this err, it doesn't make sense to retry 40x - as we do below
+
 						con.connect();
 						status = con.getResponseCode();
 						if(status!=200) {

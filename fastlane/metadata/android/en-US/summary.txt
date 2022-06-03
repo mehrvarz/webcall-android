@@ -1,1 +1,1 @@
-Web-Telephony No-SIM P2P E2E-Encryption
+Web-Telephony No-SIM P2P E2E-Encryption NFC-Connect
