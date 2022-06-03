@@ -2629,10 +2629,9 @@ public class WebCallService extends Service {
 
 					int status=0;
 					try {
-						// TODO in deep sleep (when device is not connected to power) this may hang for minutes
 						Log.d(TAG,"reconnecter con.connect()");
-						// TODO when using a selfsigned cert, this may throw: javax.net.ssl.SSLHandshakeException
-						// "Trust anchor for certification path not found"
+						// TODO when using a selfsigned cert, con.connect() may throw:
+						// javax.net.ssl.SSLHandshakeException "Trust anchor for certification path not found"
 						con.connect();
 						status = con.getResponseCode();
 						if(status!=200) {
@@ -3373,7 +3372,9 @@ public class WebCallService extends Service {
 				}
 			} else if(reconnectCounter==ReconnectCounterScreen) {
 				Log.d(TAG,"wakeUpOnLoopCount (no net + reconnectCounter==ReconnectCounterScreen)");
-				wakeUpFromDoze();
+				if(screenForWifiMode>0) {
+					wakeUpFromDoze();
+				}
 			}
 		}
 	}
