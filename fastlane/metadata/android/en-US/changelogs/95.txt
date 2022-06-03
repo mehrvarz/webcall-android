@@ -1,7 +1,7 @@
 WebCall links can now be opened with the WebCall app from within 
 3rd party apps, even if the WebCall app is not currently running.
 
-Dial and busy sounds can be switched off permanently in settings.
+Dial and busy sounds can be turned off permanently in settings.
 Calls can now be established in complete silenc<e.
 
 When the login-cookie is cleared, WebCall app will now switch back
