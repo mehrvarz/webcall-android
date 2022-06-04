@@ -1,6 +1,6 @@
 WebCall is a telephony app based on WebRTC
 
-WebCall offers high quality audio + video + two-way file exchange.
+WebCall offers high quality audio + video and two-way file exchange.
 
 You can receive calls from anybody on the web. You can establish phone calls via NFC touch. WebCall works over direct P2P links. All communication E2E-encrypted. Talk as long as you like.
 
