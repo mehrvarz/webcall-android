@@ -1,18 +1,18 @@
-WebCall links can now be opened with the WebCall app from within 
-3rd party apps, even if the WebCall app is not currently running.
+WebCall links can now be opened from within 3rd party apps, 
+even if WebCall app is not currently running.
 
 Dial and busy sounds can be turned off permanently in settings.
-Calls can now be established in complete silence.
+As a result, calls can be established in complete silence.
 
-When the login-cookie is cleared, WebCall app will now switch back
-to the basepage. This allows for quicker ID switching.
+When the login-cookie is cleared, WebCall app will now switch
+back to the basepage. This allows for quicker ID switching.
 
-Basepage login now checks for 'account busy' and will in this
-case display: 'Busy. Already logged in from another device?'
+Basepage login now checks for 'account busy' and in such cases 
+will show: 'Busy. Already logged in from another device?'
 
-bugfix: service reconnecter: new insecureTlsFlag handling for
-HttpsURLConnection re-login while in background.
+Bugfix: Reconnecter improved insecureTlsFlag handling for
+HttpsURLConnection re-login while in the background.
 
-bugfix: On long duration connection loss, screen will not light up
-unless 'Screen for Wifi' is enabled.
+Bugfix: The screen will not light up unless 'Screen for Wifi' is 
+enabled. Not even on a lengthy connection loss.
 
