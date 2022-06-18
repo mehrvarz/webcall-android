@@ -101,6 +101,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.Collection;
 import java.util.Calendar;
 import java.util.Timer;
@@ -293,6 +295,7 @@ public class WebCallService extends Service {
 	// keepAwakeWakeLockMS holds the sum of MS while keepAwakeWakeLock was held since midnight
 	private volatile long keepAwakeWakeLockMS = 0;
 
+	private volatile Lock lock = new ReentrantLock();
 
 	// section 1: android service methods
 	@Override
@@ -533,14 +536,7 @@ public class WebCallService extends Service {
 
 				@Override
 				public void onCapabilitiesChanged(Network network, NetworkCapabilities networkCapabi) {
-					//Log.d(TAG,"networkCallback network capab change: " + networkCapabi +
-					//	" wifi="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)+
-					//	" cell="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)+
-					//	" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
-					//	" vpn="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_VPN)+
-					//	" wifiAw="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)+
-					//	" usb="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB));
-
+					lock.lock();
 					int newNetworkInt = 0;
 					if(networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
 						newNetworkInt = 2;
@@ -548,15 +544,23 @@ public class WebCallService extends Service {
 							networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ||
 							networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB)) {
 						newNetworkInt = 1;
-					} else {
-						newNetworkInt = 0; // ?
 					}
+
+					//Log.d(TAG,"networkCallback network capab change: " + haveNetworkInt+" "+newNetworkInt+" "+
+					//	networkCapabi +
+					//	" wifi="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)+
+					//	" cell="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)+
+					//	" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
+					//	" vpn="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_VPN)+
+					//	" wifiAw="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)+
+					//	" usb="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB));
+
 					if(haveNetworkInt==2 && newNetworkInt==1) {
-						// losing wifi
+						// losing wifi, switch to other net
 						if(wifiLock!=null && wifiLock.isHeld()) {
 							// release wifi lock
-							Log.d(TAG,"networkCallback wifiLock.release");
 							wifiLock.release();
+							Log.d(TAG,"networkCallback wifi->other wifiLock.release");
 						}
 						if(connectToSignalingServerIsWanted) {
 							statusMessage("Connecting via other network",true,false);
@@ -565,15 +569,15 @@ public class WebCallService extends Service {
 					if(newNetworkInt==2 && haveNetworkInt!=2) {
 						// gaining wifi
 						if(setWifiLockMode<=0) {
-							Log.d(TAG,"networkCallback WifiLockMode off");
+							Log.d(TAG,"networkCallback gainWifi WifiLockMode off");
 						} else if(wifiLock==null) {
-							Log.d(TAG,"networkCallback wifiLock==null");
+							Log.d(TAG,"networkCallback gainWifi wifiLock==null");
 						} else if(wifiLock.isHeld()) {
-							Log.d(TAG,"networkCallback wifiLock isHeld");
+							Log.d(TAG,"networkCallback gainWifi wifiLock isHeld");
 						} else {
 							// enable wifi lock
-							Log.d(TAG,"networkCallback wifiLock.acquire");
 							wifiLock.acquire();
+							Log.d(TAG,"networkCallback gainWifi wifiLock.acquire");
 						}
 						if(connectToSignalingServerIsWanted) {
 							statusMessage("Connecting via Wifi network",true,false);
@@ -585,7 +589,7 @@ public class WebCallService extends Service {
 							connectToSignalingServerIsWanted && !reconnectBusy) {
 						// call scheduler.schedule()
 						if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
-							Log.d(TAG,"networkState keepAwakeWakeLock.acquire");
+							Log.d(TAG,"networkState noNet->Net keepAwakeWakeLock.acquire");
 							keepAwakeWakeLock.acquire(3 * 60 * 1000);
 							keepAwakeWakeLockStartTime = (new Date()).getTime();
 						}
@@ -596,21 +600,22 @@ public class WebCallService extends Service {
 							if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 								// why wait for the scheduled reconnecter job
 								// let's cancel it and start it immediately
-								Log.d(TAG,"networkState cancel reconnectSchedFuture");
+								Log.d(TAG,"networkState noNet->Net cancel reconnectSchedFuture");
 								if(reconnectSchedFuture.cancel(false)) {
 									// now run reconnecter in the next second
-									Log.d(TAG,"networkState restart reconnecter in 1s");
+									Log.d(TAG,"networkState noNet->Net restart reconnecter in 0s");
 									reconnectSchedFuture = scheduler.schedule(reconnecter, 0 ,TimeUnit.SECONDS);
 								}
 							} else {
-								Log.d(TAG,"networkState start reconnecter in 1s");
+								Log.d(TAG,"networkState noNet->Net start reconnecter in 0s");
 								reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
 							}
 						} else {
-							Log.d(TAG,"networkState no reconnecter: reconnectBusy="+reconnectBusy);
+							Log.d(TAG,"networkState noNet->Net no reconnecter: reconnectBusy="+reconnectBusy);
 						}
 					}
 					haveNetworkInt = newNetworkInt;
+					lock.unlock();
 				}
 
 				//@Override
@@ -686,8 +691,7 @@ public class WebCallService extends Service {
 									} else if(username.equals("")) {
 										Log.d(TAG,"dozeState idle no username");
 									} else {
-										loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-													"&ver="+ BuildConfig.VERSION_NAME+"_"+getWebviewVersion();
+										setLoginUrl();
 										Log.d(TAG,"dozeState idle re-login now url="+loginUrl);
 										// hopefully network is avilable
 										reconnectSchedFuture =
@@ -746,8 +750,7 @@ public class WebCallService extends Service {
 								} else if(username==null || username.equals("")) {
 									Log.d(TAG,"dozeState awake cannot reconnect no username");
 								} else {
-									loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-												"&ver="+ BuildConfig.VERSION_NAME+"_"+getWebviewVersion();
+									setLoginUrl();
 									Log.d(TAG,"dozeState awake re-login in 2s url="+loginUrl);
 									// hopefully network is avilable in 2s again
 									reconnectSchedFuture =
@@ -792,8 +795,7 @@ public class WebCallService extends Service {
 							if(webcalldomain!=null && !webcalldomain.equals("") &&
 									username!=null && !username.equals("")) {
 								if(!reconnectBusy) {
-									loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-												"&ver="+ BuildConfig.VERSION_NAME+"_"+getWebviewVersion();
+									setLoginUrl();
 									Log.d(TAG, "onStartCommand loginUrl="+loginUrl);
 									if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 										Log.d(TAG,"onStartCommand cancel reconnectSchedFuture");
@@ -1502,8 +1504,6 @@ public class WebCallService extends Service {
 
 		@android.webkit.JavascriptInterface
 		public WebSocketClient wsOpen(String setWsAddr) {
-			// TODO maybe if reconnectBusy is set, we should return something to make callee.js just wait?
-			// or maybe we should just wait here for wsClient!=null?
 			connectToSignalingServerIsWanted = true;
 			if(reconnectBusy && wsClient!=null) {
 				Log.d(TAG,"wsOpen reconnectBusy return existing wsClient");
@@ -1514,7 +1514,7 @@ public class WebCallService extends Service {
 			}
 			if(wsClient==null) {
 				Log.d(TAG,"wsOpen wsClient==null addr="+setWsAddr);
-				WebSocketClient wsCli = connectHost(setWsAddr);
+				WebSocketClient wsCli = connectHost(setWsAddr,false);
 				Log.d(TAG,"wsOpen wsClient="+(wsCli!=null));
 				if(wsCli!=null) {
 					updateNotification("","Online. Waiting for calls.",false,false);
@@ -1995,8 +1995,7 @@ public class WebCallService extends Service {
 						} else if(username.equals("")) {
 							Log.d(TAG,"onClose cannot reconnect: username is not set");
 						} else {
-							loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-										"&ver="+ BuildConfig.VERSION_NAME+"_"+getWebviewVersion();
+							setLoginUrl();
 							Log.d(TAG,"onClose re-login in 5s url="+loginUrl);
 							// hopefully network is avilable in 8s again
 							// TODO on P9 in some cases this reconnecter does NOT come
@@ -2095,12 +2094,13 @@ public class WebCallService extends Service {
 		@Override
 		public void onSetSSLParameters(SSLParameters sslParameters) {
 			// this method is only supported on Android >= 24 (Nougat)
-			// below we do host verification ourselves in wsOpen()
-//			if(extendedLogsFlag) {
+			// in wsOpen() we do host verification ourselves
+			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
 				Log.d(TAG,"onSetSSLParameters "+sslParameters);
-//			}
-			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
 				super.onSetSSLParameters(sslParameters);
+			} else {
+				Log.d(TAG,"# onSetSSLParameters "+sslParameters+" not supported "+
+					Build.VERSION.SDK_INT+" < "+Build.VERSION_CODES.N);
 			}
 		}
 
@@ -2281,6 +2281,13 @@ public class WebCallService extends Service {
 
 	// section 5: private methods
 
+	private void setLoginUrl() {
+		String webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+		String username = prefs.getString("username", "");
+		loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
+					"&ver="+ BuildConfig.VERSION_NAME+"_"+getWebviewVersion(); // +"&re=true";
+	}
+
 	private void startReconnecter(boolean wakeIfNoNet, int reconnectDelaySecs) {
 		// last server ping is too old
 		Log.d(TAG,"startReconnecter");
@@ -2301,13 +2308,7 @@ public class WebCallService extends Service {
 			// if this service was NOT started by system boot
 			// and there was NO prev reconnect caused by 1006
 			// then we will need to construct loginUrl before we call reconnecter
-			String webcalldomain;
-			String username;
-			webcalldomain = prefs.getString("webcalldomain", "")
-				.toLowerCase(Locale.getDefault());
-			username = prefs.getString("username", "");
-			loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
-						"&ver="+ BuildConfig.VERSION_NAME+"_"+getWebviewVersion();
+			setLoginUrl();
 		}
 		if(!reconnectBusy) {
 			// TODO do we need to copy cookies here?
@@ -2805,7 +2806,7 @@ public class WebCallService extends Service {
 
 					statusMessage("Connecting..",true,false);
 					//Log.d(TAG,"reconnecter connectHost("+wsAddr+")");
-					connectHost(wsAddr); // will set wsClient on success
+					connectHost(wsAddr,true); // will set wsClient on success
 					if(wsClient==null) {
 						if(reconnectCounter<ReconnectCounterMax) {
 							int delaySecs = reconnectCounter*5;
@@ -2959,13 +2960,17 @@ public class WebCallService extends Service {
 		return reconnecter;
 	}
 
-	private WebSocketClient connectHost(String setAddr) {
+	private WebSocketClient connectHost(String setAddr, boolean auto) {
 		connectTypeInt = 0;
 		Log.d(TAG,"connectHost("+setAddr+")");
 		try {
 			if(!setAddr.equals("")) {
 				wsAddr = setAddr;
-				//wsAddr += "&callerId="+callerId+"&name="+callerName;
+				//wsAddr += "&callerId="+callerId+"&name="+callerName;	// TODO?
+				if(auto) {
+					// service reconnect: set auto=true telling server this is not a manual login
+					wsAddr += "&auto=true";
+				}
 				wsClient = new WsClient(new URI(wsAddr));
 			}
 			if(wsClient==null) {
@@ -2974,10 +2979,7 @@ public class WebCallService extends Service {
 			}
 			// client-side ping-interval (default: 60 seconds)
 			// see: https://github.com/TooTallNate/Java-WebSocket/wiki/Lost-connection-detection
-			// server will only send a ping if the client does not do so for 80s
-			// if the client sends a ping every 60s, then the server will never do so
-			// we just use the default value of 60s
-			wsClient.setConnectionLostTimeout(0); // turn off client pings; default=60s
+			wsClient.setConnectionLostTimeout(0); // we turn off client pings
 
 			if(setAddr.startsWith("wss")) {
 				if(insecureTlsFlag) {

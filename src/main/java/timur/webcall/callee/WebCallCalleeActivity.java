@@ -531,8 +531,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 	    HitTestResult result = myWebView.getHitTestResult();
 		// result.getType(); 5=IMAGE_TYPE, 7=SRC_ANCHOR_TYPE
-		//Log.d(TAG,"onCreateContextMenu result="+result+" "+result.getType()+" "+result.getExtra());
-
+		Log.d(TAG,"onCreateContextMenu result="+result+" "+result.getType()+" "+result.getExtra());
 		if(result.getType()==HitTestResult.SRC_ANCHOR_TYPE) {
 			// longpress on a link (use result.getExtra())
 			String clipText = result.getExtra();
@@ -556,6 +555,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				startActivity(shareIntent);
 				return;
 			}
+
+		} else if(result.getType()==HitTestResult.EDIT_TEXT_TYPE) {
+			// do nothing (allow default behavior = paste)
 
 		} else {
 			// longpress on the background
