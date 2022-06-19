@@ -1,0 +1,8 @@
+Enable clipboard paste on password form.
+
+Reconnecter ws-login with parameter auto=true.
+
+Serialize concurrent network change-events.
+
+Single setLoginUrl() function to set loginUrl.
+

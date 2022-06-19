@@ -1,0 +1,4 @@
+Serialize concurrent network change-events.
+
+Single setLoginUrl() function to set loginUrl.
+
