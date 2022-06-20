@@ -2875,6 +2875,7 @@ public class WebCallService extends Service {
 									reconnectCounter = 0;
 									Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
 									//statusMessage("Online. Waiting for calls.",false,false);
+									updateNotification("","Online. Waiting for calls.",false,false);
 									if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 										long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 										Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
@@ -2899,6 +2900,7 @@ public class WebCallService extends Service {
 							reconnectCounter = 0;
 							Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
 							//statusMessage("Online. Waiting for calls.",false,false);
+							updateNotification("","Online. Waiting for calls.",false,false);
 							if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 								long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 								Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
@@ -3598,7 +3600,7 @@ public class WebCallService extends Service {
 
 	private void statusMessage(String msg, boolean disconnected, boolean important) {
 		Log.d(TAG,"statusMessage: "+msg+" "+disconnected+" "+important);
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
 			updateNotification("", msg, disconnected, important);
 		}
 		if(myWebView!=null && webviewMainPageLoaded) {
@@ -3611,7 +3613,7 @@ public class WebCallService extends Service {
 	}
 
 	private void updateNotification(String title, String msg, boolean disconnected, boolean important) {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
 			//Log.d(TAG,"updateNotification: "+msg+" "+disconnected+" "+important);
 			NotificationManager notificationManager =
 				(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
