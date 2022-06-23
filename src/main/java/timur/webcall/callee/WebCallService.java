@@ -1352,16 +1352,25 @@ public class WebCallService extends Service {
 
 		public void setProximity(boolean flagNear) {
 			proximityNear = flagNear;
-			if(proximityNear) {
-				// user is now holding device CLOSE TO HEAD
-				//Log.d(TAG, "setProximity() near, speakerphone=false");
-				audioManager.setMode(AudioManager.MODE_IN_CALL); // In call audio mode. phone call is established
-				audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
+
+			if(audioManager.isWiredHeadsetOn()) {
+				Log.d(TAG, "setProximity("+flagNear+") skip isWiredHeadsetOn");
+			} else if(audioManager.isBluetoothA2dpOn()) {
+				Log.d(TAG, "setProximity("+flagNear+") skip isBluetoothA2dpOn");
 			} else {
-				// user is now now holding device AWAY FROM HEAD
-				//Log.d(TAG, "setProximity() away, speakerphone=true");
-				audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
-				audioManager.setSpeakerphoneOn(true); // activates speakerphone
+				Log.d(TAG, "setProximity("+flagNear+")");
+				if(proximityNear) {
+					// user is now holding device CLOSE TO HEAD
+					//Log.d(TAG, "setProximity() near, speakerphone=false");
+					audioManager.setMode(AudioManager.MODE_IN_CALL);
+					audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
+				} else {
+					// user is now now holding device AWAY FROM HEAD
+					//Log.d(TAG, "setProximity() away, speakerphone=true");
+
+					audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+					audioManager.setSpeakerphoneOn(true); // activates speakerphone
+				}
 			}
 		}
 
@@ -1750,10 +1759,16 @@ public class WebCallService extends Service {
 			callPickedUpFlag=false;
 			peerDisconnnectFlag=true;
 
-			Log.d(TAG, "peerDisConnect(), speakerphone=true");
-			audioManager.setSpeakerphoneOn(true);
+			if(audioManager.isWiredHeadsetOn()) {
+				Log.d(TAG, "peerDisConnect() isWiredHeadsetOn: skip setSpeakerphoneOn(true)");
+			} else if(audioManager.isBluetoothA2dpOn()) {
+				Log.d(TAG, "peerDisConnect() isBluetoothA2dpOn: skip setSpeakerphoneOn(true)");
+			} else {
+				Log.d(TAG, "peerDisConnect(), speakerphone=true");
+				audioManager.setSpeakerphoneOn(true);
+			}
 
-			// TODO verify: route audio to the speaker, even if a headset is connected)
+			// this is used for ringOnSpeakerOn
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
 		}
 
@@ -3448,8 +3463,9 @@ public class WebCallService extends Service {
 
 	@SuppressWarnings({"unchecked", "JavaReflectionInvocation"})
 	private void audioToSpeakerSet(boolean set, boolean showUser) {
-		// set=0: route audio to it's normal destination (to headset if connected)
-		// set=1: route audio to speaker (even if headset is connected)
+		// this is used for ringOnSpeakerOn
+		// set=false: route audio to it's normal destination (to headset if connected)
+		// set=true:  route audio to speaker (even if headset is connected)
 		// called by callPickedUp()
 		if(extendedLogsFlag) {
 			Log.d(TAG,"audioToSpeakerSet "+set+" (prev="+audioToSpeakerActive+")");
@@ -3481,7 +3497,7 @@ public class WebCallService extends Service {
 			} catch(Exception ex) {
 				Log.d(TAG,"audioToSpeakerSet "+set+" ex="+ex);
 				Intent intent = new Intent("webcall");
-				intent.putExtra("toast", "Ring on speaker non-functional");
+				intent.putExtra("toast", "Ring on speaker not available");
 				sendBroadcast(intent);
 				audioToSpeakerMode = 0;
 				storePrefsInt("audioToSpeaker", audioToSpeakerMode);
@@ -3493,7 +3509,7 @@ public class WebCallService extends Service {
 			// audioToSpeakerActive = set;
 			if(set) {
 				Intent intent = new Intent("webcall");
-				intent.putExtra("toast", "Ring on speaker non-functional");
+				intent.putExtra("toast", "Ring on speaker not available");
 				sendBroadcast(intent);
 			}
 			audioToSpeakerMode = 0;
