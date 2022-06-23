@@ -1,8 +1,8 @@
-Enable clipboard paste on password form.
+Now permiting clipboard paste on password form field.
 
-Serialize concurrent network change-events.
+No speakermode by proximity sensor if headset connected.
 
-Single setLoginUrl() function to set loginUrl.
+Serializing concurrent network-change events.
 
-Reconnecter ws-login with parameter auto=true.
+Added missing "Online. Waiting for calls." notification msg.
 
