@@ -218,7 +218,7 @@ input[type=submit]:focus {
 <form action="javascript:;" onsubmit="submitFormDone(this)"	style="margin-top:20px;" id="formFrame">
 	<label for="domain">Server address:</label>
 	<br>
-	<input autocomplete="domain" id="domain" type="text" class="formtext" autofocus required>
+	<input autocomplete="domain" id="domain" type="text" class="formtext" onblur="domainAction()" autofocus required>
 	<span onclick="clearForm(0)" style="margin-left:5px; user-select:none; cursor:pointer;">X</span>
 
 	<br>
@@ -230,29 +230,28 @@ input[type=submit]:focus {
 	<br>
 	<div style="font-size:0.85em; margin-top:3px;">(empty field will request a new ID)</div>
 	
-
-	<br>
 	<input type="submit" name="Submit" id="submit" value="Start"
-		style="width:120px; margin-top:40px; margin-bottom:50px;">
+		style="width:120px; margin-top:40px; margin-bottom:30px;">
 
-	<br>
+
 	<div style="font-size:1.1em">
-	<label id="clearCookiesLabel" style="margin-top:16px; user-select:none;">
-		<input type="checkbox" id="clearCookies" class="checkbox"> Clear password cookie</label>
-	</label>
+		<label id="clearCookiesLabel" style="margin-top:14px; user-select:none;">
+			<input type="checkbox" id="clearCookies" class="checkbox"> Clear password cookie</label>
+		</label>
 
-	<br>
-	<label id="clearCacheLabel" style="margin-top:16px; user-select:none;">
-		<input type="checkbox" id="clearCache" class="checkbox"> Clear cache</label>
-	</label>
+		<br>
+		<label id="clearCacheLabel" style="margin-top:14px; user-select:none;">
+			<input type="checkbox" id="clearCache" class="checkbox"> Clear cache</label>
+		</label>
 
-	<br>
-	<label id="insecureTlsLabel" style="margin-top:16px; user-select:none;">
-		<input type="checkbox" id="insecureTls" class="checkbox"> Allow insecure TLS</label>
-	</label>
+		<br>
+		<label id="insecureTlsLabel" style="margin-top:14px; user-select:none;">
+			<input type="checkbox" id="insecureTls" class="checkbox"> Allow insecure TLS</label>
+		</label>
+	</div>
 
-	<br>
-	<table style="font-size:0.8em; margin-top:55px; line-height:1.2em; opacity:0.9;">
+
+	<table style="font-size:0.8em; margin-top:40px; line-height:1.2em; opacity:0.9;">
 	<tr>
 		<td>WebCall:</td>
 		<td><span id="webcallversion"></span></td>

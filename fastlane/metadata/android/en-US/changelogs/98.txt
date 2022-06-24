@@ -1,0 +1,14 @@
+v1.0.7
+
+Auto-enable "insecure TLS" if server address is an ip-addr.
+
+v1.0.6
+
+No speakermode by proximity sensor if headset is connected.
+
+Now permiting clipboard paste on password form field.
+
+Serializing concurrent network-change events.
+
+Added missing "Online. Waiting for calls." notification msg.
+

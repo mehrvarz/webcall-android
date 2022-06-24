@@ -17,7 +17,7 @@ var username = "";
 var versionName = "";
 
 window.onload = function() {
-	if(typeof Android !== "undefined" && Android !== null) {
+//	if(typeof Android !== "undefined" && Android !== null) {
 		domain = Android.readPreference("webcalldomain");
 		username = Android.readPreference("username");
 		if(username=="register") {
@@ -87,7 +87,8 @@ window.onload = function() {
 			webviewVersion = webviewVersion + " TOO OLD!";
 		}
 		document.getElementById("webviewversion").innerHTML = webviewVersion;
-	}
+//	}
+
 	if(domain=="") {
 		domain = "timur.mobi";
 	} else if(domain==" ") {
@@ -99,14 +100,10 @@ window.onload = function() {
 	formUsername.value = username;
 
 	insecureTls.addEventListener('change', function() {
-		if(this.checked) {
-			console.log("insecureTls checked");
-			insecureTlsLabel.style.color = "#f44";
-		} else {
-			console.log("insecureTls unchecked");
-			insecureTlsLabel.style.color = "";
-		}
+		insecureTlsAction();
 	});
+
+	domainAction();
 
 	// remove focus from any of the elements (to prevent accidental modification)
 	setTimeout(function() {
@@ -123,6 +120,36 @@ function clearForm(idx) {
 	} else if(idx==1) {
 		formUsername.value = "";
 		formUsername.focus();
+	}
+}
+
+function domainAction() {
+	let valueDomain = formDomain.value;
+	let valueDomainWithoutPort = valueDomain;
+	let portIdx = valueDomainWithoutPort.indexOf(":");
+	if(portIdx>=0) {
+		valueDomainWithoutPort = valueDomainWithoutPort.substring(0,portIdx);
+	}
+	// https://stackoverflow.com/questions/4460586/javascript-regular-expression-to-check-for-ip-addresses
+	if(valueDomainWithoutPort.split(".").map(ip => Number(ip) >= 0 && Number(ip) <= 255).includes(false)) {
+		// not a valid ip-address
+		console.log("domainAction: not a valid ip-address "+valueDomainWithoutPort);
+		insecureTls.checked = false;
+	} else {
+		// a valid ip-address
+		console.log("domainAction: is a valid ip-address "+valueDomainWithoutPort);
+		insecureTls.checked = true;
+	}
+	insecureTlsAction();
+}
+
+function insecureTlsAction() {
+	if(insecureTls.checked) {
+		console.log("insecureTls checked");
+		insecureTlsLabel.style.color = "#f44";
+	} else {
+		console.log("insecureTls unchecked");
+		insecureTlsLabel.style.color = "";
 	}
 }
 
