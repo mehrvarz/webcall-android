@@ -797,6 +797,7 @@ public class WebCallService extends Service {
 									username!=null && !username.equals("")) {
 								if(!reconnectBusy) {
 									setLoginUrl();
+									connectToSignalingServerIsWanted = true;
 									Log.d(TAG, "onStartCommand loginUrl="+loginUrl);
 									if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 										Log.d(TAG,"onStartCommand cancel reconnectSchedFuture");
@@ -2359,6 +2360,7 @@ public class WebCallService extends Service {
 
 	private void checkLastPing(boolean wakeIfNoNet, int reconnectDelaySecs) {
 		if(!connectToSignalingServerIsWanted) {
+			Log.d(TAG,"checkLastPing !connectToSignalingServerIsWanted abort");
 			return;
 		}
 		if(extendedLogsFlag) {
