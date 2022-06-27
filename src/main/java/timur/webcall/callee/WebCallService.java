@@ -200,6 +200,7 @@ public class WebCallService extends Service {
 	private IntentFilter batteryStatusfilter = null;
 	private Intent batteryStatus = null;
 	private String webviewVersionString = "";
+	private WebSettings webSettings = null;
 
 	// wakeUpWakeLock used for wakeup from doze: FULL_WAKE_LOCK|ACQUIRE_CAUSES_WAKEUP (screen on)
 	// wakeUpWakeLock is released by activity
@@ -906,7 +907,7 @@ public class WebCallService extends Service {
 
 			myWebView = (WebView)view;
 
-			WebSettings webSettings = myWebView.getSettings();
+			webSettings = myWebView.getSettings();
 			userAgentString = webSettings.getUserAgentString();
 			Log.d(TAG, "startWebView ua="+userAgentString);
 
@@ -1645,19 +1646,38 @@ public class WebCallService extends Service {
 
 		@android.webkit.JavascriptInterface
 		public void wsClearCache() {
-			// used by WebCallAndroid
+			// used by webcall.js + callee.js (clearcache())
 			if(myWebView!=null) {
 				Log.d(TAG,"wsClearCache clearCache()");
 				myWebView.post(new Runnable() {
 					@Override
 					public void run() {
 						myWebView.clearCache(true);
+						Log.d(TAG,"wsClearCache clearCache() done");
 					}
 				});
 				long nowSecs = new Date().getTime();
 				storePrefsLong("lastClearCache", nowSecs);
 			} else {
 				Log.d(TAG,"wsClearCache myWebView==null");
+			}
+		}
+
+		@android.webkit.JavascriptInterface
+		public void reload() {
+			if(myWebView==null) {
+				Log.d(TAG,"# reload("+currentUrl+") myWebView==null");
+			} else {
+				Log.d(TAG,"reload("+currentUrl+")");
+				String reloadUrl = currentUrl;
+				currentUrl=null; //webviewMainPageLoaded) {
+				myWebView.post(new Runnable() {
+					@Override
+					public void run() {
+						myWebView.loadUrl(reloadUrl);
+						Log.d(TAG,"reload("+reloadUrl+") done");
+					}
+				});
 			}
 		}
 
