@@ -1,0 +1,6 @@
+v1.0.8
+
+new JavascriptInterface reload() for 'Clear cache' at runtime
+
+if login-from-boot (onStartCommand) -> set connectToSignalingServerIsWanted=true
+
