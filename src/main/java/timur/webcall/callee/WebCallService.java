@@ -2626,6 +2626,7 @@ public class WebCallService extends Service {
 					statusMessage("No network. Giving up.",true,true);
 					reconnectBusy = false;
 					reconnectCounter = 0;
+					runJS("offlineAction();",null);
 					return;
 				}
 
