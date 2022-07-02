@@ -53,20 +53,28 @@
 				<action android:name="android.intent.action.VIEW" />
 				<category android:name="android.intent.category.DEFAULT" />
 				<category android:name="android.intent.category.BROWSABLE" />
-				<data
-				    android:host="timur.mobi"
-				    android:pathPrefix="/user/"
-				    android:scheme="https" />
+				<data android:scheme="https" />
+				<data android:scheme="http" />
+				<!-- unfortunately we cannot leave host blank -->
+			    <data android:host="timur.mobi" />
+			    <data android:host="192.168.3.209" />
+				<data android:port="443" />
+				<data android:port="8068" />
+				<data android:pathPrefix="/user/" />
 			</intent-filter>
 
 			<intent-filter>
 				<action android:name="android.nfc.action.NDEF_DISCOVERED" />
 				<category android:name="android.intent.category.DEFAULT" />
 				<category android:name="android.intent.category.BROWSABLE" />
-				<data
-				    android:host="timur.mobi"
-				    android:pathPrefix="/user/"
-				    android:scheme="https" />
+				<data android:scheme="https" />
+				<data android:scheme="http" />
+				<!-- unfortunately we cannot leave host blank -->
+			    <data android:host="timur.mobi" />
+			    <data android:host="192.168.3.209" />
+				<data android:port="443" />
+				<data android:port="8068" />
+				<data android:pathPrefix="/user/" />
 			</intent-filter>
         </activity>
 
