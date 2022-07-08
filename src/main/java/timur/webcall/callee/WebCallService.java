@@ -2123,7 +2123,7 @@ public class WebCallService extends Service {
 
 		@Override
 		public void onMessage(ByteBuffer message) {
-			//Log.d(TAG,"onMessage ! ByteBuffer "+message);
+			//this is not being used
 			Log.d(TAG,"onMessage ! ByteBuffer");
 		}
 
@@ -2581,6 +2581,10 @@ public class WebCallService extends Service {
 		reconnecter = new Runnable() {
 			// loginUrl must be set before reconnecter is called
 			public void run() {
+				if(!connectToSignalingServerIsWanted) {
+					return;
+				}
+
 				reconnectSchedFuture = null;
 				if(wsClient!=null) {
 					Log.d(TAG,"reconnecter already connected");
@@ -2627,6 +2631,10 @@ public class WebCallService extends Service {
 					reconnectBusy = false;
 					reconnectCounter = 0;
 					runJS("offlineAction();",null);
+					return;
+				}
+
+				if(!connectToSignalingServerIsWanted) {
 					return;
 				}
 

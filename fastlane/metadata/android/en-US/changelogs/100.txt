@@ -1,10 +1,17 @@
-v1.1.0
+ID mapping
 
-added runJS('offlineAction();',null) under 'No network. Giving up.'
+Intent-filter VIEW and NDEF_DISCOVERED not tight to specific host anymore
+webcall links and NFC-connect now work with other hosts than timur.mobi
 
-v1.0.8
+New menu item 'Clear cache' can be invoked at any time to updated to latest
+core client. No more need to exit and restart app.
 
-new JavascriptInterface reload() for 'Clear cache' at runtime
+WebCall news is now shown in-app. No need to open external browser anymore.
 
-if login-from-boot (onStartCommand) -> set connectToSignalingServerIsWanted=true
+Fixed: to ensure correct button state, runJS('offlineAction();') is now called
+in response to status 'No network. Giving up.'
+
+Fixed: an issue with reconnect stability when service was auto-started from boot
+
+Fixed: service reconnecter run(): added 2x if(!connectToSignalingServerIsWanted) abort
 
