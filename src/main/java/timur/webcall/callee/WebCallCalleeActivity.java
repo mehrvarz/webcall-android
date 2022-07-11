@@ -980,7 +980,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					}
 				}
 			} else {
-				// user on some other host
+				// call callee-user on another host
 				Log.d(TAG, "onNewIntent remote host="+host);
 				if(webCallServiceBinder!=null) {
 					// only execute if we are on the main page
