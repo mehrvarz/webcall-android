@@ -963,16 +963,30 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		String dialId = null;
 		if(data!=null) {
 			Log.d(TAG, "onNewIntent data="+data);
-			String path = data.getPath();
-			int idxUser = path.indexOf("/user/");
-			if(idxUser>=0) {
-				dialId = path.substring(idxUser+6);
-				lastSetDialId = System.currentTimeMillis();
-				Log.d(TAG, "onNewIntent dialId="+dialId);
+			String webcalldomain = prefs.getString("webcalldomain", "");
+			String host = data.getHost();
+			if(host.equals(webcalldomain)) {
+				String path = data.getPath();
+				int idxUser = path.indexOf("/user/");
+				if(idxUser>=0) {
+					dialId = path.substring(idxUser+6);
+					lastSetDialId = System.currentTimeMillis();
+					Log.d(TAG, "onNewIntent dialId="+dialId);
+					if(webCallServiceBinder!=null) {
+						// only execute if we are on the main page
+						if(webCallServiceBinder.getCurrentUrl().indexOf("/callee/")>=0) {
+							webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
+						}
+					}
+				}
+			} else {
+				// user on some other host
+				Log.d(TAG, "onNewIntent remote host="+host);
 				if(webCallServiceBinder!=null) {
 					// only execute if we are on the main page
 					if(webCallServiceBinder.getCurrentUrl().indexOf("/callee/")>=0) {
-						webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
+						webCallServiceBinder.runJScode(
+							"iframeWindowOpen('"+data.toString()+"',true,'max-width:800px;height:100%;',true)");
 					}
 				}
 			}

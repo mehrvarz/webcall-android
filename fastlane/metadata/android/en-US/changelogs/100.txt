@@ -1,16 +1,15 @@
-ID mapping
+ID mapping (aka Burner ID's)
 
-Intent-filter VIEW and NDEF_DISCOVERED not tight to specific host anymore.
-WebCall links + NFC-connect now work with hostnames other than timur.mobi.
+Intent-filters VIEW and NDEF_DISCOVERED are not tight to timur.mobi 
+anymore. WebCall links + NFC-connect now work with any hostname you
+may be using.
 
-New menu item 'Clear cache' can be invoked at any time to updated to the
-latest core client. No need to exit and restart app anymore.
+Menu item 'Clear cache' can be invoked at any time to fetch the latest
+WebCall core client. No need to exit app anymore for this purpose.
 
-WebCall update can now be shown in-app. No need to open external browser.
+WebCall Update Page is now shown in-app.
 
-Fix: Correct button state in response to status 'No network. Giving up.'
+Fix: [Go Offline] does now stop all service reconnecter right away.
 
-Fix: Reconnect stability after service was auto-started from boot.
-
-Fix: Go offline will immediately stop service reconnecter.
+Fix: Improved reconnect stability when service was started by boot.
 
