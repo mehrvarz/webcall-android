@@ -2695,12 +2695,22 @@ public class WebCallService extends Service {
 						Log.d(TAG,"reconnecter abort");
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							Log.d(TAG,"reconnecter cancel reconnectSchedFuture");
-							reconnectSchedFuture.cancel(false);	
+							reconnectSchedFuture.cancel(false);
 						}
 						reconnectSchedFuture = null;
+						reconnectBusy = false;
 						return;
 					}
 
+					if(!connectToSignalingServerIsWanted) {
+						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+							reconnectSchedFuture.cancel(false);
+						}
+						reconnectSchedFuture = null;
+						reconnectCounter = 0;
+						reconnectBusy = false;
+						return;
+					}
 					int status=0;
 					try {
 						Log.d(TAG,"reconnecter con.connect()");
@@ -2719,6 +2729,15 @@ public class WebCallService extends Service {
 
 						con.connect();
 						status = con.getResponseCode();
+						if(!connectToSignalingServerIsWanted) {
+							if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+								reconnectSchedFuture.cancel(false);
+							}
+							reconnectSchedFuture = null;
+							reconnectCounter = 0;
+							reconnectBusy = false;
+							return;
+						}
 						if(status!=200) {
 							Log.d(TAG,"reconnecter status="+status+" fail");
 						} else {
@@ -2737,6 +2756,15 @@ public class WebCallService extends Service {
 						status = 0;
 						Log.d(TAG,"reconnecter con.connect()/getInputStream() ex="+ex);
 					}
+					if(!connectToSignalingServerIsWanted) {
+						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+							reconnectSchedFuture.cancel(false);
+						}
+						reconnectSchedFuture = null;
+						reconnectCounter = 0;
+						reconnectBusy = false;
+						return;
+					}
 					if(status!=200) {
 						// network error: retry login
 						if(wsClient!=null) {
@@ -2751,7 +2779,7 @@ public class WebCallService extends Service {
 							}
 							statusMessage("Failed to reconnect. Will try again...",true,false);
 							if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-								reconnectSchedFuture.cancel(false);	
+								reconnectSchedFuture.cancel(false);
 								reconnectSchedFuture = null;
 							}
 							reconnectSchedFuture =
@@ -2777,13 +2805,14 @@ public class WebCallService extends Service {
 						return;
 					}
 
-					if(!reconnectBusy) {
+					if(!connectToSignalingServerIsWanted || !reconnectBusy) {
 						// abort forced
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-							reconnectSchedFuture.cancel(false);	
+							reconnectSchedFuture.cancel(false);
 						}
 						reconnectSchedFuture = null;
 						reconnectCounter = 0;
+						reconnectBusy = false;
 						return;
 					}
 
@@ -2840,13 +2869,14 @@ public class WebCallService extends Service {
 						return;
 					}
 
-					if(!reconnectBusy) {
+					if(!connectToSignalingServerIsWanted || !reconnectBusy) {
 						// abort forced
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-							reconnectSchedFuture.cancel(false);	
+							reconnectSchedFuture.cancel(false);
 						}
 						reconnectSchedFuture = null;
 						reconnectCounter = 0;
+						reconnectBusy = false;
 						return;
 					}
 
@@ -2862,7 +2892,7 @@ public class WebCallService extends Service {
 							Log.d(TAG,"reconnecter connectHost() fail - retry...");
 							statusMessage("Connection lost. Will try again...",true,false);
 							if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-								reconnectSchedFuture.cancel(false);	
+								reconnectSchedFuture.cancel(false);
 								reconnectSchedFuture = null;
 							}
 							reconnectSchedFuture =
@@ -2887,7 +2917,7 @@ public class WebCallService extends Service {
 
 					// wsClient is set
 					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-						reconnectSchedFuture.cancel(false);	
+						reconnectSchedFuture.cancel(false);
 						reconnectSchedFuture = null;
 					}
 					if(reconnectBusy) {
@@ -2960,10 +2990,21 @@ public class WebCallService extends Service {
 					// this can be caused by webview not installed or just now uninstalled
 					// "android.webkit.WebViewFactory$MissingWebViewPackageException: "
 					//   "Failed to load WebView provider: No WebView installed
+					if(!connectToSignalingServerIsWanted) {
+						// abort forced
+						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+							reconnectSchedFuture.cancel(false);
+						}
+						reconnectSchedFuture = null;
+						reconnectCounter = 0;
+						reconnectBusy = false;
+						return;
+					}
+
 					// if "No WebView installed" we abort reconnecter
 					String exString = ex.toString();
 					if(exString.indexOf("No WebView installed")>=0) {
-						reconnectCounter=ReconnectCounterMax;
+						reconnectCounter = ReconnectCounterMax;
 					}
 
 					ex.printStackTrace();
@@ -2975,7 +3016,7 @@ public class WebCallService extends Service {
 						Log.d(TAG,"reconnecter reconnect ex="+ex+" retry...");
 						statusMessage("Connection lost. Will try again...",true,false);
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-							reconnectSchedFuture.cancel(false);	
+							reconnectSchedFuture.cancel(false);
 							reconnectSchedFuture = null;
 						}
 						reconnectSchedFuture =scheduler.schedule(reconnecter, delaySecs, TimeUnit.SECONDS);

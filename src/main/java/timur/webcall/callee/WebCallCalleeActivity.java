@@ -986,7 +986,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					// only execute if we are on the main page
 					if(webCallServiceBinder.getCurrentUrl().indexOf("/callee/")>=0) {
 						webCallServiceBinder.runJScode(
-							"iframeWindowOpen('"+data.toString()+"',true,'max-width:800px;height:100%;',true)");
+						 "iframeWindowOpen('"+data.toString()+"',true,'max-width:600px;min-height:500px;',true)");
 					}
 				}
 			}
