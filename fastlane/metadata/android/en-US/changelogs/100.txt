@@ -7,9 +7,13 @@ may be using.
 Menu item 'Clear cache' can be invoked at any time to fetch the latest
 WebCall core client. No need to exit app anymore for this purpose.
 
-WebCall Update Page is now shown in-app.
+WebCall Update Page is now shown in-app (in iframe).
 
-Fix: [Go Offline] does now stop all service reconnecter right away.
+Dial-ID can now be used to call users on other WebCall servers.
+This is running the caller widget from the other server in an iframe.
 
-Fix: Improved reconnect stability when service was started by boot.
+Fix: Improved reconnect stability when service is started by boot.
+
+Fix: [Go Offline] does now stop service reconnecter immediately and 
+more reliably.
 
