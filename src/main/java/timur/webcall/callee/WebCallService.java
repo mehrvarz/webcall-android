@@ -3693,6 +3693,7 @@ public class WebCallService extends Service {
 		}
 		if(myWebView!=null && webviewMainPageLoaded) {
 			if(disconnected) {
+				// "Uncaught ReferenceError: wsOnError2 is not defined"
 				runJS("wsOnError2('"+msg+"');",null); // will remove green led
 			} else {
 				runJS("showStatus('"+msg+"',-1);",null);

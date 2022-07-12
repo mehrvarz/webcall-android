@@ -17,28 +17,36 @@ var username = "";
 var versionName = "";
 
 window.onload = function() {
-//	if(typeof Android !== "undefined" && Android !== null) {
-		domain = Android.readPreference("webcalldomain");
-		username = Android.readPreference("username");
-		if(username=="register") {
-			username="";
-			Android.storePreference("username", "");
-		}
+	domain = Android.readPreference("webcalldomain");
+	username = Android.readPreference("username");
+	if(username=="register") {
+		username="";
+		Android.storePreference("username", "");
+	}
 
-		versionName = Android.getVersionName();
-		var lastUsedVersionName = Android.readPreference("versionName");
-		console.log("versionName "+versionName);
-		if(lastUsedVersionName=="") {
-			// the user has upgraded (or downgraded) the webcall apk
-			console.log("upgrade from lastUsedVersionName "+lastUsedVersionName);
-			var bubbleElement;
+	versionName = Android.getVersionName();
+	var lastUsedVersionName = Android.readPreference("versionName");
+	console.log("versionName "+versionName);
+	if(lastUsedVersionName=="") {
+		// the user has upgraded (or downgraded) the webcall apk
+		console.log("upgrade from lastUsedVersionName "+lastUsedVersionName);
+		var bubbleElement;
+
+		setTimeout(function() {
+		bubbleElement = document.createElement("div");
+		bubbleElement.classList.add("speechbubble2");
+		bubbleElement.id = "speechBubble";
+		bubbleElement.style = "left:4%;top:290px;max-width:75%;width:320px;padding:20px;";
+		bubbleElement.innerHTML = "Clear password cookie: force password form";
+		bubbleElement.onclick = function () {
+			this.parentElement.removeChild(this);
 
 			setTimeout(function() {
 			bubbleElement = document.createElement("div");
 			bubbleElement.classList.add("speechbubble2");
 			bubbleElement.id = "speechBubble";
-			bubbleElement.style = "left:4%;top:290px;max-width:75%;width:320px;padding:20px;";
-			bubbleElement.innerHTML = "Clear password cookie: force password form";
+			bubbleElement.style = "left:3%;top:330px;max-width:75%;width:320px;padding:20px;";
+			bubbleElement.innerHTML = "Clear cache: reload WebCall core";
 			bubbleElement.onclick = function () {
 				this.parentElement.removeChild(this);
 
@@ -46,22 +54,10 @@ window.onload = function() {
 				bubbleElement = document.createElement("div");
 				bubbleElement.classList.add("speechbubble2");
 				bubbleElement.id = "speechBubble";
-				bubbleElement.style = "left:3%;top:330px;max-width:75%;width:320px;padding:20px;";
-				bubbleElement.innerHTML = "Clear cache: reload WebCall core";
+				bubbleElement.style = "left:3%;top:370px;max-width:75%;width:320px;padding:20px;";
+				bubbleElement.innerHTML = "Allow insecure TLS: skip certificate authentication";
 				bubbleElement.onclick = function () {
 					this.parentElement.removeChild(this);
-
-					setTimeout(function() {
-					bubbleElement = document.createElement("div");
-					bubbleElement.classList.add("speechbubble2");
-					bubbleElement.id = "speechBubble";
-					bubbleElement.style = "left:3%;top:370px;max-width:75%;width:320px;padding:20px;";
-					bubbleElement.innerHTML = "Allow insecure TLS: skip certificate authentication";
-					bubbleElement.onclick = function () {
-						this.parentElement.removeChild(this);
-					}
-					container.appendChild(bubbleElement);
-					},300);
 				}
 				container.appendChild(bubbleElement);
 				},300);
@@ -69,25 +65,27 @@ window.onload = function() {
 			container.appendChild(bubbleElement);
 			},300);
 		}
-		if(lastUsedVersionName!=versionName) {
-			if(clearCache)
-				clearCache.checked = true;
-			// store the new versionName, so that the speech bubbles do not appear next time
-			console.log("store versionName "+versionName);
-			Android.storePreference("versionName", versionName);
-			//Android.storePreferenceLong("keepAwakeWakeLockMS", 0);
-		}
+		container.appendChild(bubbleElement);
+		},300);
+	}
+	if(lastUsedVersionName!=versionName) {
+		if(clearCache)
+			clearCache.checked = true;
+		// store the new versionName, so that the speech bubbles do not appear next time
+		console.log("store versionName "+versionName);
+		Android.storePreference("versionName", versionName);
+		//Android.storePreferenceLong("keepAwakeWakeLockMS", 0);
+	}
 
-		document.getElementById("webcallversion").innerHTML = Android.getVersionName();
+	document.getElementById("webcallversion").innerHTML = Android.getVersionName();
 
-		var webviewVersion = Android.webviewVersion();
-		if(!webviewVersion) {
-			webviewVersion = "no version, old webview?";
-		} else if(webviewVersion<"80.0") {
-			webviewVersion = webviewVersion + " TOO OLD!";
-		}
-		document.getElementById("webviewversion").innerHTML = webviewVersion;
-//	}
+	var webviewVersion = Android.webviewVersion();
+	if(!webviewVersion) {
+		webviewVersion = "no version, old webview?";
+	} else if(webviewVersion<"80.0") {
+		webviewVersion = webviewVersion + " TOO OLD!";
+	}
+	document.getElementById("webviewversion").innerHTML = webviewVersion;
 
 	if(domain=="") {
 		domain = "timur.mobi";
@@ -133,11 +131,11 @@ function domainAction() {
 	// https://stackoverflow.com/questions/4460586/javascript-regular-expression-to-check-for-ip-addresses
 	if(valueDomainWithoutPort.split(".").map(ip => Number(ip) >= 0 && Number(ip) <= 255).includes(false)) {
 		// not a valid ip-address
-		console.log("domainAction: not a valid ip-address "+valueDomainWithoutPort);
+		console.log("domainAction: not an ip-address: "+valueDomainWithoutPort);
 		insecureTls.checked = false;
 	} else {
 		// a valid ip-address
-		console.log("domainAction: is a valid ip-address "+valueDomainWithoutPort);
+		console.log("domainAction: is a valid ip-address: "+valueDomainWithoutPort);
 		insecureTls.checked = true;
 	}
 	insecureTlsAction();
@@ -158,49 +156,48 @@ function submitFormDone(theForm) {
 	console.log('valueDomain',valueDomain);
 	var valueUsername = formUsername.value;
 	console.log('valueUsername',valueUsername);
-	if(typeof Android !== "undefined" && Android !== null) {
-		if(valueDomain!="") {
-			Android.storePreference("webcalldomain", valueDomain);
-		}
 
-		if(valueUsername!="") {
-			console.log('store valueUsername',valueUsername);
-			Android.storePreference("username", valueUsername);
-			if(valueUsername!=username) {
-				// clear password cookie
-				console.log('wsClearCookies (username changed)');
-				Android.wsClearCookies();
-			}
-		}
+	if(valueDomain!="") {
+		Android.storePreference("webcalldomain", valueDomain);
+	}
 
-		if(clearCookies.checked) {
-			console.log('wsClearCookies (checkbox)');
+	if(valueUsername!="") {
+		console.log('store valueUsername',valueUsername);
+		Android.storePreference("username", valueUsername);
+		if(valueUsername!=username) {
+			// clear password cookie
+			console.log('wsClearCookies (username changed)');
 			Android.wsClearCookies();
 		}
-		if(clearCache.checked) {
-			console.log('wsClearCache');
-			Android.wsClearCache();
-		} else {
-			// Android.wsClearCache() also after 2 days
-			var lastClearCache = Android.readPreferenceLong("lastClearCache");
-			console.log("lastClearCache="+lastClearCache);
-			if(lastClearCache>0) {
-				var nowTime = new Date().getTime();
-				var diffSecs = (nowTime - lastClearCache)/1000;
-				console.log("nowTime="+nowTime+" diffSecs="+diffSecs);
-				if(diffSecs > 2*24*3600) {
-					console.log("time triggered wsClearCache");
-					Android.wsClearCache();
-				}
+	}
+
+	if(clearCookies.checked) {
+		console.log('wsClearCookies (checkbox)');
+		Android.wsClearCookies();
+	}
+	if(clearCache.checked) {
+		console.log('wsClearCache');
+		Android.wsClearCache();
+	} else {
+		// Android.wsClearCache() also after 2 days
+		var lastClearCache = Android.readPreferenceLong("lastClearCache");
+		console.log("lastClearCache="+lastClearCache);
+		if(lastClearCache>0) {
+			var nowTime = new Date().getTime();
+			var diffSecs = (nowTime - lastClearCache)/1000;
+			console.log("nowTime="+nowTime+" diffSecs="+diffSecs);
+			if(diffSecs > 2*24*3600) {
+				console.log("time triggered wsClearCache");
+				Android.wsClearCache();
 			}
 		}
-		if(insecureTls.checked) {
-			console.log('insecureTls true');
-			Android.insecureTls(true);
-		} else {
-			console.log('insecureTls false');
-			Android.insecureTls(false);
-		}
+	}
+	if(insecureTls.checked) {
+		console.log('insecureTls true');
+		Android.insecureTls(true);
+	} else {
+		console.log('insecureTls false');
+		Android.insecureTls(false);
 	}
 
 	if(valueUsername=="") {
@@ -214,14 +211,12 @@ function submitFormDone(theForm) {
 	}
 
 	// there is no point advancing if we have no network
-	if(typeof Android !== "undefined" && Android !== null) {
-		let isNetwork = Android.isNetwork();
-		console.log('isNetwork='+isNetwork);
-		if(!isNetwork) {
-			document.activeElement.blur();
-			alert("no network");
-			return;
-		}
+	let isNetwork = Android.isNetwork();
+	console.log('isNetwork='+isNetwork);
+	if(!isNetwork) {
+		document.activeElement.blur();
+		alert("no network");
+		return;
 	}
 
 	var abort = false;
