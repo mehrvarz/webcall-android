@@ -1,24 +1,31 @@
 ID mapping (aka Burner ID's)
+[link]
 
 Dial-ID can now be used to call users on remote WebCall servers.
-Caller-widgets for remote servers are now run in a separate webview.
-Missed calls will show remote host user as 'id@domain'.
+Missed calls and contacts will show remote user as 'id@domain'.
+The caller-widget for a remote server is run in a separate,
+secondary webview.
 
 Intent-filters VIEW and NDEF_DISCOVERED are not tight to timur.mobi 
 anymore. WebCall links + NFC-connect do now work with any hostname
-you may be using.
+you may be using. This means that if you can click on a link like:
+https://somename.com/user/12345678901 and WebCall for Android will 
+take care of it and let you call this id - as long as the link 
+contains "/user/" in the middle.
 
-New menu item 'Clear cache' can be invoked to update to the latest
-WebCall core client, without being required to exit app.
+New menu item 'Clear cache' can be used to update to the latest
+WebCall core client, without a need to exit the app.
 
-WebCall News [!] (aka Update Page) is now shown in-app.
+WebCall News [!] (aka Update Page) will now be shown in-app.
 
-Fix: Improved reconnect stability when service is started during boot.
+Fixed an issue where the reconnecter was not 100% stable when the 
+service was started by the boot process.
 
-Fix: on network loss now showing 'No network. Reconnect paused.' 
-instead of 'No network. Giving up.' Will reconnect as soon as network
-is back.
+On complete network loss you will now see 'No network. Reconnect paused.' 
+(instead of 'No network. Giving up.') The service will reconnect as soon 
+as some network is available again, but will not attempt to reconnect
+while there is no network.
 
-Fix: hitting [Go Offline] does now stop service reconnecter immediately
-and reconnecter will stay off reliably.
+Fix: When you hit [Go Offline] the service reconnecter will stop 
+immediately and reconnecter will stay completely off.
 
