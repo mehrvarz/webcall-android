@@ -23,6 +23,8 @@ import android.view.MenuInflater;
 import android.graphics.Color;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebView.HitTestResult;
 import android.webkit.WebChromeClient;
 import android.webkit.ConsoleMessage;
@@ -70,8 +72,11 @@ import androidx.core.content.FileProvider;
 
 import java.util.Date;
 import java.util.Locale;
+import java.util.Scanner;
 import java.text.SimpleDateFormat;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.InputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -991,15 +996,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					}
 				}
 			} else {
-				// call callee-user on another host
+				// load caller-page from another host in a 2nd webview
+				// (to make phone call to a user hosted on a remote server)
 				Log.d(TAG, "onNewIntent remote "+data.toString());
-
-				// 2nd webview
 				try {
-//					myWebView.setVisibility(View.GONE);
-					myWebView.setVisibility(View.INVISIBLE);
-//					setContentView(R.layout.activity_alt);
-//					myNewWebView = (WebView)findViewById(R.id.webview2);
 					WebSettings newWebSettings = myNewWebView.getSettings();
 					newWebSettings.setJavaScriptEnabled(true);
 					newWebSettings.setMediaPlaybackRequiresUserGesture(false);
@@ -1032,9 +1032,37 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						}
 					});
 
-					myNewWebView.setVisibility(View.VISIBLE);
-					myNewWebView.loadUrl(data.toString());
-					Log.d(TAG, "onNewIntent myNewWebView opened");
+					myNewWebView.setWebViewClient(new WebViewClient() {
+						@SuppressWarnings("deprecation")
+						@Override
+						public boolean shouldOverrideUrlLoading(WebView view, String url) {
+							Log.d(TAG, "_shouldOverrideUrl "+url);
+							return false;
+						}
+
+						//@TargetApi(Build.VERSION_CODES.N)
+						@Override
+						public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+							final Uri uri = request.getUrl();
+							Log.d(TAG, "_shouldOverrideUrlL="+uri);
+							return false;
+						}
+					});
+
+					// first, load a local spinner page (loads fast)
+					myNewWebView.loadUrl("file:///android_asset/busy.html", null);
+
+					// a little later load remote caller widget (takes a moment to load)
+					final Handler handler = new Handler(Looper.getMainLooper());
+					handler.postDelayed(new Runnable() {
+						@Override
+						public void run() {
+							myNewWebView.setVisibility(View.VISIBLE);
+							myWebView.setVisibility(View.INVISIBLE);
+							Log.d(TAG, "onNewIntent myNewWebView opened");
+							myNewWebView.loadUrl(data.toString());
+						}
+					}, 300);
 
 					// myNewWebView will be closed in onBackPressed()
 				} catch(Exception ex) {
@@ -1164,19 +1192,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public void onBackPressed() {
 		Log.d(TAG, "onBackPressed");
-		if(myNewWebView!=null) {
-			Log.d(TAG, "onBackPressed hide myNewWebView");
-//			myNewWebView.setVisibility(View.GONE);
+		if(myNewWebView.getVisibility()==View.VISIBLE) {
+			Log.d(TAG, "onBackPressed switch back to myWebView");
+			myWebView.setVisibility(View.VISIBLE);
 			myNewWebView.setVisibility(View.INVISIBLE);
 			myNewWebView.loadUrl("");
-			Log.d(TAG, "onBackPressed destroy myNewWebView");
-//			myNewWebView.destroy();
-//			myNewWebView = null;
-//			Log.d(TAG, "onBackPressed setContentView main");
-//			setContentView(R.layout.activity_main);
-			Log.d(TAG, "onBackPressed unhide myWebView");
-			myWebView.setVisibility(View.VISIBLE);
-			Log.d(TAG, "onBackPressed done");
 			return;
 		}
 		if(webCallServiceBinder!=null) {

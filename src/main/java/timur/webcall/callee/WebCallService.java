@@ -1029,8 +1029,9 @@ public class WebCallService extends Service {
 				@Override
 				public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
 					final Uri uri = request.getUrl();
-					Log.d(TAG, "shouldOverrideUrlL "+uri);
-					return handleUri(uri);
+					boolean override = handleUri(uri);
+					Log.d(TAG, "shouldOverrideUrlL="+uri+" override="+override);
+					return override;
 				}
 
 				private boolean handleUri(final Uri uri) {
@@ -1041,18 +1042,8 @@ public class WebCallService extends Service {
 					if(extendedLogsFlag) {
 						Log.i(TAG, "handleUri path="+path+" scheme="+uri.getScheme());
 					}
-/*
-					if(path.indexOf("/user/")>=0) {
-						// this is not a valid url. we store it in the clipboard
-						Log.i(TAG, "handleUri store uri in clipboard " + uri);
 
-						// tell activity to store uri into the clipboard
-						Intent intent = new Intent("webcall");
-						intent.putExtra("clip", uri.toString());
-						sendBroadcast(intent);
-						return true; // do not load this url
-					}
-*/
+					// file: and /callee/ urls are processed in webview
 					if(uri.getScheme().startsWith("file") ||
 						(uri.getScheme().startsWith("http") && path.indexOf("/callee/")>=0)) {
 						// uri is valid for webview; continue below
