@@ -1101,7 +1101,8 @@ public class WebCallService extends Service {
 						if(url.startsWith(baseCurrentUrl)) {
 							// url is just a hashchange; does not need onPageFinished processing
 							// no need to execute onPageFinished() on hashchange or history back
-							currentUrl = url;
+							// here we cut off "auto=1"
+							currentUrl = url.replace("auto=1","");
 							Log.d(TAG, "onPageFinished only hashchange currentUrl=" + currentUrl);
 							return;
 						}
@@ -1109,8 +1110,8 @@ public class WebCallService extends Service {
 
 					// if the url has changed (beyond a hashchange)
 					// and if we ARE connected already -> call js:wakeGoOnline()
-					currentUrl = url;
-					// TODO here we could cut off "?auto=1"
+					// here we cut off "auto=1"
+					currentUrl = url.replace("auto=1","");
 					Log.d(TAG, "onPageFinished set currentUrl=" + currentUrl);
 					webviewMainPageLoaded = false;
 					webviewCookies = CookieManager.getInstance().getCookie(currentUrl);
