@@ -24,6 +24,9 @@ import android.graphics.Color;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebView.HitTestResult;
+import android.webkit.WebChromeClient;
+import android.webkit.ConsoleMessage;
+import android.webkit.PermissionRequest;
 import android.util.Log;
 import android.content.Context;
 import android.content.IntentFilter;
@@ -92,6 +95,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private WindowManager.LayoutParams mParams;
 	private long lastSetLowBrightness = 0;
 	private WebView myWebView = null;
+	private WebView myNewWebView = null;
 	private BroadcastReceiver broadcastReceiver;
 
 	private PowerManager powerManager = null;
@@ -288,6 +292,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			});
 		}
+
+		myNewWebView = (WebView)findViewById(R.id.webview2);
+		myNewWebView.setVisibility(View.INVISIBLE);
 
 		// to receive msgs from our service
 		broadcastReceiver = new BroadcastReceiver() {
@@ -962,10 +969,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		Uri data = intent.getData();
 		String dialId = null;
 		if(data!=null) {
-			Log.d(TAG, "onNewIntent data="+data);
+			//Log.d(TAG, "onNewIntent data="+data);
+			// example data (as string):
+			// https://timur.mobi/user/Timur?callerId=timur&callerName=Timur4&callerHost=192.168.3.209&ds=false
+
 			String webcalldomain = prefs.getString("webcalldomain", "");
 			String host = data.getHost();
 			if(host.equals(webcalldomain)) {
+				Log.d(TAG, "onNewIntent local data="+data);
 				String path = data.getPath();
 				int idxUser = path.indexOf("/user/");
 				if(idxUser>=0) {
@@ -981,13 +992,54 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			} else {
 				// call callee-user on another host
-				Log.d(TAG, "onNewIntent remote host="+host);
-				if(webCallServiceBinder!=null) {
-					// only execute if we are on the main page
-					if(webCallServiceBinder.getCurrentUrl().indexOf("/callee/")>=0) {
-						webCallServiceBinder.runJScode(
-						 "iframeWindowOpen('"+data.toString()+"',true,'max-width:600px;min-height:500px;',true)");
-					}
+				Log.d(TAG, "onNewIntent remote "+data.toString());
+
+				// 2nd webview
+				try {
+//					myWebView.setVisibility(View.GONE);
+					myWebView.setVisibility(View.INVISIBLE);
+//					setContentView(R.layout.activity_alt);
+//					myNewWebView = (WebView)findViewById(R.id.webview2);
+					WebSettings newWebSettings = myNewWebView.getSettings();
+					newWebSettings.setJavaScriptEnabled(true);
+					newWebSettings.setMediaPlaybackRequiresUserGesture(false);
+					newWebSettings.setDomStorageEnabled(true);
+
+					myNewWebView.setWebChromeClient(new WebChromeClient() {
+						@Override
+						public boolean onConsoleMessage(ConsoleMessage cm) {
+							String msg = cm.message();
+							if(!msg.startsWith("showStatus")) {
+								// TODO msg can be very long
+								Log.d(TAG,"console "+msg + " L"+cm.lineNumber());
+							}
+							return true;
+						}
+
+						@Override
+						public void onPermissionRequest(PermissionRequest request) {
+							String[] strArray = request.getResources();
+							for(int i=0; i<strArray.length; i++) {
+								Log.w(TAG, "onPermissionRequest "+i+" ("+strArray[i]+")");
+								// we only grant the permission we want to grant
+								if(strArray[i].equals("android.webkit.resource.AUDIO_CAPTURE") ||
+								   strArray[i].equals("android.webkit.resource.VIDEO_CAPTURE")) {
+									request.grant(strArray);
+									break;
+								}
+								Log.w(TAG, "onPermissionRequest unexpected "+strArray[i]);
+							}
+						}
+					});
+
+					myNewWebView.setVisibility(View.VISIBLE);
+					myNewWebView.loadUrl(data.toString());
+					Log.d(TAG, "onNewIntent myNewWebView opened");
+
+					// myNewWebView will be closed in onBackPressed()
+				} catch(Exception ex) {
+					Log.d(TAG, "onNewIntent myNewWebView ex="+ex);
+					myWebView.setVisibility(View.VISIBLE);
 				}
 			}
 		}
@@ -1112,6 +1164,21 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public void onBackPressed() {
 		Log.d(TAG, "onBackPressed");
+		if(myNewWebView!=null) {
+			Log.d(TAG, "onBackPressed hide myNewWebView");
+//			myNewWebView.setVisibility(View.GONE);
+			myNewWebView.setVisibility(View.INVISIBLE);
+			myNewWebView.loadUrl("");
+			Log.d(TAG, "onBackPressed destroy myNewWebView");
+//			myNewWebView.destroy();
+//			myNewWebView = null;
+//			Log.d(TAG, "onBackPressed setContentView main");
+//			setContentView(R.layout.activity_main);
+			Log.d(TAG, "onBackPressed unhide myWebView");
+			myWebView.setVisibility(View.VISIBLE);
+			Log.d(TAG, "onBackPressed done");
+			return;
+		}
 		if(webCallServiceBinder!=null) {
 			String webviewUrl = webCallServiceBinder.getCurrentUrl();
 			Log.d(TAG, "onBackPressed currentUrl="+webviewUrl);
