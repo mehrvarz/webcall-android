@@ -2615,13 +2615,13 @@ public class WebCallService extends Service {
 						playSoundAlarm();
 					}
 
-					// we abort reconnecter; if network comes back, checkNetworkState() will
+					// we pause reconnecter; if network comes back, checkNetworkState() will
 					// schedule a new reconnecter if connectToSignalingServerIsWanted is set
-					Log.d(TAG,"reconnecter no network, giving up reconnect...");
-					statusMessage("No network. Giving up.",true,true);
+					Log.d(TAG,"reconnecter no network, reconnect paused...");
+					statusMessage("No network. Reconnect paused.",true,true);
 					reconnectBusy = false;
 					reconnectCounter = 0;
-					runJS("offlineAction();",null);
+					//runJS("offlineAction();",null); // goOnline enabled, goOffline disabled
 					return;
 				}
 
