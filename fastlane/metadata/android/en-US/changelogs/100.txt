@@ -15,6 +15,10 @@ WebCall News [!] (aka Update Page) is now shown in-app.
 
 Fix: Improved reconnect stability when service is started during boot.
 
-Fix: [Go Offline] does now stop service reconnecter immediately and 
-more reliably.
+Fix: on network loss now showing 'No network. Reconnect paused.' 
+instead of 'No network. Giving up.' Will reconnect as soon as network
+is back.
+
+Fix: hitting [Go Offline] does now stop service reconnecter immediately
+and reconnecter will stay off reliably.
 
