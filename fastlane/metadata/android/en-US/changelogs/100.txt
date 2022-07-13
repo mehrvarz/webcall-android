@@ -1,18 +1,19 @@
 ID mapping (aka Burner ID's)
 
+Dial-ID can now be used to call users on remote WebCall servers.
+Caller-widgets for remote servers are now run in a separate webview.
+Missed calls will show remote host user as 'id@domain'.
+
 Intent-filters VIEW and NDEF_DISCOVERED are not tight to timur.mobi 
-anymore. WebCall links + NFC-connect now work with any hostname you
-may be using.
+anymore. WebCall links + NFC-connect do now work with any hostname
+you may be using.
 
-Menu item 'Clear cache' can be invoked at any time to fetch the latest
-WebCall core client. No need to exit app anymore for this purpose.
+New menu item 'Clear cache' can be invoked to update to the latest
+WebCall core client, without being required to exit app.
 
-WebCall Update Page is now shown in-app (in iframe).
+WebCall News [!] (aka Update Page) is now shown in-app.
 
-Dial-ID can now be used to call users on other WebCall servers.
-This is running the caller widget from the other server in an iframe.
-
-Fix: Improved reconnect stability when service is started by boot.
+Fix: Improved reconnect stability when service is started during boot.
 
 Fix: [Go Offline] does now stop service reconnecter immediately and 
 more reliably.
