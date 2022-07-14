@@ -29,6 +29,7 @@ import android.webkit.WebView.HitTestResult;
 import android.webkit.WebChromeClient;
 import android.webkit.ConsoleMessage;
 import android.webkit.PermissionRequest;
+import android.webkit.SslErrorHandler;
 import android.util.Log;
 import android.content.Context;
 import android.content.IntentFilter;
@@ -55,6 +56,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.net.Uri;
+import android.net.http.SslError;
 import android.graphics.Bitmap;
 import android.provider.MediaStore;
 import android.provider.Settings;
@@ -1046,6 +1048,28 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							final Uri uri = request.getUrl();
 							Log.d(TAG, "_shouldOverrideUrlL="+uri);
 							return false;
+						}
+
+						@Override
+						public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+							// this is called when webview does a https PAGE request and fails
+							// error.getPrimaryError()
+							// -1 = no error
+							// 0 = not yet valid
+							// 1 = SSL_EXPIRED
+							// 2 = SSL_IDMISMATCH  certificate Hostname mismatch
+							// 3 = SSL_UNTRUSTED   certificate authority is not trusted
+							// 5 = SSL_INVALID
+							// primary error: 3 certificate: Issued to: O=Internet Widgits Pty Ltd,ST=...
+
+							// only proceed if confirmed by the user
+							if(insecureTlsFlag) {
+								Log.d(TAG, "onReceivedSslError (proceed) "+error);
+								handler.proceed();
+							} else {
+								Log.d(TAG, "# onReceivedSslError "+error);
+								super.onReceivedSslError(view, handler, error);
+							}
 						}
 					});
 

@@ -918,6 +918,11 @@ public class WebCallService extends Service {
 			webSettings.setAllowUniversalAccessFromFileURLs(true);
 			webSettings.setMediaPlaybackRequiresUserGesture(false);
 			webSettings.setDomStorageEnabled(true);
+//			webSettings.setDatabaseEnabled(true);
+//			webSettings.setSaveFormData(true); // does not have the desired effect
+//			CookieManager.getInstance().setAcceptCookie(true);
+//			CookieManager.getInstance().acceptCookie();
+//			Log.d(TAG, "done webSettings "+webSettings.getSaveFormData());
 
 			myWebView.setDownloadListener(new DownloadListener() {
                 @Override
@@ -3122,7 +3127,7 @@ public class WebCallService extends Service {
 							hostName = hostName.substring(0,idxColon);
 						}
 					}
-					//Log.d(TAG,"connectHost hostName "+hostName);
+					Log.d(TAG,"connectHost hostName "+hostName);
 					if(!hv.verify(hostName, s)) {
 						Log.d(TAG,"connectHost self-hostVerify fail on "+s.getPeerPrincipal());
 						hostVerifySuccess = false;

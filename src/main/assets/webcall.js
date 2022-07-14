@@ -201,6 +201,7 @@ function submitFormDone(theForm) {
 	}
 
 	if(valueUsername=="") {
+		console.log('username is empty');
 		Android.storePreference("username", "");
 		Android.wsClearCookies();
 
