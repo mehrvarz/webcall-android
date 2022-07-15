@@ -1066,49 +1066,50 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							if(webCallServiceBinder.getInsecureTlsFlag()) {
 								Log.d(TAG, "onReceivedSslError (proceed) "+error);
 								handler.proceed();
-							} else {
-								// ...or if 2) user confirms
-								final AlertDialog.Builder builder = new AlertDialog.Builder(context);
-								String message = "SSL Certificate error on "+data.getHost();
-									switch(error.getPrimaryError()) {
-									case SslError.SSL_UNTRUSTED:
-										message = "Certificate authority on "+data.getHost()+" is not trusted.";
-										break;
-									case SslError.SSL_EXPIRED:
-										message = "Certificate on "+data.getHost()+" has expired.";
-										break;
-									case SslError.SSL_IDMISMATCH:
-										message = "Certificate hostname on "+data.getHost()+" mismatch.";
-										break;
-									case SslError.SSL_NOTYETVALID:
-										message = "Certificate on "+data.getHost()+" is not yet valid.";
-										break;
-									}
-								message += " Do you want to continue anyway?";
-								builder.setTitle("SSL Certificate Error");
-								builder.setMessage(message);
-								builder.setPositiveButton("continue", new DialogInterface.OnClickListener() {
-									@Override
-									public void onClick(DialogInterface dialog, int which) {
-										Log.d(TAG, "onReceivedSslError confirmed by user "+error);
-										handler.proceed();
-									}
-								});
-								builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
-									@Override
-									public void onClick(DialogInterface dialog, int which) {
-										Log.d(TAG, "# onReceivedSslError user canceled "+error);
-										handler.cancel();
-										//super.onReceivedSslError(view, handler, error);
-										// abort loading (mimicing onBackPressed())
-										myWebView.setVisibility(View.VISIBLE);
-										myNewWebView.setVisibility(View.INVISIBLE);
-										myNewWebView.loadUrl("");
-									}
-								});
-								final AlertDialog dialog = builder.create();
-								dialog.show();
+								return;
 							}
+
+							// or if 2) user confirms SSL-error dialog
+							final AlertDialog.Builder builder = new AlertDialog.Builder(context);
+							builder.setTitle("SSL Certificate Error");
+							String message = "SSL Certificate error on "+data.getHost();
+							switch(error.getPrimaryError()) {
+								case SslError.SSL_UNTRUSTED:
+									message = "Certificate authority not trusted on "+data.getHost();
+									break;
+								case SslError.SSL_EXPIRED:
+									message = "Certificate expired on "+data.getHost();
+									break;
+								case SslError.SSL_IDMISMATCH:
+									message = "Certificate hostname mismatch on "+data.getHost();
+									break;
+								case SslError.SSL_NOTYETVALID:
+									message = "Certificate is not yet valid on "+data.getHost();
+									break;
+							}
+							message += ".\nContinue anyway?";
+							builder.setMessage(message);
+							builder.setPositiveButton("continue", new DialogInterface.OnClickListener() {
+								@Override
+								public void onClick(DialogInterface dialog, int which) {
+									Log.d(TAG, "onReceivedSslError confirmed by user "+error);
+									handler.proceed();
+								}
+							});
+							builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
+								@Override
+								public void onClick(DialogInterface dialog, int which) {
+									Log.d(TAG, "# onReceivedSslError user canceled "+error);
+									handler.cancel();
+									//super.onReceivedSslError(view, handler, error);
+									// abort loading page: mimic onBackPressed()
+									myWebView.setVisibility(View.VISIBLE);
+									myNewWebView.setVisibility(View.INVISIBLE);
+									myNewWebView.loadUrl("");
+								}
+							});
+							final AlertDialog dialog = builder.create();
+							dialog.show();
 						}
 					});
 
