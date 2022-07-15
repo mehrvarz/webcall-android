@@ -983,6 +983,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			String webcalldomain = prefs.getString("webcalldomain", "");
 			String host = data.getHost();
 			if(host.equals(webcalldomain)) {
+				// load caller-page from same host in iframe
 				Log.d(TAG, "onNewIntent local data="+data);
 				String path = data.getPath();
 				int idxUser = path.indexOf("/user/");
@@ -997,142 +998,142 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						}
 					}
 				}
-			} else {
-				// load caller-page from another host in a 2nd webview
-				// (to make phone call to a user hosted on a remote server)
-				Log.d(TAG, "onNewIntent remote "+data.toString());
-				try {
-					WebSettings newWebSettings = myNewWebView.getSettings();
-					newWebSettings.setJavaScriptEnabled(true);
-					newWebSettings.setMediaPlaybackRequiresUserGesture(false);
-					newWebSettings.setDomStorageEnabled(true);
+				return;
+			}
 
-					myNewWebView.setWebChromeClient(new WebChromeClient() {
-						@Override
-						public boolean onConsoleMessage(ConsoleMessage cm) {
-							String msg = cm.message();
-							if(!msg.startsWith("showStatus")) {
-								// TODO msg can be very long
-								Log.d(TAG,"console "+msg + " L"+cm.lineNumber());
+			// load caller-page from remote host in 2nd webview
+			Log.d(TAG, "onNewIntent remote "+data.toString());
+			try {
+				WebSettings newWebSettings = myNewWebView.getSettings();
+				newWebSettings.setJavaScriptEnabled(true);
+				newWebSettings.setMediaPlaybackRequiresUserGesture(false);
+				newWebSettings.setDomStorageEnabled(true);
+
+				myNewWebView.setWebChromeClient(new WebChromeClient() {
+					@Override
+					public boolean onConsoleMessage(ConsoleMessage cm) {
+						String msg = cm.message();
+						if(!msg.startsWith("showStatus")) {
+							// TODO msg can be very long
+							Log.d(TAG,"console "+msg + " L"+cm.lineNumber());
+						}
+						return true;
+					}
+
+					@Override
+					public void onPermissionRequest(PermissionRequest request) {
+						String[] strArray = request.getResources();
+						for(int i=0; i<strArray.length; i++) {
+							Log.w(TAG, "onPermissionRequest "+i+" ("+strArray[i]+")");
+							// we only grant the permission we want to grant
+							if(strArray[i].equals("android.webkit.resource.AUDIO_CAPTURE") ||
+							   strArray[i].equals("android.webkit.resource.VIDEO_CAPTURE")) {
+								request.grant(strArray);
+								break;
 							}
-							return true;
+							Log.w(TAG, "onPermissionRequest unexpected "+strArray[i]);
+						}
+					}
+				});
+
+				myNewWebView.setWebViewClient(new WebViewClient() {
+					@SuppressWarnings("deprecation")
+					@Override
+					public boolean shouldOverrideUrlLoading(WebView view, String url) {
+						Log.d(TAG, "_shouldOverrideUrl "+url);
+						return false;
+					}
+
+					//@TargetApi(Build.VERSION_CODES.N)
+					@Override
+					public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+						final Uri uri = request.getUrl();
+						Log.d(TAG, "_shouldOverrideUrlL="+uri);
+						return false;
+					}
+
+					@Override
+					public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+						// this is called when webview does a https PAGE request and fails
+						// error.getPrimaryError()
+						// -1 = no error
+						// 0 = not yet valid
+						// 1 = SSL_EXPIRED
+						// 2 = SSL_IDMISMATCH  certificate Hostname mismatch
+						// 3 = SSL_UNTRUSTED   certificate authority is not trusted
+						// 5 = SSL_INVALID
+						// primary error: 3 certificate: Issued to: O=Internet Widgits Pty Ltd,ST=...
+
+						// only proceed if 1) InsecureTlsFlag is set
+						if(webCallServiceBinder.getInsecureTlsFlag()) {
+							Log.d(TAG, "onReceivedSslError (proceed) "+error);
+							handler.proceed();
+							return;
 						}
 
-						@Override
-						public void onPermissionRequest(PermissionRequest request) {
-							String[] strArray = request.getResources();
-							for(int i=0; i<strArray.length; i++) {
-								Log.w(TAG, "onPermissionRequest "+i+" ("+strArray[i]+")");
-								// we only grant the permission we want to grant
-								if(strArray[i].equals("android.webkit.resource.AUDIO_CAPTURE") ||
-								   strArray[i].equals("android.webkit.resource.VIDEO_CAPTURE")) {
-									request.grant(strArray);
-									break;
-								}
-								Log.w(TAG, "onPermissionRequest unexpected "+strArray[i]);
-							}
+						// or if 2) user confirms SSL-error dialog
+						final AlertDialog.Builder builder = new AlertDialog.Builder(context);
+						builder.setTitle("SSL Certificate Error");
+						String message = "SSL Certificate error on "+data.getHost();
+						switch(error.getPrimaryError()) {
+						case SslError.SSL_UNTRUSTED:
+							message = "Link encrypted but certificate authority not trusted on "+data.getHost();
+							break;
+						case SslError.SSL_EXPIRED:
+							message = "Certificate expired on "+data.getHost();
+							break;
+						case SslError.SSL_IDMISMATCH:
+							message = "Certificate hostname mismatch on "+data.getHost();
+							break;
+						case SslError.SSL_NOTYETVALID:
+							message = "Certificate is not yet valid on "+data.getHost();
+							break;
 						}
-					});
-
-					myNewWebView.setWebViewClient(new WebViewClient() {
-						@SuppressWarnings("deprecation")
-						@Override
-						public boolean shouldOverrideUrlLoading(WebView view, String url) {
-							Log.d(TAG, "_shouldOverrideUrl "+url);
-							return false;
-						}
-
-						//@TargetApi(Build.VERSION_CODES.N)
-						@Override
-						public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-							final Uri uri = request.getUrl();
-							Log.d(TAG, "_shouldOverrideUrlL="+uri);
-							return false;
-						}
-
-						@Override
-						public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
-							// this is called when webview does a https PAGE request and fails
-							// error.getPrimaryError()
-							// -1 = no error
-							// 0 = not yet valid
-							// 1 = SSL_EXPIRED
-							// 2 = SSL_IDMISMATCH  certificate Hostname mismatch
-							// 3 = SSL_UNTRUSTED   certificate authority is not trusted
-							// 5 = SSL_INVALID
-							// primary error: 3 certificate: Issued to: O=Internet Widgits Pty Ltd,ST=...
-
-							// only proceed if 1) InsecureTlsFlag is set
-							if(webCallServiceBinder.getInsecureTlsFlag()) {
-								Log.d(TAG, "onReceivedSslError (proceed) "+error);
+						message += ".\nContinue anyway?";
+						builder.setMessage(message);
+						builder.setPositiveButton("continue", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								Log.d(TAG, "onReceivedSslError confirmed by user "+error);
 								handler.proceed();
-								return;
 							}
-
-							// or if 2) user confirms SSL-error dialog
-							final AlertDialog.Builder builder = new AlertDialog.Builder(context);
-							builder.setTitle("SSL Certificate Error");
-							String message = "SSL Certificate error on "+data.getHost();
-							switch(error.getPrimaryError()) {
-								case SslError.SSL_UNTRUSTED:
-									message = "Certificate authority not trusted on "+data.getHost();
-									break;
-								case SslError.SSL_EXPIRED:
-									message = "Certificate expired on "+data.getHost();
-									break;
-								case SslError.SSL_IDMISMATCH:
-									message = "Certificate hostname mismatch on "+data.getHost();
-									break;
-								case SslError.SSL_NOTYETVALID:
-									message = "Certificate is not yet valid on "+data.getHost();
-									break;
+						});
+						builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								Log.d(TAG, "# onReceivedSslError user canceled "+error);
+								handler.cancel();
+								//super.onReceivedSslError(view, handler, error);
+								// abort loading page: mimic onBackPressed()
+								myWebView.setVisibility(View.VISIBLE);
+								myNewWebView.setVisibility(View.INVISIBLE);
+								myNewWebView.loadUrl("");
 							}
-							message += ".\nContinue anyway?";
-							builder.setMessage(message);
-							builder.setPositiveButton("continue", new DialogInterface.OnClickListener() {
-								@Override
-								public void onClick(DialogInterface dialog, int which) {
-									Log.d(TAG, "onReceivedSslError confirmed by user "+error);
-									handler.proceed();
-								}
-							});
-							builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
-								@Override
-								public void onClick(DialogInterface dialog, int which) {
-									Log.d(TAG, "# onReceivedSslError user canceled "+error);
-									handler.cancel();
-									//super.onReceivedSslError(view, handler, error);
-									// abort loading page: mimic onBackPressed()
-									myWebView.setVisibility(View.VISIBLE);
-									myNewWebView.setVisibility(View.INVISIBLE);
-									myNewWebView.loadUrl("");
-								}
-							});
-							final AlertDialog dialog = builder.create();
-							dialog.show();
-						}
-					});
+						});
+						final AlertDialog dialog = builder.create();
+						dialog.show();
+					}
+				});
 
-					// first, load a local spinner page (loads fast)
-					myNewWebView.loadUrl("file:///android_asset/busy.html", null);
+				// first, load a local spinner page (loads fast)
+				myNewWebView.loadUrl("file:///android_asset/busy.html", null);
 
-					// a little later load remote caller widget (takes a moment to load)
-					final Handler handler = new Handler(Looper.getMainLooper());
-					handler.postDelayed(new Runnable() {
-						@Override
-						public void run() {
-							myNewWebView.setVisibility(View.VISIBLE);
-							myWebView.setVisibility(View.INVISIBLE);
-							Log.d(TAG, "onNewIntent myNewWebView opened");
-							myNewWebView.loadUrl(data.toString());
-						}
-					}, 300);
+				// a little later load remote caller widget (takes a moment to load)
+				final Handler handler = new Handler(Looper.getMainLooper());
+				handler.postDelayed(new Runnable() {
+					@Override
+					public void run() {
+						myNewWebView.setVisibility(View.VISIBLE);
+						myWebView.setVisibility(View.INVISIBLE);
+						Log.d(TAG, "onNewIntent myNewWebView opened");
+						myNewWebView.loadUrl(data.toString());
+					}
+				}, 300);
 
-					// myNewWebView will be closed in onBackPressed()
-				} catch(Exception ex) {
-					Log.d(TAG, "onNewIntent myNewWebView ex="+ex);
-					myWebView.setVisibility(View.VISIBLE);
-				}
+				// myNewWebView will be closed in onBackPressed()
+			} catch(Exception ex) {
+				Log.d(TAG, "onNewIntent myNewWebView ex="+ex);
+				myWebView.setVisibility(View.VISIBLE);
 			}
 		}
 	}
