@@ -1499,6 +1499,11 @@ public class WebCallService extends Service {
 				filePath = null;
 			}
 		}
+
+		public boolean getInsecureTlsFlag() {
+			return insecureTlsFlag;
+		}
+
 	}
 
 	// section 3: class WebCallJSInterface with methods that can be called from javascript:
