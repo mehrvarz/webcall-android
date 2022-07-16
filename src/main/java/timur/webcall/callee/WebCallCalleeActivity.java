@@ -125,7 +125,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private int proximitySensorMode = 0; // 0=off, 1=on
 	private int proximitySensorAction = 0; // 0=screen off, 1=screen dim
 	private volatile boolean webviewBlocked = false;
-	private volatile String dialId = null; // set by onCreate() + getIntent() or by onNewIntent()
+	private volatile Intent dialIdIntent = null; // set by onCreate() + getIntent() or by onNewIntent()
 	private long lastSetDialId = 0;
 	private volatile boolean writeExtStoragePermissionDenied = false;
 	private volatile int callInProgress = 0;
@@ -335,28 +335,24 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				if(state!=null && state!="") {
 					Log.d(TAG, "broadcastReceiver state="+state);
 					if(state.equals("mainpage")) {
-						// if there is a dialID...
-						if(dialId!=null && dialId!="") {
-							Log.d(TAG, "broadcastReceiver state="+state+" dialId="+dialId);
-							//webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
-							//dialId = "";
-						}
+
 					} else if(state.equals("connected")) {
-						// if there is a dialID...
-						if(dialId!=null && dialId!="") {
+						// if there is a dialIdIntent...
+						if(dialIdIntent!=null) {
 							long lastSetDialIdAge = System.currentTimeMillis() - lastSetDialId;
 							if(lastSetDialIdAge <= 30000) {
-								// execute dialId only if set within the last 30s
-								Log.d(TAG, "broadcastReceiver state="+state+" dialId="+dialId);
-								webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
-								dialId = "";
+								// execute dialIdIntent only if set within the last 30s
+								Log.d(TAG, "broadcastReceiver state="+state+" dialIdIntent is set");
+								onNewIntent(dialIdIntent);
+								dialIdIntent = null;
 							} else {
 								// too old, do not execute
-								Log.d(TAG, "broadcastReceiver state="+state+" dialId="+dialId+
+								Log.d(TAG, "broadcastReceiver state="+state+" dialIdIntent is set"+
 									" too old"+lastSetDialIdAge);
 							}
 						}
 					} else if(state.equals("disconnected")) {
+
 					}
 					return;
 				}
@@ -435,16 +431,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		// check getIntent() for VIEW URL
 		Intent intent = getIntent();
 		Uri data = intent.getData();
-		dialId = null;
+		dialIdIntent = null;
 		if(data!=null) {
 			Log.d(TAG, "onCreate getIntent data="+data);
 			String path = data.getPath();
 			int idxUser = path.indexOf("/user/");
 			if(idxUser>=0) {
-				dialId = path.substring(idxUser+6);
+				dialIdIntent = intent;
 				lastSetDialId = System.currentTimeMillis();
-				Log.d(TAG, "onCreate dialId="+dialId);
-				// dialId will be executed in onServiceConnected
+				Log.d(TAG, "onCreate dialIdIntent is set");
+				// dialIdIntent will be executed in onServiceConnected
 			}
 		}
 
@@ -485,14 +481,15 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					activityStartNeeded = false;
 				}
 
-				if(dialId!=null && dialId!="") {
-					Log.d(TAG, "onServiceConnected dialId="+dialId);
+				if(dialIdIntent!=null) {
+					Log.d(TAG, "onServiceConnected dialId is set");
 					// only execute if we are on the main page
 					if(webCallServiceBinder.getCurrentUrl().indexOf("/callee/")>=0) {
-						webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
-						dialId = "";
+						onNewIntent(dialIdIntent);
+						dialIdIntent = null;
 					} else {
-						// not on the mainpage yet; will process dialId in broadcastReceiver state = "connected"
+						// not on the mainpage yet
+						// will process dialIdIntent in broadcastReceiver state = "connected"
 					}
 				}
 			}
