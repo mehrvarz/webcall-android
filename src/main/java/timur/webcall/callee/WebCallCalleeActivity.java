@@ -1,5 +1,4 @@
 // WebCall Copyright 2022 timur.mobi. All rights reserved.
-
 package timur.webcall.callee;
 
 import android.app.Activity;
@@ -20,6 +19,7 @@ import android.view.MenuItem;
 import android.view.ContextMenu;
 import android.view.Display;
 import android.view.MenuInflater;
+import android.view.inputmethod.InputMethodManager;
 import android.graphics.Color;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -940,7 +940,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return null;
 		}
 		String username = prefs.getString("username", "");
-		String webcalldomain = prefs.getString("webcalldomain", "");
+		String webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 		NdefRecord rtdUriRecord1 = NdefRecord.createUri("https://"+webcalldomain+"/user/"+username);
 		NdefMessage ndefMessage = new NdefMessage(rtdUriRecord1);
 		return ndefMessage;
@@ -980,9 +980,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			// example data (as string):
 			// https://timur.mobi/user/id?callerId=id&callerName=username&callerHost=192.168.3.203&ds=false
 
-			String webcalldomain = prefs.getString("webcalldomain", "");
-			String host = data.getHost();
-			if(host.equals(webcalldomain)) {
+			String webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+			String host = data.getHost().toLowerCase(Locale.getDefault());
+			int port = data.getPort();
+			String hostport = host+":"+port;
+			Log.d(TAG, "onNewIntent url hostport="+hostport+" webcalldomain="+webcalldomain);
+			if(hostport.equals(webcalldomain) || host.equals(webcalldomain)) {
 				// load caller-page from same host in iframe
 				Log.d(TAG, "onNewIntent local data="+data);
 				String path = data.getPath();
@@ -1000,6 +1003,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 				return;
 			}
+
+// TODO this would be the best place to allow the user to select the outgoing ID (idSelect)
+// because on the remote caller-widget we have no cookie to make that selection
 
 			// load caller-page from remote host in 2nd webview
 			Log.d(TAG, "onNewIntent remote "+data.toString());
@@ -1074,19 +1080,19 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						// or if 2) user confirms SSL-error dialog
 						final AlertDialog.Builder builder = new AlertDialog.Builder(context);
 						builder.setTitle("SSL Certificate Error");
-						String message = "SSL Certificate error on "+data.getHost();
+						String message = "SSL Certificate error on "+hostport;
 						switch(error.getPrimaryError()) {
 						case SslError.SSL_UNTRUSTED:
-							message = "Link encrypted but certificate authority not trusted on "+data.getHost();
+							message = "Link encrypted but certificate authority not trusted on "+hostport;
 							break;
 						case SslError.SSL_EXPIRED:
-							message = "Certificate expired on "+data.getHost();
+							message = "Certificate expired on "+hostport;
 							break;
 						case SslError.SSL_IDMISMATCH:
-							message = "Certificate hostname mismatch on "+data.getHost();
+							message = "Certificate hostname mismatch on "+hostport;
 							break;
 						case SslError.SSL_NOTYETVALID:
-							message = "Certificate is not yet valid on "+data.getHost();
+							message = "Certificate is not yet valid on "+hostport;
 							break;
 						}
 						message += ".\nContinue anyway?";
@@ -1096,6 +1102,33 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							public void onClick(DialogInterface dialog, int which) {
 								Log.d(TAG, "onReceivedSslError confirmed by user "+error);
 								handler.proceed();
+
+/* here we try to show the keyboard for a focused input form
+
+								// a little later load remote caller widget (takes a moment to load)
+								final Handler handler = new Handler(Looper.getMainLooper());
+								handler.postDelayed(new Runnable() {
+									@Override
+									public void run() {
+										Log.d(TAG, "onNewIntent setSoftInputMode...");
+// tmtmtm
+//										getWindow().
+//											setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+
+										InputMethodManager inputMethodManager =
+											(InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+										inputMethodManager.
+											toggleSoftInputFromWindow(yourEditText.getApplicationWindowToken(),
+											InputMethodManager.SHOW_FORCED, 0);
+
+			InputMethodManager keyboard =
+				(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+			keyboard.showSoftInput(myNewWebView, InputMethodManager.SHOW_IMPLICIT);
+
+myNewWebView.setFocusable(true);
+									}
+								}, 1200);
+*/
 							}
 						});
 						builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
@@ -1124,6 +1157,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					@Override
 					public void run() {
 						myNewWebView.setVisibility(View.VISIBLE);
+						myNewWebView.setFocusable(true);
 						myWebView.setVisibility(View.INVISIBLE);
 						Log.d(TAG, "onNewIntent myNewWebView opened");
 						myNewWebView.loadUrl(data.toString());

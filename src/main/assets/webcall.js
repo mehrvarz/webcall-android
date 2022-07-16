@@ -154,7 +154,7 @@ function insecureTlsAction() {
 function submitFormDone(theForm) {
 	var valueDomain = formDomain.value;
 	console.log('valueDomain',valueDomain);
-	var valueUsername = formUsername.value;
+	var valueUsername = formUsername.value.toLowerCase();
 	console.log('valueUsername',valueUsername);
 
 	if(valueDomain!="") {
