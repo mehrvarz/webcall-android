@@ -10,6 +10,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Environment;
 import android.os.Build;
+import android.os.SystemClock;
 import android.view.View;
 import android.view.KeyEvent;
 import android.view.Window;
@@ -982,6 +983,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			int port = data.getPort();
 			String hostport = host+":"+port;
 			Log.d(TAG, "onNewIntent url hostport="+hostport+" webcalldomain="+webcalldomain);
+
+// TODO this would be the best place to check the urlArgs
+// here we can prevent the user to send the wrong callerId and callerHost
+//   https://192.168.0.161:8068/user/timur?callerId=19230843600&callerName=Timur4&callerHost=192.168.0.161:8068
+
+
 			if(hostport.equals(webcalldomain) || host.equals(webcalldomain)) {
 				// load caller-page from same host in iframe
 				Log.d(TAG, "onNewIntent local data="+data);
@@ -1016,9 +1023,33 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					@Override
 					public boolean onConsoleMessage(ConsoleMessage cm) {
 						String msg = cm.message();
-						if(!msg.startsWith("showStatus")) {
-							// TODO msg can be very long
-							Log.d(TAG,"console "+msg + " L"+cm.lineNumber());
+						Log.d(TAG,"console "+msg + " L"+cm.lineNumber());
+						if(msg.startsWith("showConfirmCodeForm pos ")) {
+							// showConfirmCodeForm pos 95.0390625 52.1953125 155.5859375 83.7421875 L1590
+							String[] tokens = msg.substring(24).split(" ");
+							float leftFloat = Float.parseFloat(tokens[0]) + 10;
+							float topFloat = Float.parseFloat(tokens[1]) + 10;
+							// must add the height of the statusbar
+							topFloat += 10;
+							Log.d(TAG, "emulate tap left="+leftFloat+" top="+topFloat);
+
+							// tokens[6] = screen right (width)
+							// tokens[7] = screen bottom (height)
+							float webviewWidth = Float.parseFloat(tokens[6]);
+							float webviewHeight = Float.parseFloat(tokens[7]);
+							Log.d(TAG, "emulate tap webview screen width="+webviewWidth+" height="+webviewHeight);
+
+							Display mdisp = getWindowManager().getDefaultDisplay();
+							int maxX = mdisp.getWidth();
+							int maxY = mdisp.getHeight();
+							Log.d(TAG, "emulate tap android screen width="+maxX+" height="+maxY);
+
+							if(webviewHeight>0 && webviewWidth>0) {
+								leftFloat = leftFloat * ( maxX / webviewWidth);
+								topFloat = topFloat * ( maxY / webviewHeight);
+								Log.d(TAG, "emulate tap corrected left="+leftFloat+" top="+topFloat);
+								simulateClick(leftFloat, topFloat);
+							}
 						}
 						return true;
 					}
@@ -1388,6 +1419,34 @@ myNewWebView.setFocusable(true);
 	}
 
 	////////// private functions //////////////////////////////////////
+
+	private void simulateClick(float x, float y) {
+		long downTime = SystemClock.uptimeMillis();
+		long eventTime = SystemClock.uptimeMillis();
+		MotionEvent.PointerProperties[] properties = new MotionEvent.PointerProperties[1];
+		MotionEvent.PointerProperties pp1 = new MotionEvent.PointerProperties();
+		pp1.id = 0;
+		pp1.toolType = MotionEvent.TOOL_TYPE_FINGER;
+		properties[0] = pp1;
+		MotionEvent.PointerCoords[] pointerCoords = new MotionEvent.PointerCoords[1];
+		MotionEvent.PointerCoords pc1 = new MotionEvent.PointerCoords();
+		pc1.x = x;
+		pc1.y = y;
+		pc1.pressure = 1;
+		pc1.size = 1;
+		pointerCoords[0] = pc1;
+		Log.d(TAG, "simulateClick pointerCoords="+pointerCoords);
+		MotionEvent motionEvent = MotionEvent.obtain(downTime, eventTime,
+		        MotionEvent.ACTION_DOWN, 1, properties,
+		        pointerCoords, 0,  0, 1, 1, 0, 0, 0, 0 );
+		Log.d(TAG, "simulateClick motionEvent="+motionEvent);
+		dispatchTouchEvent(motionEvent);
+
+		motionEvent = MotionEvent.obtain(downTime, eventTime,
+		        MotionEvent.ACTION_UP, 1, properties,
+		        pointerCoords, 0,  0, 1, 1, 0, 0, 0, 0 );
+		dispatchTouchEvent(motionEvent);
+	}
 
 	private void checkPermissions() {
 		Log.d(TAG, "checkPermissions");
