@@ -1207,7 +1207,7 @@ public class WebCallService extends Service {
 					String msg = cm.message();
 					if(!msg.startsWith("showStatus")) {
 						// TODO msg can be very long
-						Log.d(TAG,"console "+msg + " L"+cm.lineNumber());
+						Log.d(TAG,"console: "+msg + " L"+cm.lineNumber());
 					}
 					if(msg.equals("Uncaught ReferenceError: goOnline is not defined")) {
 						if(wsClient==null) {
@@ -1215,9 +1215,33 @@ public class WebCallService extends Service {
 							// from base page - lets go back to base page
 							//TODO also: if domain name is OK, but there is no network
 							myWebView.loadUrl("file:///android_asset/index.html", null);
+							return true;
 						}
 					}
 					// TODO other "Uncaught Reference" may occure
+
+					if(msg.startsWith("showNumberForm pos")) {
+						// showNumberForm pos 95.0390625 52.1953125 155.5859375 83.7421875 L1590
+						String floatString = msg.substring(19).trim();
+						Log.d(TAG, "emulate tap floatString="+floatString);
+						String[] tokens = floatString.split(" ");
+						float leftFloat = Float.parseFloat(tokens[0]) + 10;
+						float topFloat = Float.parseFloat(tokens[1]) + 10;
+						// must add the height of the statusbar
+						topFloat += 10;
+						Log.d(TAG, "emulate tap left="+leftFloat+" top="+topFloat);
+
+						// tokens[6] = mainElement right (screen width)
+						// tokens[7] = mainElement bottom (screen height)
+						float webviewWidth = Float.parseFloat(tokens[6]);
+						float webviewHeight = Float.parseFloat(tokens[7]);
+						Log.d(TAG, "emulate tap webview screen width="+webviewWidth+" height="+webviewHeight);
+
+						Intent intent = new Intent("webcall");
+						intent.putExtra("simulateClick", ""+
+							leftFloat+" "+topFloat+" "+webviewWidth+" "+webviewHeight);
+						sendBroadcast(intent);
+					}
 					return true;
 				}
 

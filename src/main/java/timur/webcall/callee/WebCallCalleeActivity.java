@@ -312,12 +312,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		broadcastReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
+
 				String message = intent.getStringExtra("toast");
 				if(message!=null && message!="") {
 					Log.d(TAG, "broadcastReceiver message "+message);
 					Toast.makeText(context, message, Toast.LENGTH_LONG).show();
 					return;
 				}
+
 				String command = intent.getStringExtra("cmd");
 				if(command!=null && command!="") {
 					Log.d(TAG, "broadcastReceiver command "+command);
@@ -336,6 +338,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					}
 					return;
 				}
+
 				String state = intent.getStringExtra("state");
 				if(state!=null && state!="") {
 					Log.d(TAG, "broadcastReceiver state="+state);
@@ -349,18 +352,19 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 								// execute dialIdIntent only if set within the last 30s
 								Log.d(TAG, "broadcastReceiver state="+state+" dialIdIntent is set");
 								onNewIntent(dialIdIntent);
-								dialIdIntent = null;
 							} else {
 								// too old, do not execute
 								Log.d(TAG, "broadcastReceiver state="+state+" dialIdIntent is set"+
 									" too old"+lastSetDialIdAge);
 							}
+							dialIdIntent = null;
 						}
 					} else if(state.equals("disconnected")) {
 
 					}
 					return;
 				}
+
 				String url = intent.getStringExtra("browse");
 				if(url!=null && url!=null) {
 					Log.d(TAG, "broadcastReceiver browse "+url);
@@ -383,7 +387,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 
 				String forResults = intent.getStringExtra("forResults");
-				if(forResults!="") {
+				if(forResults!=null && forResults!="") {
 					Log.d(TAG, "broadcastReceiver forResults "+forResults);
 
 					String file_type = "*/*";    // file types to be allowed for upload
@@ -396,6 +400,32 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
 					chooserIntent.putExtra(Intent.EXTRA_TITLE, "File chooser");
 					startActivityForResult(chooserIntent, FILE_REQ_CODE);
+					return;
+				}
+
+				String simClick = intent.getStringExtra("simulateClick");
+				if(simClick!=null && simClick!="") {
+					Log.d(TAG, "broadcastReceiver simClick string "+simClick);
+					String[] tokens = simClick.split(" ");
+					float leftFloat = Float.parseFloat(tokens[0]);
+					float topFloat = Float.parseFloat(tokens[1]);
+					float webviewWidth = Float.parseFloat(tokens[2]);
+					float webviewHeight = Float.parseFloat(tokens[3]);
+					Log.d(TAG, "broadcastReceiver simClick "+
+						leftFloat+" "+topFloat+" "+webviewWidth+" "+webviewHeight);
+
+					Display mdisp = getWindowManager().getDefaultDisplay();
+					int maxX = mdisp.getWidth();
+					int maxY = mdisp.getHeight();
+					Log.d(TAG, "broadcastReceiver simClick screen width="+maxX+" height="+maxY);
+
+					if(webviewHeight>0 && webviewWidth>0) {
+						leftFloat = leftFloat * ( maxX / webviewWidth);
+						topFloat = topFloat * ( maxY / webviewHeight);
+						Log.d(TAG, "broadcastReceiver simClick corrected left="+leftFloat+" top="+topFloat);
+						simulateClick(leftFloat, topFloat);
+					}
+					return;
 				}
 			}
 		};
@@ -491,11 +521,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					// only execute if we are on the main page
 					if(webCallServiceBinder.getCurrentUrl().indexOf("/callee/")>=0) {
 						onNewIntent(dialIdIntent);
-						dialIdIntent = null;
 					} else {
 						// not on the mainpage yet
 						// will process dialIdIntent in broadcastReceiver state = "connected"
 					}
+					dialIdIntent = null;
 				}
 			}
 		}
@@ -1094,18 +1124,20 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					@Override
 					public boolean onConsoleMessage(ConsoleMessage cm) {
 						String msg = cm.message();
-						Log.d(TAG,"console "+msg + " L"+cm.lineNumber());
-						if(msg.startsWith("showConfirmCodeForm pos ")) {
-							// showConfirmCodeForm pos 95.0390625 52.1953125 155.5859375 83.7421875 L1590
-							String[] tokens = msg.substring(24).split(" ");
+						Log.d(TAG,"console: "+msg + " L"+cm.lineNumber());
+						if(msg.startsWith("showNumberForm pos")) {
+							// showNumberForm pos 95.0390625 52.1953125 155.5859375 83.7421875 L1590
+							String floatString = msg.substring(19).trim();
+							Log.d(TAG, "emulate tap floatString="+floatString);
+							String[] tokens = floatString.split(" ");
 							float leftFloat = Float.parseFloat(tokens[0]) + 10;
 							float topFloat = Float.parseFloat(tokens[1]) + 10;
 							// must add the height of the statusbar
 							topFloat += 10;
 							Log.d(TAG, "emulate tap left="+leftFloat+" top="+topFloat);
 
-							// tokens[6] = screen right (width)
-							// tokens[7] = screen bottom (height)
+							// tokens[6] = webview right (width)
+							// tokens[7] = webview bottom (height)
 							float webviewWidth = Float.parseFloat(tokens[6]);
 							float webviewHeight = Float.parseFloat(tokens[7]);
 							Log.d(TAG, "emulate tap webview screen width="+webviewWidth+" height="+webviewHeight);
@@ -1481,7 +1513,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		pc1.pressure = 1;
 		pc1.size = 1;
 		pointerCoords[0] = pc1;
-		Log.d(TAG, "simulateClick pointerCoords="+pointerCoords);
+		//Log.d(TAG, "simulateClick pointerCoords="+pointerCoords);
 		MotionEvent motionEvent = MotionEvent.obtain(downTime, eventTime,
 		        MotionEvent.ACTION_DOWN, 1, properties,
 		        pointerCoords, 0,  0, 1, 1, 0, 0, 0, 0 );
