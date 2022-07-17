@@ -151,7 +151,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		try {
 			setContentView(R.layout.activity_main);
 		} catch(Exception ex) {
-			Log.d(TAG, "onCreate setContentView ex="+ex);
+			Log.d(TAG, "# onCreate setContentView ex="+ex);
 			startupFail = true;
 			Toast.makeText(context, "WebCall cannot start. No System WebView installed?",
 				Toast.LENGTH_LONG).show();
@@ -267,12 +267,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			try {
 				proximitySensorMode = prefs.getInt("proximitySensor", 1);
 			} catch(Exception ex) {
-				Log.d(TAG,"onCreateContextMenu proximitySensorMode ex="+ex);
+				Log.d(TAG,"# onCreateContextMenu proximitySensorMode ex="+ex);
 			}
 			try {
 				proximitySensorAction = prefs.getInt("proximitySensorAction", 0);
 			} catch(Exception ex) {
-				Log.d(TAG,"onCreateContextMenu proximitySensorAction ex="+ex);
+				Log.d(TAG,"# onCreateContextMenu proximitySensorAction ex="+ex);
 			}
 		}
 
@@ -978,42 +978,50 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		Uri data = intent.getData();
 		String dialId = null;
 		if(data!=null) {
-			Log.d(TAG, "onNewIntent original data="+data);
+			Log.d(TAG, "onNewIntent original data="+data+" =======================================");
 			// example data (as string):
 			// https://timur.mobi/user/id?callerId=id&callerName=username&callerHost=192.168.3.203&ds=false
 
 			String webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 			String host = data.getHost().toLowerCase(Locale.getDefault());
 			int port = data.getPort();
-			String hostport = host+":"+port;
+			String hostport = host;
+			if(port>0) {
+				hostport += ":"+port;
+			}
 			Log.d(TAG, "onNewIntent url hostport="+hostport+" webcalldomain="+webcalldomain);
 
-			if(hostport.equals(webcalldomain) || host.equals(webcalldomain)) {
-				// the domain(:andPort) of the requested data-URI is the same as that of the callee
-				// we can run caller-page in an iframe
-				// only the target ID is handed over to openDialId(), which is exactly what we want
-				Log.d(TAG, "onNewIntent local data="+data);
-				String path = data.getPath();
-				int idxUser = path.indexOf("/user/");
-				if(idxUser>=0) {
-					dialId = path.substring(idxUser+6);
-					lastSetDialId = System.currentTimeMillis();
-					Log.d(TAG, "onNewIntent dialId="+dialId);
-					if(webCallServiceBinder!=null) {
-						// only execute if we are on the main page
-						if(webCallServiceBinder.getCurrentUrl().indexOf("/callee/")>=0) {
-							webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
-						}
-					}
-				}
+			String path = data.getPath();
+			int idxUser = path.indexOf("/user/");
+			if(idxUser<0) {
+				Log.d(TAG, "# onNewIntent no dialID");
 				return;
 			}
+			dialId = path.substring(idxUser+6);
+			lastSetDialId = System.currentTimeMillis();	// ???
+			Log.d(TAG, "onNewIntent dialId="+dialId);
+
+			// if data Uri points to the local server
+			if(hostport.equals(webcalldomain) || host.equals(webcalldomain)) {
+				// the domain(:andPort) of the requested data-URI is the same as that of the callee
+				// we can run caller-widget in an iframe via: runJScode(openDialId(dialId))
+				// we only hand over the target ID (aka dialId)
+				// note: only run this if we are on the main page
+				if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
+					Log.d(TAG, "# onNewIntent not on the main page, local data="+data);
+					return;
+				}
+				Log.d(TAG, "onNewIntent local data="+data);
+				webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
+				return;
+			}
+
 
 			/////////////////////////////////////////////////////////////////////////////
 			// data Uri points to a remote server
 			// we have to run the caller-widget from the remote server in our 2nd webview
 
-			// first: sanitize the give Uri, especially urlArgs callerId and callerHost
+			// first: sanitize the give Uri, especially urlArg callerHost (we know better!)
 			// build params HashMap to simplify access to urlArgs
 			// this is what our url-query might look like
 			// ?callerId=19230843600&callerName=Timur4&callerHost=192.168.0.161:8068
@@ -1028,14 +1036,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			}
 
-			// rebuild the Uri
+			// rebuild the Uri with callerHost = webcalldomain
 			Uri.Builder builder = new Uri.Builder();
 			builder.scheme(data.getScheme())
 				.authority(data.getHost())
 				.encodedPath(data.getPath());
-			// set urlArg "callerId" = username (not the nickname, but the calleeID)
-			builder.appendQueryParameter("callerId", prefs.getString("username", ""));
-			// TODO better: allow users to select the outgoing callerId via idSelect
+// NO: set urlArg "callerId" = username (not the nickname, but the calleeID)
+//			builder.appendQueryParameter("callerId", prefs.getString("username", ""));
+// OK: TODO better: allow users to select the outgoing callerId via idSelect
 			// TODO when we have a UI for idSelect, we can also
 			// - xhr the nickname from settings
 			// - store the target-ID (part of data.getPath()) in contacts (and give it a nickname)
@@ -1043,19 +1051,42 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			builder.appendQueryParameter("callerHost", webcalldomain);
 			// append all remaining parameters other than the ones above
   			for(String key: params.keySet()) {
-				if(!key.equals("callerId") && !key.equals("callerHost")) {
+				if(/*!key.equals("callerId") &&*/ !key.equals("callerHost")) {
 					builder.appendQueryParameter(key, (String)params.get(key));
 				}
 			}
 			data = builder.build();
-
-			// run remote caller-widget in webview2 (aka myNewWebView)
 			Log.d(TAG, "onNewIntent remote "+data.toString());
+			String iParamValue = (String)params.get("i");
+			Log.d(TAG, "onNewIntent iParamValue="+iParamValue);
+
+
+			/////////////////////////////////////////////////////////////
+			// STEP 1: if parameter "i" is NOT set -> open dial-id-dialog with callerHost=hostport
+			if(iParamValue==null || iParamValue=="" || iParamValue=="null") {
+				// open dial-id-dialog only if we are on the main page
+				if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
+					Log.d(TAG, "# onNewIntent not on the main page");
+					return;
+				}
+				// dial-id-dialog does NOT require callerID=...
+				String url = "/user/"+dialId +
+					"?callerHost="+hostport +
+					"&callerName="+(String)params.get("callerName");
+				Log.d(TAG, "onNewIntent dial-id-dialog "+url);
+				webCallServiceBinder.runJScode("iframeWindowOpen('"+url+"',false,'',false)");
+				return;
+			}
+
+
+			/////////////////////////////////////////////////////////////
+			// STEP 2: open remote caller-widget in webview2 (aka myNewWebView)
 			try {
 				WebSettings newWebSettings = myNewWebView.getSettings();
 				newWebSettings.setJavaScriptEnabled(true);
 				newWebSettings.setMediaPlaybackRequiresUserGesture(false);
 				newWebSettings.setDomStorageEnabled(true);
+				final String finalHostport = hostport;
 
 				myNewWebView.setWebChromeClient(new WebChromeClient() {
 					@Override
@@ -1146,19 +1177,19 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						// or if 2) user confirms SSL-error dialog
 						final AlertDialog.Builder builder = new AlertDialog.Builder(context);
 						builder.setTitle("SSL Certificate Error");
-						String message = "SSL Certificate error on "+hostport;
+						String message = "SSL Certificate error on "+finalHostport;
 						switch(error.getPrimaryError()) {
 						case SslError.SSL_UNTRUSTED:
-							message = "Link encrypted but certificate authority not trusted on "+hostport;
+							message = "Link encrypted but certificate authority not trusted on "+finalHostport;
 							break;
 						case SslError.SSL_EXPIRED:
-							message = "Certificate expired on "+hostport;
+							message = "Certificate expired on "+finalHostport;
 							break;
 						case SslError.SSL_IDMISMATCH:
-							message = "Certificate hostname mismatch on "+hostport;
+							message = "Certificate hostname mismatch on "+finalHostport;
 							break;
 						case SslError.SSL_NOTYETVALID:
-							message = "Certificate is not yet valid on "+hostport;
+							message = "Certificate is not yet valid on "+finalHostport;
 							break;
 						}
 						message += ".\nContinue anyway?";
@@ -1188,11 +1219,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				});
 
 				// first, load a local spinner page (loads fast)
+				Log.d(TAG, "onNewIntent load busy.html");
 				myNewWebView.loadUrl("file:///android_asset/busy.html", null);
 
 				// a little later load remote caller widget (takes a moment to load)
 				final Handler handler = new Handler(Looper.getMainLooper());
-				final Uri data2 = data;
+				final Uri finalData = data;
 				handler.postDelayed(new Runnable() {
 					@Override
 					public void run() {
@@ -1200,13 +1232,13 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						myNewWebView.setFocusable(true);
 						myWebView.setVisibility(View.INVISIBLE);
 						Log.d(TAG, "onNewIntent myNewWebView opened");
-						myNewWebView.loadUrl(data2.toString());
+						myNewWebView.loadUrl(finalData.toString());
 					}
 				}, 300);
 
 				// myNewWebView will be closed in onBackPressed()
 			} catch(Exception ex) {
-				Log.d(TAG, "onNewIntent myNewWebView ex="+ex);
+				Log.d(TAG, "# onNewIntent myNewWebView ex="+ex);
 				myWebView.setVisibility(View.VISIBLE);
 			}
 		}
