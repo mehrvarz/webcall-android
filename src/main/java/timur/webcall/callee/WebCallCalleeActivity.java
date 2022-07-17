@@ -1062,7 +1062,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 
 			/////////////////////////////////////////////////////////////
-			// STEP 1: if parameter "i" is NOT set -> open dial-id-dialog with callerHost=hostport
+			// STEP 1: if parameter "i" is NOT set -> open dial-id-dialog with callerId=select
 			if(iParamValue==null || iParamValue=="" || iParamValue=="null") {
 				// open dial-id-dialog only if we are on the main page
 				if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
