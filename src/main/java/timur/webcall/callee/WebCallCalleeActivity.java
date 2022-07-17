@@ -847,7 +847,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 			return true;
 		}
-		if(selectedItem==menuStartOnBootOff) {
+		if(selectedItem==menuScreenForWifiOff) {
 			Log.d(TAG, "onContextItemSelected screenForWifiOff");
 			if(webCallServiceBinder!=null) {
 				webCallServiceBinder.screenForWifi(0);
