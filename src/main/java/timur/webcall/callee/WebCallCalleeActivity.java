@@ -76,6 +76,9 @@ import androidx.core.content.FileProvider;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Scanner;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Set;
 import java.text.SimpleDateFormat;
 import java.io.File;
 import java.io.FileWriter;
@@ -87,6 +90,7 @@ import java.lang.reflect.Method;
 import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+//import java.net.Uri;
 
 import timur.webcall.callee.BuildConfig;
 
@@ -974,7 +978,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		Uri data = intent.getData();
 		String dialId = null;
 		if(data!=null) {
-			//Log.d(TAG, "onNewIntent data="+data);
+			Log.d(TAG, "onNewIntent original data="+data);
 			// example data (as string):
 			// https://timur.mobi/user/id?callerId=id&callerName=username&callerHost=192.168.3.203&ds=false
 
@@ -984,13 +988,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			String hostport = host+":"+port;
 			Log.d(TAG, "onNewIntent url hostport="+hostport+" webcalldomain="+webcalldomain);
 
-// TODO this would be the best place to check the urlArgs
-// here we can prevent the user to send the wrong callerId and callerHost
-//   https://192.168.0.161:8068/user/timur?callerId=19230843600&callerName=Timur4&callerHost=192.168.0.161:8068
-
-
 			if(hostport.equals(webcalldomain) || host.equals(webcalldomain)) {
-				// load caller-page from same host in iframe
+				// the domain(:andPort) of the requested data-URI is the same as that of the callee
+				// we can run caller-page in an iframe
+				// only the target ID is handed over to openDialId(), which is exactly what we want
 				Log.d(TAG, "onNewIntent local data="+data);
 				String path = data.getPath();
 				int idxUser = path.indexOf("/user/");
@@ -1008,10 +1009,47 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				return;
 			}
 
-// TODO this would be the best place to allow the user to select the outgoing ID (idSelect)
-// because on the remote caller-widget we have no cookie to make that selection
+			/////////////////////////////////////////////////////////////////////////////
+			// data Uri points to a remote server
+			// we have to run the caller-widget from the remote server in our 2nd webview
 
-			// load caller-page from remote host in 2nd webview
+			// first: sanitize the give Uri, especially urlArgs callerId and callerHost
+			// build params HashMap to simplify access to urlArgs
+			// this is what our url-query might look like
+			// ?callerId=19230843600&callerName=Timur4&callerHost=192.168.0.161:8068
+			Map<String, Object> params = new HashMap<String, Object>();
+			String[] pairs = data.getQuery().split("&");
+			for(String pair: pairs) {
+				String[] split = pair.split("=");
+				if(split.length >= 2) {
+					params.put(split[0], split[1]);
+				} else if(split.length == 1) {
+					params.put(split[0], "");
+				}
+			}
+
+			// rebuild the Uri
+			Uri.Builder builder = new Uri.Builder();
+			builder.scheme(data.getScheme())
+				.authority(data.getHost())
+				.encodedPath(data.getPath());
+			// set urlArg "callerId" = username (not the nickname, but the calleeID)
+			builder.appendQueryParameter("callerId", prefs.getString("username", ""));
+			// TODO better: allow users to select the outgoing callerId via idSelect
+			// TODO when we have a UI for idSelect, we can also
+			// - xhr the nickname from settings
+			// - store the target-ID (part of data.getPath()) in contacts (and give it a nickname)
+			// set urlArg "callerHost" = webcalldomain
+			builder.appendQueryParameter("callerHost", webcalldomain);
+			// append all remaining parameters other than the ones above
+  			for(String key: params.keySet()) {
+				if(!key.equals("callerId") && !key.equals("callerHost")) {
+					builder.appendQueryParameter(key, (String)params.get(key));
+				}
+			}
+			data = builder.build();
+
+			// run remote caller-widget in webview2 (aka myNewWebView)
 			Log.d(TAG, "onNewIntent remote "+data.toString());
 			try {
 				WebSettings newWebSettings = myNewWebView.getSettings();
@@ -1130,33 +1168,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							public void onClick(DialogInterface dialog, int which) {
 								Log.d(TAG, "onReceivedSslError confirmed by user "+error);
 								handler.proceed();
-
-/* here we try to show the keyboard for a focused input form
-
-								// a little later load remote caller widget (takes a moment to load)
-								final Handler handler = new Handler(Looper.getMainLooper());
-								handler.postDelayed(new Runnable() {
-									@Override
-									public void run() {
-										Log.d(TAG, "onNewIntent setSoftInputMode...");
-// tmtmtm
-//										getWindow().
-//											setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
-
-										InputMethodManager inputMethodManager =
-											(InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
-										inputMethodManager.
-											toggleSoftInputFromWindow(yourEditText.getApplicationWindowToken(),
-											InputMethodManager.SHOW_FORCED, 0);
-
-			InputMethodManager keyboard =
-				(InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
-			keyboard.showSoftInput(myNewWebView, InputMethodManager.SHOW_IMPLICIT);
-
-myNewWebView.setFocusable(true);
-									}
-								}, 1200);
-*/
 							}
 						});
 						builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
@@ -1181,6 +1192,7 @@ myNewWebView.setFocusable(true);
 
 				// a little later load remote caller widget (takes a moment to load)
 				final Handler handler = new Handler(Looper.getMainLooper());
+				final Uri data2 = data;
 				handler.postDelayed(new Runnable() {
 					@Override
 					public void run() {
@@ -1188,7 +1200,7 @@ myNewWebView.setFocusable(true);
 						myNewWebView.setFocusable(true);
 						myWebView.setVisibility(View.INVISIBLE);
 						Log.d(TAG, "onNewIntent myNewWebView opened");
-						myNewWebView.loadUrl(data.toString());
+						myNewWebView.loadUrl(data2.toString());
 					}
 				}, 300);
 
