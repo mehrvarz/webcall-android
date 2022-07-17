@@ -1054,7 +1054,7 @@ public class WebCallService extends Service {
 						// uri is valid for webview; continue below
 					} else {
 						// uri is NOT for webview, forward to ext browser
-						Log.i(TAG, "handleUri uri not for webview; forward to ext browser ("+uri+")");
+						Log.i(TAG, "handleUri uri not for webview1; forward to ext browser ("+uri+")");
 						Intent intent = new Intent("webcall");
 						intent.putExtra("browse", uri.toString());
 						sendBroadcast(intent);

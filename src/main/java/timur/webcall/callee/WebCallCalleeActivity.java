@@ -1039,7 +1039,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			// rebuild the Uri with callerHost = webcalldomain
 			Uri.Builder builder = new Uri.Builder();
 			builder.scheme(data.getScheme())
-				.authority(data.getHost())
+				.encodedAuthority(hostport)
 				.encodedPath(data.getPath());
 // NO: set urlArg "callerId" = username (not the nickname, but the calleeID)
 //			builder.appendQueryParameter("callerId", prefs.getString("username", ""));
@@ -1072,11 +1072,13 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				// dial-id-dialog does NOT require callerID=...
 				String url = "/user/"+dialId +
 					"?callerHost="+hostport +
-					"&callerName="+(String)params.get("callerName");
+					"&callerName="+(String)params.get("callerName") +
+					"&callerId=select";
 				Log.d(TAG, "onNewIntent dial-id-dialog "+url);
 				webCallServiceBinder.runJScode("iframeWindowOpen('"+url+"',false,'',false)");
 				return;
 			}
+			// if iParamValue is non-empty, it is coming from dial-id (idSelect)
 
 
 			/////////////////////////////////////////////////////////////
@@ -1218,11 +1220,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					}
 				});
 
-				// first, load a local spinner page (loads fast)
+				// first, load local busy.html with running spinner (loads fast)
 				Log.d(TAG, "onNewIntent load busy.html");
 				myNewWebView.loadUrl("file:///android_asset/busy.html", null);
 
-				// a little later load remote caller widget (takes a moment to load)
+				// shortly after load remote caller widget (takes a moment to load)
 				final Handler handler = new Handler(Looper.getMainLooper());
 				final Uri finalData = data;
 				handler.postDelayed(new Runnable() {
@@ -1231,7 +1233,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						myNewWebView.setVisibility(View.VISIBLE);
 						myNewWebView.setFocusable(true);
 						myWebView.setVisibility(View.INVISIBLE);
-						Log.d(TAG, "onNewIntent myNewWebView opened");
+						Log.d(TAG, "onNewIntent load "+finalData.toString());
 						myNewWebView.loadUrl(finalData.toString());
 					}
 				}, 300);
