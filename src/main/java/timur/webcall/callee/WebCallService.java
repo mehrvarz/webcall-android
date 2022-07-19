@@ -1374,25 +1374,30 @@ public class WebCallService extends Service {
 		}
 
 		public void setProximity(boolean flagNear) {
-			proximityNear = flagNear;
-
 			if(audioManager.isWiredHeadsetOn()) {
-				Log.d(TAG, "setProximity("+flagNear+") skip isWiredHeadsetOn");
+				Log.d(TAG, "setProximity near="+flagNear+" skip isWiredHeadsetOn");
 			} else if(audioManager.isBluetoothA2dpOn()) {
-				Log.d(TAG, "setProximity("+flagNear+") skip isBluetoothA2dpOn");
+				Log.d(TAG, "setProximity near="+flagNear+" skip isBluetoothA2dpOn");
 			} else {
-				Log.d(TAG, "setProximity("+flagNear+")");
-				if(proximityNear) {
-					// user is now holding device CLOSE TO HEAD
-					//Log.d(TAG, "setProximity() near, speakerphone=false");
-					audioManager.setMode(AudioManager.MODE_IN_CALL);
-					audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
+				if(flagNear) {
+					if(!proximityNear) {
+						// user is now holding device CLOSE TO HEAD
+						//Log.d(TAG, "setProximity() near, speakerphone=false");
+						Log.d(TAG, "setProximity near="+flagNear);
+						audioManager.setMode(AudioManager.MODE_IN_CALL);
+						audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
+						proximityNear = flagNear;
+					}
 				} else {
-					// user is now now holding device AWAY FROM HEAD
-					//Log.d(TAG, "setProximity() away, speakerphone=true");
-
-					audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-					audioManager.setSpeakerphoneOn(true); // activates speakerphone
+					// not near
+					if(proximityNear) {
+						// user is now now holding device AWAY FROM HEAD
+						//Log.d(TAG, "setProximity() away, speakerphone=true");
+						Log.d(TAG, "setProximity near="+flagNear);
+						audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+						audioManager.setSpeakerphoneOn(true); // activates speakerphone
+						proximityNear = flagNear;
+					}
 				}
 			}
 		}
