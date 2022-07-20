@@ -1006,66 +1006,76 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public void onNewIntent(Intent intent) {
 		Uri data = intent.getData();
-		String dialId = null;
-		if(data!=null) {
-			Log.d(TAG, "onNewIntent original data="+data+" =======================================");
-			// example data (as string):
-			// https://timur.mobi/user/id?callerId=id&callerName=username&callerHost=192.168.3.203&ds=false
+		if(data==null) {
+			Log.d(TAG, "# onNewIntent abort no data");
+			return;
+		}
+		Log.d(TAG, "onNewIntent original data="+data+" =======================================");
+		// example data (as string):
+		// https://timur.mobi/user/id?callerId=id&callerName=username&ds=false
 
-			String webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-			String host = data.getHost().toLowerCase(Locale.getDefault());
-			int port = data.getPort();
-			String hostport = host;
-			if(port>0) {
-				hostport += ":"+port;
-			}
-			Log.d(TAG, "onNewIntent url hostport="+hostport+" webcalldomain="+webcalldomain);
+		String webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+		String host = data.getHost().toLowerCase(Locale.getDefault());
+		int port = data.getPort();
+		String hostport = host;
+		if(port>0) {
+			hostport += ":"+port;
+		}
+		Log.d(TAG, "onNewIntent url hostport="+hostport+" webcalldomain="+webcalldomain);
 
-			String path = data.getPath();
-			int idxUser = path.indexOf("/user/");
-			if(idxUser<0) {
-				Log.d(TAG, "# onNewIntent no dialID");
+		String path = data.getPath();
+		int idxUser = path.indexOf("/user/");
+		if(idxUser<0) {
+			Log.d(TAG, "# onNewIntent no /user/ in uri");
+			return;
+		}
+
+		String dialId = path.substring(idxUser+6);
+		lastSetDialId = System.currentTimeMillis();	// ???
+		Log.d(TAG, "onNewIntent dialId="+dialId);
+
+		// if data Uri points to the local server
+		if(hostport.equals(webcalldomain) || host.equals(webcalldomain)) {
+			// the domain(:andPort) of the requested data-URI is the same as that of the callee
+			// we can run caller-widget in an iframe via: runJScode(openDialId(dialId))
+			// we only hand over the target ID (aka dialId)
+			// note: only run this if we are on the main page
+			if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
+				Log.d(TAG, "# onNewIntent not on the main page, local data="+data);
 				return;
 			}
-			dialId = path.substring(idxUser+6);
-			lastSetDialId = System.currentTimeMillis();	// ???
-			Log.d(TAG, "onNewIntent dialId="+dialId);
+			Log.d(TAG, "onNewIntent local data="+data);
+			webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
+			return;
+		}
 
-			// if data Uri points to the local server
-			if(hostport.equals(webcalldomain) || host.equals(webcalldomain)) {
-				// the domain(:andPort) of the requested data-URI is the same as that of the callee
-				// we can run caller-widget in an iframe via: runJScode(openDialId(dialId))
-				// we only hand over the target ID (aka dialId)
-				// note: only run this if we are on the main page
-				if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
-					Log.d(TAG, "# onNewIntent not on the main page, local data="+data);
-					return;
-				}
-				Log.d(TAG, "onNewIntent local data="+data);
-				webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
-				return;
+
+		/////////////////////////////////////////////////////////////////////////////
+		// data Uri points to a remote server
+		// we have to run the caller-widget from the remote server in our 2nd webview
+
+		// but first: sanitize the given UriArgs
+		// build params HashMap to simplify access to urlArgs
+		// this is what our url-query might look like
+		// ?callerId=19230843600&callerName=Timur4
+		Map<String, Object> params = new HashMap<String, Object>();
+		String[] pairs = data.getQuery().split("&");
+		for(String pair: pairs) {
+			String[] split = pair.split("=");
+			if(split.length >= 2) {
+				params.put(split[0], split[1]);
+			} else if(split.length == 1) {
+				params.put(split[0], "");
 			}
+		}
+
+		String iParamValue = (String)params.get("i");
+		Log.d(TAG, "onNewIntent iParamValue="+iParamValue);
 
 
-			/////////////////////////////////////////////////////////////////////////////
-			// data Uri points to a remote server
-			// we have to run the caller-widget from the remote server in our 2nd webview
-
-			// first: sanitize the give Uri, especially urlArg callerHost (we know better!)
-			// build params HashMap to simplify access to urlArgs
-			// this is what our url-query might look like
-			// ?callerId=19230843600&callerName=Timur4&callerHost=192.168.0.161:8068
-			Map<String, Object> params = new HashMap<String, Object>();
-			String[] pairs = data.getQuery().split("&");
-			for(String pair: pairs) {
-				String[] split = pair.split("=");
-				if(split.length >= 2) {
-					params.put(split[0], split[1]);
-				} else if(split.length == 1) {
-					params.put(split[0], "");
-				}
-			}
-
+		/////////////////////////////////////////////////////////////
+		// STEP 1: if parameter "i" is NOT set -> open dial-id-dialog with callerId=select
+		if(iParamValue==null || iParamValue=="" || iParamValue=="null") {
 			// rebuild the Uri with callerHost = webcalldomain
 			Uri.Builder builder = new Uri.Builder();
 			builder.scheme(data.getScheme())
@@ -1080,201 +1090,195 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			// set urlArg "callerHost" = webcalldomain
 			builder.appendQueryParameter("callerHost", webcalldomain);
 			// append all remaining parameters other than the ones above
-  			for(String key: params.keySet()) {
-				if(/*!key.equals("callerId") &&*/ !key.equals("callerHost")) {
+			for(String key: params.keySet()) {
+				if(!key.equals("callerHost")) {
 					builder.appendQueryParameter(key, (String)params.get(key));
 				}
 			}
 			data = builder.build();
 			Log.d(TAG, "onNewIntent remote "+data.toString());
-			String iParamValue = (String)params.get("i");
-			Log.d(TAG, "onNewIntent iParamValue="+iParamValue);
 
-
-			/////////////////////////////////////////////////////////////
-			// STEP 1: if parameter "i" is NOT set -> open dial-id-dialog with callerId=select
-			if(iParamValue==null || iParamValue=="" || iParamValue=="null") {
-				// open dial-id-dialog only if we are on the main page
-				if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
-					Log.d(TAG, "# onNewIntent not on the main page");
-					return;
-				}
-				// dial-id-dialog does NOT require callerID=...
-				String url = "/user/"+dialId +
-					"?callerHost="+hostport +
-					"&callerName="+(String)params.get("callerName") +
-					"&callerId=select";
-				Log.d(TAG, "onNewIntent dial-id-dialog "+url);
-				webCallServiceBinder.runJScode("iframeWindowOpen('"+url+"',false,'',false)");
+			// open dial-id-dialog only if we are on the main page
+			if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
+				Log.d(TAG, "# onNewIntent not on the main page");
 				return;
 			}
-			// if iParamValue is non-empty, it is coming from dial-id (idSelect)
+			// dial-id-dialog does NOT require callerID=...
+			String url = "/user/"+dialId +
+				"?targetHost="+hostport +
+				"&callerName="+(String)params.get("callerName") +
+				"&callerId=select";
+			Log.d(TAG, "onNewIntent dial-id-dialog "+url);
+			webCallServiceBinder.runJScode("iframeWindowOpen('"+url+"',false,'',false)");
+			// when uri comes back (sanitized) it will have &i= set
+			return;
+		}
 
 
-			/////////////////////////////////////////////////////////////
-			// STEP 2: open remote caller-widget in webview2 (aka myNewWebView)
-			try {
-				WebSettings newWebSettings = myNewWebView.getSettings();
-				newWebSettings.setJavaScriptEnabled(true);
-				newWebSettings.setMediaPlaybackRequiresUserGesture(false);
-				newWebSettings.setDomStorageEnabled(true);
-				final String finalHostport = hostport;
+		// if iParamValue is non-empty, it is coming from dial-id (idSelect)
+		/////////////////////////////////////////////////////////////
+		// STEP 2: open remote caller-widget in webview2 (aka myNewWebView)
+		try {
+			WebSettings newWebSettings = myNewWebView.getSettings();
+			newWebSettings.setJavaScriptEnabled(true);
+			newWebSettings.setMediaPlaybackRequiresUserGesture(false);
+			newWebSettings.setDomStorageEnabled(true);
+			final String finalHostport = hostport;
 
-				myNewWebView.setWebChromeClient(new WebChromeClient() {
-					@Override
-					public boolean onConsoleMessage(ConsoleMessage cm) {
-						String msg = cm.message();
-						Log.d(TAG,"console: "+msg + " L"+cm.lineNumber());
-						if(msg.startsWith("showNumberForm pos")) {
-							// showNumberForm pos 95.0390625 52.1953125 155.5859375 83.7421875 L1590
-							String floatString = msg.substring(19).trim();
-							Log.d(TAG, "emulate tap floatString="+floatString);
-							String[] tokens = floatString.split(" ");
-							float leftFloat = Float.parseFloat(tokens[0]) + 10;
-							float topFloat = Float.parseFloat(tokens[1]) + 10;
-							// must add the height of the statusbar
-							topFloat += 10;
-							Log.d(TAG, "emulate tap left="+leftFloat+" top="+topFloat);
+			myNewWebView.setWebChromeClient(new WebChromeClient() {
+				@Override
+				public boolean onConsoleMessage(ConsoleMessage cm) {
+					String msg = cm.message();
+					Log.d(TAG,"console: "+msg + " L"+cm.lineNumber());
+					if(msg.startsWith("showNumberForm pos")) {
+						// showNumberForm pos 95.0390625 52.1953125 155.5859375 83.7421875 L1590
+						String floatString = msg.substring(19).trim();
+						Log.d(TAG, "emulate tap floatString="+floatString);
+						String[] tokens = floatString.split(" ");
+						float leftFloat = Float.parseFloat(tokens[0]) + 10;
+						float topFloat = Float.parseFloat(tokens[1]) + 10;
+						// must add the height of the statusbar
+						topFloat += 10;
+						Log.d(TAG, "emulate tap left="+leftFloat+" top="+topFloat);
 
-							// tokens[6] = webview right (width)
-							// tokens[7] = webview bottom (height)
-							float webviewWidth = Float.parseFloat(tokens[6]);
-							float webviewHeight = Float.parseFloat(tokens[7]);
-							Log.d(TAG, "emulate tap webview screen width="+webviewWidth+" height="+webviewHeight);
+						// tokens[6] = webview right (width)
+						// tokens[7] = webview bottom (height)
+						float webviewWidth = Float.parseFloat(tokens[6]);
+						float webviewHeight = Float.parseFloat(tokens[7]);
+						Log.d(TAG, "emulate tap webview screen width="+webviewWidth+" height="+webviewHeight);
 
-							Display mdisp = getWindowManager().getDefaultDisplay();
-							int maxX = mdisp.getWidth();
-							int maxY = mdisp.getHeight();
-							Log.d(TAG, "emulate tap android screen width="+maxX+" height="+maxY);
+						Display mdisp = getWindowManager().getDefaultDisplay();
+						int maxX = mdisp.getWidth();
+						int maxY = mdisp.getHeight();
+						Log.d(TAG, "emulate tap android screen width="+maxX+" height="+maxY);
 
-							if(webviewHeight>0 && webviewWidth>0) {
-								leftFloat = leftFloat * ( maxX / webviewWidth);
-								topFloat = topFloat * ( maxY / webviewHeight);
-								Log.d(TAG, "emulate tap corrected left="+leftFloat+" top="+topFloat);
-								simulateClick(leftFloat, topFloat);
-							}
-						}
-						return true;
-					}
-
-					@Override
-					public void onPermissionRequest(PermissionRequest request) {
-						String[] strArray = request.getResources();
-						for(int i=0; i<strArray.length; i++) {
-							Log.w(TAG, "onPermissionRequest "+i+" ("+strArray[i]+")");
-							// we only grant the permission we want to grant
-							if(strArray[i].equals("android.webkit.resource.AUDIO_CAPTURE") ||
-							   strArray[i].equals("android.webkit.resource.VIDEO_CAPTURE")) {
-								request.grant(strArray);
-								break;
-							}
-							Log.w(TAG, "onPermissionRequest unexpected "+strArray[i]);
+						if(webviewHeight>0 && webviewWidth>0) {
+							leftFloat = leftFloat * ( maxX / webviewWidth);
+							topFloat = topFloat * ( maxY / webviewHeight);
+							Log.d(TAG, "emulate tap corrected left="+leftFloat+" top="+topFloat);
+							simulateClick(leftFloat, topFloat);
 						}
 					}
-				});
+					return true;
+				}
 
-				myNewWebView.setWebViewClient(new WebViewClient() {
-					@SuppressWarnings("deprecation")
-					@Override
-					public boolean shouldOverrideUrlLoading(WebView view, String url) {
-						Log.d(TAG, "_shouldOverrideUrl "+url);
-						return false;
+				@Override
+				public void onPermissionRequest(PermissionRequest request) {
+					String[] strArray = request.getResources();
+					for(int i=0; i<strArray.length; i++) {
+						Log.w(TAG, "onPermissionRequest "+i+" ("+strArray[i]+")");
+						// we only grant the permission we want to grant
+						if(strArray[i].equals("android.webkit.resource.AUDIO_CAPTURE") ||
+						   strArray[i].equals("android.webkit.resource.VIDEO_CAPTURE")) {
+							request.grant(strArray);
+							break;
+						}
+						Log.w(TAG, "onPermissionRequest unexpected "+strArray[i]);
+					}
+				}
+			});
+
+			myNewWebView.setWebViewClient(new WebViewClient() {
+				@SuppressWarnings("deprecation")
+				@Override
+				public boolean shouldOverrideUrlLoading(WebView view, String url) {
+					Log.d(TAG, "_shouldOverrideUrl "+url);
+					return false;
+				}
+
+				//@TargetApi(Build.VERSION_CODES.N)
+				@Override
+				public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+					final Uri uri = request.getUrl();
+					Log.d(TAG, "_shouldOverrideUrlL="+uri);
+					return false;
+				}
+
+				@Override
+				public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+					// this is called when webview does a https PAGE request and fails
+					// error.getPrimaryError()
+					// -1 = no error
+					// 0 = not yet valid
+					// 1 = SSL_EXPIRED
+					// 2 = SSL_IDMISMATCH  certificate Hostname mismatch
+					// 3 = SSL_UNTRUSTED   certificate authority is not trusted
+					// 5 = SSL_INVALID
+					// primary error: 3 certificate: Issued to: O=Internet Widgits Pty Ltd,ST=...
+
+					// only proceed if 1) InsecureTlsFlag is set
+					if(webCallServiceBinder.getInsecureTlsFlag()) {
+						Log.d(TAG, "onReceivedSslError (proceed) "+error);
+						handler.proceed();
+						return;
 					}
 
-					//@TargetApi(Build.VERSION_CODES.N)
-					@Override
-					public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-						final Uri uri = request.getUrl();
-						Log.d(TAG, "_shouldOverrideUrlL="+uri);
-						return false;
+					// or if 2) user confirms SSL-error dialog
+					final AlertDialog.Builder builder = new AlertDialog.Builder(context);
+					builder.setTitle("SSL Certificate Error");
+					String message = "SSL Certificate error on "+finalHostport;
+					switch(error.getPrimaryError()) {
+					case SslError.SSL_UNTRUSTED:
+						message = "Link encrypted but certificate authority not trusted on "+finalHostport;
+						break;
+					case SslError.SSL_EXPIRED:
+						message = "Certificate expired on "+finalHostport;
+						break;
+					case SslError.SSL_IDMISMATCH:
+						message = "Certificate hostname mismatch on "+finalHostport;
+						break;
+					case SslError.SSL_NOTYETVALID:
+						message = "Certificate is not yet valid on "+finalHostport;
+						break;
 					}
-
-					@Override
-					public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
-						// this is called when webview does a https PAGE request and fails
-						// error.getPrimaryError()
-						// -1 = no error
-						// 0 = not yet valid
-						// 1 = SSL_EXPIRED
-						// 2 = SSL_IDMISMATCH  certificate Hostname mismatch
-						// 3 = SSL_UNTRUSTED   certificate authority is not trusted
-						// 5 = SSL_INVALID
-						// primary error: 3 certificate: Issued to: O=Internet Widgits Pty Ltd,ST=...
-
-						// only proceed if 1) InsecureTlsFlag is set
-						if(webCallServiceBinder.getInsecureTlsFlag()) {
-							Log.d(TAG, "onReceivedSslError (proceed) "+error);
+					message += ".\nContinue anyway?";
+					builder.setMessage(message);
+					builder.setPositiveButton("continue", new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							Log.d(TAG, "onReceivedSslError confirmed by user "+error);
 							handler.proceed();
-							return;
 						}
-
-						// or if 2) user confirms SSL-error dialog
-						final AlertDialog.Builder builder = new AlertDialog.Builder(context);
-						builder.setTitle("SSL Certificate Error");
-						String message = "SSL Certificate error on "+finalHostport;
-						switch(error.getPrimaryError()) {
-						case SslError.SSL_UNTRUSTED:
-							message = "Link encrypted but certificate authority not trusted on "+finalHostport;
-							break;
-						case SslError.SSL_EXPIRED:
-							message = "Certificate expired on "+finalHostport;
-							break;
-						case SslError.SSL_IDMISMATCH:
-							message = "Certificate hostname mismatch on "+finalHostport;
-							break;
-						case SslError.SSL_NOTYETVALID:
-							message = "Certificate is not yet valid on "+finalHostport;
-							break;
+					});
+					builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							Log.d(TAG, "# onReceivedSslError user canceled "+error);
+							handler.cancel();
+							//super.onReceivedSslError(view, handler, error);
+							// abort loading page: mimic onBackPressed()
+							myWebView.setVisibility(View.VISIBLE);
+							myNewWebView.setVisibility(View.INVISIBLE);
+							myNewWebView.loadUrl("");
 						}
-						message += ".\nContinue anyway?";
-						builder.setMessage(message);
-						builder.setPositiveButton("continue", new DialogInterface.OnClickListener() {
-							@Override
-							public void onClick(DialogInterface dialog, int which) {
-								Log.d(TAG, "onReceivedSslError confirmed by user "+error);
-								handler.proceed();
-							}
-						});
-						builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
-							@Override
-							public void onClick(DialogInterface dialog, int which) {
-								Log.d(TAG, "# onReceivedSslError user canceled "+error);
-								handler.cancel();
-								//super.onReceivedSslError(view, handler, error);
-								// abort loading page: mimic onBackPressed()
-								myWebView.setVisibility(View.VISIBLE);
-								myNewWebView.setVisibility(View.INVISIBLE);
-								myNewWebView.loadUrl("");
-							}
-						});
-						final AlertDialog dialog = builder.create();
-						dialog.show();
-					}
-				});
+					});
+					final AlertDialog dialog = builder.create();
+					dialog.show();
+				}
+			});
 
-				// first, load local busy.html with running spinner (loads fast)
-				Log.d(TAG, "onNewIntent load busy.html");
-				myNewWebView.loadUrl("file:///android_asset/busy.html", null);
+			// first, load local busy.html with running spinner (loads fast)
+			Log.d(TAG, "onNewIntent load busy.html");
+			myNewWebView.loadUrl("file:///android_asset/busy.html", null);
 
-				// shortly after load remote caller widget (takes a moment to load)
-				final Handler handler = new Handler(Looper.getMainLooper());
-				final Uri finalData = data;
-				handler.postDelayed(new Runnable() {
-					@Override
-					public void run() {
-						myNewWebView.setVisibility(View.VISIBLE);
-						myNewWebView.setFocusable(true);
-						myWebView.setVisibility(View.INVISIBLE);
-						Log.d(TAG, "onNewIntent load "+finalData.toString());
-						myNewWebView.loadUrl(finalData.toString());
-					}
-				}, 300);
+			// shortly after load remote caller widget (takes a moment to load)
+			final Handler handler = new Handler(Looper.getMainLooper());
+			final Uri finalData = data;
+			handler.postDelayed(new Runnable() {
+				@Override
+				public void run() {
+					myNewWebView.setVisibility(View.VISIBLE);
+					myNewWebView.setFocusable(true);
+					myWebView.setVisibility(View.INVISIBLE);
+					Log.d(TAG, "onNewIntent load "+finalData.toString());
+					myNewWebView.loadUrl(finalData.toString());
+				}
+			}, 300);
 
-				// myNewWebView will be closed in onBackPressed()
-			} catch(Exception ex) {
-				Log.d(TAG, "# onNewIntent myNewWebView ex="+ex);
-				myWebView.setVisibility(View.VISIBLE);
-			}
+			// myNewWebView will be closed in onBackPressed()
+		} catch(Exception ex) {
+			Log.d(TAG, "# onNewIntent myNewWebView ex="+ex);
+			myWebView.setVisibility(View.VISIBLE);
 		}
 	}
 
