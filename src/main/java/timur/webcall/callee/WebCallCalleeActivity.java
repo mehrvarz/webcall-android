@@ -1107,6 +1107,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			String url = "/user/"+dialId +
 				"?targetHost="+hostport +
 				"&callerName="+(String)params.get("callerName") +
+				"&ds="+(String)params.get("ds") +
 				"&callerId=select";
 			Log.d(TAG, "onNewIntent dial-id-dialog "+url);
 			webCallServiceBinder.runJScode("iframeWindowOpen('"+url+"',false,'',false)");
