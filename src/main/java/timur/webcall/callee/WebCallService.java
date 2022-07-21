@@ -284,7 +284,7 @@ public class WebCallService extends Service {
 	private volatile long keepAwakeWakeLockStartTime = 0;
 	private volatile int lastMinuteOfDay = 0;
 	private volatile int origvol = 0;
-	private volatile boolean proximityNear = false;
+	private volatile int proximityNear = -1;
 	private volatile boolean insecureTlsFlag = false;
 
 	// below are variables backed by preference persistens
@@ -297,6 +297,8 @@ public class WebCallService extends Service {
 	private volatile long keepAwakeWakeLockMS = 0;
 
 	private volatile Lock lock = new ReentrantLock();
+	private volatile WebCallJSInterface webCallJSInterface = null;
+
 
 	// section 1: android service methods
 	@Override
@@ -1288,7 +1290,8 @@ public class WebCallService extends Service {
 			});
 
 			// let JS call java service code
-			myWebView.addJavascriptInterface(new WebCallJSInterface(), "Android");
+			webCallJSInterface = new WebCallJSInterface();
+			myWebView.addJavascriptInterface(webCallJSInterface, "Android");
 
 			// render base page - or main page if we are connected already
 			currentUrl = "file:///android_asset/index.html";
@@ -1360,6 +1363,7 @@ public class WebCallService extends Service {
 
 		// callInProgress() returns >0 when there is an incoming call (ringing) or the device is in-a-call
 		public int callInProgress() {
+			Log.d(TAG, "callInProgress callPickedUpFlag="+callPickedUpFlag+" peerConnectFlag="+peerConnectFlag);
 			int ret = 0;
 			if(callPickedUpFlag) {
 				ret = 1; // waiting for full mediaConnect
@@ -1379,24 +1383,25 @@ public class WebCallService extends Service {
 			} else if(audioManager.isBluetoothA2dpOn()) {
 				Log.d(TAG, "setProximity near="+flagNear+" skip isBluetoothA2dpOn");
 			} else {
+				Log.d(TAG, "setProximity near="+flagNear+" last="+proximityNear);
 				if(flagNear) {
-					if(!proximityNear) {
+					if(proximityNear!=1) {
 						// user is now holding device CLOSE TO HEAD
 						//Log.d(TAG, "setProximity() near, speakerphone=false");
 						Log.d(TAG, "setProximity near="+flagNear);
 						audioManager.setMode(AudioManager.MODE_IN_CALL);
 						audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
-						proximityNear = flagNear;
+						proximityNear = 1;
 					}
 				} else {
 					// not near
-					if(proximityNear) {
+					if(proximityNear!=0) {
 						// user is now now holding device AWAY FROM HEAD
 						//Log.d(TAG, "setProximity() away, speakerphone=true");
 						Log.d(TAG, "setProximity near="+flagNear);
 						audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
 						audioManager.setSpeakerphoneOn(true); // activates speakerphone
-						proximityNear = flagNear;
+						proximityNear = 0;
 					}
 				}
 			}
@@ -1533,6 +1538,9 @@ public class WebCallService extends Service {
 			return insecureTlsFlag;
 		}
 
+		public WebCallJSInterface getWebCallJSInterface() {
+			return webCallJSInterface;
+		}
 	}
 
 	// section 3: class WebCallJSInterface with methods that can be called from javascript:
@@ -1811,13 +1819,15 @@ public class WebCallService extends Service {
 			callPickedUpFlag=false;
 			peerDisconnnectFlag=true;
 
-			if(audioManager.isWiredHeadsetOn()) {
-				Log.d(TAG, "peerDisConnect() isWiredHeadsetOn: skip setSpeakerphoneOn(true)");
-			} else if(audioManager.isBluetoothA2dpOn()) {
-				Log.d(TAG, "peerDisConnect() isBluetoothA2dpOn: skip setSpeakerphoneOn(true)");
-			} else {
-				Log.d(TAG, "peerDisConnect(), speakerphone=true");
-				audioManager.setSpeakerphoneOn(true);
+			if(audioManager!=null) {
+				if(audioManager.isWiredHeadsetOn()) {
+					Log.d(TAG, "peerDisConnect() isWiredHeadsetOn: skip setSpeakerphoneOn(true)");
+				} else if(audioManager.isBluetoothA2dpOn()) {
+					Log.d(TAG, "peerDisConnect() isBluetoothA2dpOn: skip setSpeakerphoneOn(true)");
+				} else {
+					Log.d(TAG, "peerDisConnect(), speakerphone=true");
+					audioManager.setSpeakerphoneOn(true);
+				}
 			}
 
 			// this is used for ringOnSpeakerOn

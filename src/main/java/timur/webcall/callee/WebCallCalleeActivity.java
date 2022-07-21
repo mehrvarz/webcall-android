@@ -126,7 +126,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private volatile boolean extendedLogsFlag = false;
 	private volatile String lastLogfileName = null;
 	private volatile KeyguardManager.KeyguardLock keyguardLock = null;
-	private volatile boolean proximityNear = false;
+	private volatile boolean proximityNearFlag = false;
 	private int proximitySensorMode = 0; // 0=off, 1=on
 	private int proximitySensorAction = 0; // 0=screen off, 1=screen dim
 	private volatile boolean webviewBlocked = false;
@@ -1258,6 +1258,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			});
 
+			// let JS call java service code
+			// this provides us for instance with access to webCallServiceBinder.callInProgress()
+			// because our JS code can call WebCallJSInterface.peerConnect() etc.
+			myNewWebView.addJavascriptInterface(webCallServiceBinder.getWebCallJSInterface(), "Android");
+
 			// first, load local busy.html with running spinner (loads fast)
 			Log.d(TAG, "onNewIntent load busy.html");
 			myNewWebView.loadUrl("file:///android_asset/busy.html", null);
@@ -1573,14 +1578,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(proximitySensorMode==0) {
 			return;
 		}
-		if(proximityNear) {
+		//Log.d(TAG, "proximityNear "+proximityNearFlag);
+		if(proximityNearFlag) {
 			return;
 		}
-		proximityNear = true;
+		proximityNearFlag = true;
 		callInProgress = 0;
 		if(webCallServiceBinder!=null) {
 			callInProgress = webCallServiceBinder.callInProgress();
 		}
+		//Log.d(TAG, "proximityNear "+proximityNearFlag+" callInProgress="+callInProgress);
 		if(callInProgress>0) {
 			Log.d(TAG, "SensorEvent near "+callInProgress);
 		}
@@ -1624,15 +1631,17 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(proximitySensorMode==0) {
 			return;
 		}
-		if(!proximityNear) {
+		//Log.d(TAG, "proximityAway "+proximityNearFlag+" "+from);
+		if(!proximityNearFlag) {
 			return;
 		}
-		proximityNear = false;
+		proximityNearFlag = false;
 
 		callInProgress = 0;
 		if(webCallServiceBinder!=null) {
 			callInProgress = webCallServiceBinder.callInProgress();
 		}
+		//Log.d(TAG, "proximityAway "+proximityNearFlag+" "+from+" callInProgress="+callInProgress);
 
 		if(wakeLockProximity!=null && wakeLockProximity.isHeld()) {
 			if(callInProgress>0) {
@@ -1666,7 +1675,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		handler.postDelayed(new Runnable() {
 			@Override
 			public void run() {
-				if(!proximityNear) {
+				if(!proximityNearFlag) {
 					webviewBlocked = false;
 					if(callInProgress>0) {
 						screenOrientationRelease("away");
