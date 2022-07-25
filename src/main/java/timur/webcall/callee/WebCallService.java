@@ -1085,6 +1085,7 @@ public class WebCallService extends Service {
 
 				@Override
 				public void onPageFinished(WebView view, String url){
+					// Notify the host application that a page has finished loading
 					Log.d(TAG, "onPageFinished url=" + url);
 					// first we want to know if url is just a hashchange
 					// in which case we will NOT do anyhing special
@@ -1708,6 +1709,18 @@ public class WebCallService extends Service {
 			if(myWebView==null) {
 				Log.d(TAG,"# reload("+currentUrl+") myWebView==null");
 			} else {
+				// get rid of #... in currentUrl
+				String baseCurrentUrl = currentUrl;
+				int idxHash = baseCurrentUrl.indexOf("#");
+				if(idxHash>=0) {
+					baseCurrentUrl = baseCurrentUrl.substring(0,idxHash);
+				}
+				int idxArgs = baseCurrentUrl.indexOf("?");
+				if(idxArgs>=0) {
+					baseCurrentUrl = baseCurrentUrl.substring(0,idxArgs);
+				}
+				currentUrl = baseCurrentUrl;
+
 				Log.d(TAG,"reload("+currentUrl+")");
 				String reloadUrl = currentUrl;
 				currentUrl=null; //webviewMainPageLoaded) {
@@ -3476,7 +3489,7 @@ public class WebCallService extends Service {
 				endPeerConAndWebView2();
 			}
 		} else {
-			Log.d(TAG, "endPeerConAndWebView wsClient==null')");
+			Log.d(TAG, "endPeerConAndWebView wsClient==null");
 			endPeerConAndWebView2();
 		}
 	}

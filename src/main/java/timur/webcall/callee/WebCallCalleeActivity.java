@@ -1052,7 +1052,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 		/////////////////////////////////////////////////////////////////////////////
 		// data Uri points to a remote server
-		// we have to run the caller-widget from the remote server in our 2nd webview
+		// we have to run the caller-widget from the remote server in webview2
 
 		// but first: sanitize the given UriArgs
 		// build params HashMap to simplify access to urlArgs
