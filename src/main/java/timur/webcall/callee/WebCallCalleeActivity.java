@@ -1137,7 +1137,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						Log.d(TAG, "emulate tap floatString="+floatString);
 						String[] tokens = floatString.split(" ");
 						float leftFloat = Float.parseFloat(tokens[0]) + 10;
-						float topFloat = Float.parseFloat(tokens[1]) + 10;
+						float topFloat = Float.parseFloat(tokens[1]) + 5;
 						// must add the height of the statusbar
 						topFloat += 10;
 						Log.d(TAG, "emulate tap left="+leftFloat+" top="+topFloat);
