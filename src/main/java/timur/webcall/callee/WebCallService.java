@@ -1226,23 +1226,9 @@ public class WebCallService extends Service {
 					if(msg.startsWith("showNumberForm pos")) {
 						// showNumberForm pos 95.0390625 52.1953125 155.5859375 83.7421875 L1590
 						String floatString = msg.substring(19).trim();
-						Log.d(TAG, "emulate tap floatString="+floatString);
-						String[] tokens = floatString.split(" ");
-						float leftFloat = Float.parseFloat(tokens[0]) + 10;
-						float topFloat = Float.parseFloat(tokens[1]) + 5;
-						// must add the height of the statusbar
-						topFloat += 10;
-						Log.d(TAG, "emulate tap left="+leftFloat+" top="+topFloat);
-
-						// tokens[6] = mainElement right (screen width)
-						// tokens[7] = mainElement bottom (screen height)
-						float webviewWidth = Float.parseFloat(tokens[6]);
-						float webviewHeight = Float.parseFloat(tokens[7]);
-						Log.d(TAG, "emulate tap webview screen width="+webviewWidth+" height="+webviewHeight);
-
+						//Log.d(TAG, "emulate tap floatString="+floatString);
 						Intent intent = new Intent("webcall");
-						intent.putExtra("simulateClick", ""+
-							leftFloat+" "+topFloat+" "+webviewWidth+" "+webviewHeight);
+						intent.putExtra("simulateClick", floatString);
 						sendBroadcast(intent);
 					}
 					return true;

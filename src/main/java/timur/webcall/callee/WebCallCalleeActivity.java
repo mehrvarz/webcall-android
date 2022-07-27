@@ -22,6 +22,7 @@ import android.view.Display;
 import android.view.MenuInflater;
 import android.view.inputmethod.InputMethodManager;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -405,26 +406,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 				String simClick = intent.getStringExtra("simulateClick");
 				if(simClick!=null && simClick!="") {
-					Log.d(TAG, "broadcastReceiver simClick string "+simClick);
-					String[] tokens = simClick.split(" ");
-					float leftFloat = Float.parseFloat(tokens[0]);
-					float topFloat = Float.parseFloat(tokens[1]);
-					float webviewWidth = Float.parseFloat(tokens[2]);
-					float webviewHeight = Float.parseFloat(tokens[3]);
-					Log.d(TAG, "broadcastReceiver simClick "+
-						leftFloat+" "+topFloat+" "+webviewWidth+" "+webviewHeight);
-
-					Display mdisp = getWindowManager().getDefaultDisplay();
-					int maxX = mdisp.getWidth();
-					int maxY = mdisp.getHeight();
-					Log.d(TAG, "broadcastReceiver simClick screen width="+maxX+" height="+maxY);
-
-					if(webviewHeight>0 && webviewWidth>0) {
-						leftFloat = leftFloat * ( maxX / webviewWidth);
-						topFloat = topFloat * ( maxY / webviewHeight);
-						Log.d(TAG, "broadcastReceiver simClick corrected left="+leftFloat+" top="+topFloat);
-						simulateClick(leftFloat, topFloat);
-					}
+					//Log.d(TAG, "broadcastReceiver simulateClick string "+simClick);
+					simClickString(simClick);
 					return;
 				}
 			}
@@ -1133,31 +1116,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Log.d(TAG,"console: "+msg + " L"+cm.lineNumber());
 					if(msg.startsWith("showNumberForm pos")) {
 						// showNumberForm pos 95.0390625 52.1953125 155.5859375 83.7421875 L1590
-						String floatString = msg.substring(19).trim();
-						Log.d(TAG, "emulate tap floatString="+floatString);
-						String[] tokens = floatString.split(" ");
-						float leftFloat = Float.parseFloat(tokens[0]) + 10;
-						float topFloat = Float.parseFloat(tokens[1]) + 5;
-						// must add the height of the statusbar
-						topFloat += 10;
-						Log.d(TAG, "emulate tap left="+leftFloat+" top="+topFloat);
-
-						// tokens[6] = webview right (width)
-						// tokens[7] = webview bottom (height)
-						float webviewWidth = Float.parseFloat(tokens[6]);
-						float webviewHeight = Float.parseFloat(tokens[7]);
-						Log.d(TAG, "emulate tap webview screen width="+webviewWidth+" height="+webviewHeight);
-
-						Display mdisp = getWindowManager().getDefaultDisplay();
-						int maxX = mdisp.getWidth();
-						int maxY = mdisp.getHeight();
-						Log.d(TAG, "emulate tap android screen width="+maxX+" height="+maxY);
-
-						if(webviewHeight>0 && webviewWidth>0) {
-							leftFloat = leftFloat * ( maxX / webviewWidth);
-							topFloat = topFloat * ( maxY / webviewHeight);
-							Log.d(TAG, "emulate tap corrected left="+leftFloat+" top="+topFloat);
-							simulateClick(leftFloat, topFloat);
+						String simClick = msg.substring(19).trim();
+						if(simClick!=null && simClick!="") {
+							simClickString(simClick);
 						}
 					}
 					return true;
@@ -1507,6 +1468,37 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	}
 
 	////////// private functions //////////////////////////////////////
+
+	private void simClickString(String simClick) {
+		Log.d(TAG, "simClick="+simClick);
+		String[] tokens = simClick.split(" ");
+		float leftFloat = Float.parseFloat(tokens[0]);	// left of input form
+		leftFloat += Float.parseFloat(tokens[4]);		// left of iframe
+		float topFloat = Float.parseFloat(tokens[1]);	// top of input form
+		topFloat += Float.parseFloat(tokens[5]);		// top of iframe
+		float webWidth = Float.parseFloat(tokens[6]);	// width of screen in web pixel
+		float webHeight = Float.parseFloat(tokens[7]);	// height of screen in web pixel
+		Log.d(TAG, "simClick "+leftFloat+" "+topFloat+" "+webWidth+" "+webHeight);
+
+		Rect rectangle = new Rect();
+		Window window = getWindow();
+		window.getDecorView().getWindowVisibleDisplayFrame(rectangle);
+		int statusBarHeight = rectangle.top;
+
+		Display mdisp = getWindowManager().getDefaultDisplay();
+		int maxX = mdisp.getWidth();
+		int maxY = mdisp.getHeight() + statusBarHeight;  // without height of statusbar
+		Log.d(TAG, "simClick screen width="+maxX+" height="+maxY+" statusBarHeight="+statusBarHeight);
+
+		if(webHeight>0 && webWidth>0) {
+			Log.d(TAG, "simClick factor"+
+				" x="+(maxX / webWidth)+" y="+(maxY / webHeight));
+			leftFloat = leftFloat * (maxX / webWidth) + 10;
+			topFloat = topFloat * (maxY / webHeight) + statusBarHeight + 10;
+			Log.d(TAG, "simClick corrected left="+leftFloat+" top="+topFloat);
+			simulateClick(leftFloat, topFloat);
+		}
+	}
 
 	private void simulateClick(float x, float y) {
 		long downTime = SystemClock.uptimeMillis();
