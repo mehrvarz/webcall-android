@@ -1,25 +1,26 @@
 ID Manager
 See: https://timur.mobi/webcall/more/#id-manager
 
-Federated WebCall server support: Dial-ID can now be used to call
-users on remote WebCall servers. Call-widgets from remote servers are
-now run in a separate webview. Incoming calls, missed calls and 
-Contacts do now show remote user as: id@hostaddress.
+Federated WebCall server: Dial-ID can now be used to call users on 
+remote WebCall servers. Call-widgets from remote servers are run in 
+an isolated webview instance. Incoming calls, missed calls and 
+Contacts will now show remote user as: id@hostaddress.
 
-Intent-filters VIEW and NDEF_DISCOVERED are not anymore tight to the 
-timur.mobi domain. WebCall links + NFC-connect do now work with any 
-hostname that your WebCall server may be using. You can click on a link
-such as: https://sample.com/user/12345678901 and WebCall for Android 
-will handle it for you, by letting you call this ID. All that is needed
-for this to work, is for the link to contain "/user/" in the middle.
+WebCall links + NFC-connect are not anymore tight to the timur.mobi 
+domain. Both will work with any domain name you may run across. You 
+can click on a link such as: https://sample.com/user/12345678901
+and WebCall for Android will handle it for you, by letting you make
+a call right away. All that is needed for this to work, is for the 
+link to contain "/user/" in the middle.
 
-New menu item 'Clear cache' can be used to update to the latest
-WebCall core client, without a need to exit the app.
+The new 'Clear cache' feature in the pulldown menu can be used to 
+update the WebCall core client, without a need to exit the app.
 
-WebCall for Android can now force the Android soft keyboard to open
-without an explicit user tap.
+WebCall for Android can now make the Android soft keyboard show up,
+without the user being required to explicity tap the input field.
 
-WebCall News [!] will now be shown in-app.
+WebCall News [!] will now be shown inside the app, without an external
+browser being used.
 
 Issues fixed:
 
@@ -35,4 +36,6 @@ When you click [Go Offline] the service reconnecter will stop
 immediately and will stay completely inactive until you hit [Go Online].
 
 Fixed an edge-case issue with the proximity sensor on smartphone devices.
+
+Screen for wifi could not be disabled on some devices. This has been fixed.
 
