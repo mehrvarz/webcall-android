@@ -1,10 +1,10 @@
-ID mapping (aka Burner ID's)
-[link]
+ID Manager
+See: https://timur.mobi/webcall/more/#id-manager
 
+Enhanced support for federated WebCall servers.
 Dial-ID can now be used to call users on remote WebCall servers.
-Missed calls and contacts will show remote user as 'id@domain'.
-The caller-widget for a remote server is run in a separate,
-secondary webview.
+The call-widget for a remote server is run in a secondary webview.
+Missed calls and contacts now show remote user as 'id@hostaddress'.
 
 Intent-filters VIEW and NDEF_DISCOVERED are not tight to timur.mobi 
 anymore. WebCall links + NFC-connect do now work with any hostname
@@ -16,16 +16,23 @@ contains "/user/" in the middle.
 New menu item 'Clear cache' can be used to update to the latest
 WebCall core client, without a need to exit the app.
 
-WebCall News [!] (aka Update Page) will now be shown in-app.
+WebCall for Android can now force the Android soft keyboard to open
+without an explicit user tap.
 
-Fixed an issue where the reconnecter was not 100% stable when the 
-service was started by the boot process.
+WebCall News [!] will now be shown in-app.
+
+Issues fixed:
+
+Reconnecter is more reliable, im particular when WebCall service 
+was started by the boot process.
 
 On complete network loss you will now see 'No network. Reconnect paused.' 
 (instead of 'No network. Giving up.') The service will reconnect as soon 
-as some network is available again, but will not attempt to reconnect
+as a network becomes available again, but will not attempt to reconnect
 while there is no network.
 
-Fix: When you hit [Go Offline] the service reconnecter will stop 
-immediately and reconnecter will stay completely off.
+When you click [Go Offline] the service reconnecter will stop 
+immediately and will stay completely inactive until you hit [Go Online].
+
+Fixed an edge-case issue with the proximity sensor on smartphone devices.
 
