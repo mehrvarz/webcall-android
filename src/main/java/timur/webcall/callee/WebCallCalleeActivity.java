@@ -316,7 +316,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 				String message = intent.getStringExtra("toast");
 				if(message!=null && message!="") {
-					Log.d(TAG, "broadcastReceiver message "+message);
+					Log.d(TAG, "broadcastReceiver toast "+message);
 					Toast.makeText(context, message, Toast.LENGTH_LONG).show();
 					return;
 				}

@@ -22,33 +22,26 @@ body {
 	font-weight:300;
 	margin:0;
 }
-button, button:focus {
-	background-color:#04c;
+button {
+	background-color:#24e;
 	transition: background-color 300ms;
 	border:none;
 	border-radius:3px;
 	color:white;
 	font-size: 1.0em;
-	margin: 0 0.8em 0.8em 0;
-	padding: 0.7em 0.5em 0.6em 0.5em;
-	min-width: 60px;
+	padding: 0.5em 0.7em 0.4em 0.7em;
+	min-width: 140px;
 	outline:none;
 	user-select:none;
 }
+button:focus {
+	background-color: #00c;
+}
 button:active {
-	background-color: #02a;
-	outline:none;
+	_background-color: #00c;
 }
 button:hover {
-	background-color: #b82a68;
-	outline:none;
-}
-button[disabled] {
-	color:#bbb;
-}
-button[disabled]:hover {
-	transition:0s 0.7s;
-	background-color:#04c;
+	_background-color: #00c;
 }
 
 div#container {
@@ -215,7 +208,7 @@ input[type=submit]:focus {
 <div id="container">
 <h1 id="title">WebCall Android</h1>
 
-<form action="javascript:;" onsubmit="submitFormDone(this)"	style="margin-top:20px;" id="formFrame">
+<form action="javascript:;" style="margin-top:20px;" id="formFrame">
 	<label for="domain">Server address:</label>
 	<br>
 	<input autocomplete="domain" id="domain" type="text" class="formtext" onblur="domainAction()" autofocus required>
@@ -228,11 +221,18 @@ input[type=submit]:focus {
 		autofocus _required>
 	<span onclick="clearForm(1)" style="margin-left:5px; user-select:none; cursor:pointer;">X</span>
 	<br>
-	<div style="font-size:0.85em; margin-top:3px;">(empty field will request a new ID)</div>
-	
-	<input type="submit" name="Submit" id="submit" value="Start"
-		style="width:120px; margin-top:40px; margin-bottom:30px;">
+	<div style="width:100px;margin-top:4px;">
+		<input type="checkbox" id="numericId" class="checkbox"> numeric</label>
+	</div>
 
+	<!--div style="font-size:0.85em; margin-top:3px;">(empty field will request a new ID)</div-->
+	<!--input type="submit" name="Submit" id="submit" value="Start"
+		style="width:120px; margin-top:40px; margin-bottom:30px;display:inline-block;"-->
+
+	<div style="margin-top:30px; margin-bottom:30px;">
+		<button onclick="connectServer()" style="display:inline-block;">Start</button>
+		<button onclick="requestNewId()" style="margin-left:20px;">New User-ID</button>
+	</div>
 
 	<div style="font-size:1.1em">
 		<label id="clearCookiesLabel" style="margin-top:14px; user-select:none;">

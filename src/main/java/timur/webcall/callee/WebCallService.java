@@ -549,14 +549,14 @@ public class WebCallService extends Service {
 						newNetworkInt = 1;
 					}
 
-					//Log.d(TAG,"networkCallback network capab change: " + haveNetworkInt+" "+newNetworkInt+" "+
-					//	networkCapabi +
-					//	" wifi="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)+
-					//	" cell="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)+
-					//	" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
-					//	" vpn="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_VPN)+
-					//	" wifiAw="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)+
-					//	" usb="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB));
+					Log.d(TAG,"networkCallback network capab change: " + haveNetworkInt+" "+newNetworkInt+" "+
+						networkCapabi +
+						" wifi="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)+
+						" cell="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)+
+						" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
+						" vpn="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_VPN)+
+						" wifiAw="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)+
+						" usb="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB));
 
 					if(haveNetworkInt==2 && newNetworkInt==1) {
 						// losing wifi, switch to other net
@@ -1013,6 +1013,8 @@ public class WebCallService extends Service {
 						Log.d(TAG, "onReceivedSslError (proceed) "+error);
 						handler.proceed();
 					} else {
+						// err can not be ignored
+						// but this ssl error does not return an err in JS
 						Log.d(TAG, "# onReceivedSslError "+error);
 						super.onReceivedSslError(view, handler, error);
 					}
@@ -1142,10 +1144,11 @@ public class WebCallService extends Service {
 						if(wsClient==null) {
 							webviewMainPageLoaded = true;
 							Log.d(TAG, "onPageFinished main page not yet connected to server");
+/*
 							// callee.js onload should be running in parallel now
 							// we can expect JavascriptInterface wsOpen() to be called within 1s
 							// will set connectToSignalingServerIsWanted and wsClient
-/*
+
 							final Runnable runnable2 = new Runnable() {
 								public void run() {
 									if(wsClient!=null) {
@@ -1541,9 +1544,9 @@ public class WebCallService extends Service {
 
 		@android.webkit.JavascriptInterface
 		public WebSocketClient wsOpen(String setWsAddr) {
-			connectToSignalingServerIsWanted = true;
 			if(reconnectBusy && wsClient!=null) {
 				Log.d(TAG,"wsOpen reconnectBusy return existing wsClient");
+				connectToSignalingServerIsWanted = true;
 				Intent brintent = new Intent("webcall");
 				brintent.putExtra("state", "connected");
 				sendBroadcast(brintent);
@@ -1554,6 +1557,7 @@ public class WebCallService extends Service {
 				WebSocketClient wsCli = connectHost(setWsAddr,false);
 				Log.d(TAG,"wsOpen wsClient="+(wsCli!=null));
 				if(wsCli!=null) {
+					connectToSignalingServerIsWanted = true;
 					updateNotification("","Online. Waiting for calls.",false,false);
 					Intent brintent = new Intent("webcall");
 					brintent.putExtra("state", "connected");
@@ -1563,6 +1567,7 @@ public class WebCallService extends Service {
 			}
 
 			Log.d(TAG,"wsOpen return existing wsClient");
+			connectToSignalingServerIsWanted = true;
 			Intent brintent = new Intent("webcall");
 			brintent.putExtra("state", "connected");
 			sendBroadcast(brintent);
@@ -2089,7 +2094,13 @@ public class WebCallService extends Service {
 						// offlineAction(): disable offline-button and enable online-button
 						runJS("offlineAction();",null);
 					}
-					statusMessage("Connection error "+code+". Not reconnecting.",true,true);
+
+					if(code==-1) {
+						// if code==-1 do not show statusMessage
+						// as it would replace a prev statusMessage with a crucial error text
+					} else {
+						statusMessage("Connection error "+code+". Not reconnecting.",true,true);
+					}
 
 					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 						reconnectSchedFuture.cancel(false);
@@ -2795,6 +2806,8 @@ public class WebCallService extends Service {
 					} catch(Exception ex) {
 						status = 0;
 						Log.d(TAG,"reconnecter con.connect()/getInputStream() ex="+ex);
+						// new: turn reconnecter off
+						connectToSignalingServerIsWanted = false;
 					}
 					if(!connectToSignalingServerIsWanted) {
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {

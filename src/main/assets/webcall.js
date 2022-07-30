@@ -4,13 +4,13 @@
 const container = document.querySelector('div#container');
 const formDomain = document.querySelector('input#domain');
 const formUsername = document.querySelector('input#username');
+const numericIdCheckbox = document.querySelector('input#numericId');
 const divspinnerframe = document.querySelector('div#spinnerframe');
 const divspinner = document.querySelector('div#spinner');
 const clearCookies = document.querySelector('input#clearCookies');
 const clearCache = document.querySelector('input#clearCache');
 const insecureTls = document.querySelector('input#insecureTls');
 const insecureTlsLabel = document.querySelector('label#insecureTlsLabel');
-const submitButton = document.querySelector('input#submit');
 
 var domain = "";
 var username = "";
@@ -26,48 +26,8 @@ window.onload = function() {
 
 	versionName = Android.getVersionName();
 	var lastUsedVersionName = Android.readPreference("versionName");
-	console.log("versionName "+versionName);
-	if(lastUsedVersionName=="") {
-		// the user has upgraded (or downgraded) the webcall apk
-		console.log("upgrade from lastUsedVersionName "+lastUsedVersionName);
-		var bubbleElement;
+	console.log("versionName="+versionName+" last="+lastUsedVersionName);
 
-		setTimeout(function() {
-		bubbleElement = document.createElement("div");
-		bubbleElement.classList.add("speechbubble2");
-		bubbleElement.id = "speechBubble";
-		bubbleElement.style = "left:4%;top:290px;max-width:75%;width:320px;padding:20px;";
-		bubbleElement.innerHTML = "Clear password cookie: force password form";
-		bubbleElement.onclick = function () {
-			this.parentElement.removeChild(this);
-
-			setTimeout(function() {
-			bubbleElement = document.createElement("div");
-			bubbleElement.classList.add("speechbubble2");
-			bubbleElement.id = "speechBubble";
-			bubbleElement.style = "left:3%;top:330px;max-width:75%;width:320px;padding:20px;";
-			bubbleElement.innerHTML = "Clear cache: reload WebCall core";
-			bubbleElement.onclick = function () {
-				this.parentElement.removeChild(this);
-
-				setTimeout(function() {
-				bubbleElement = document.createElement("div");
-				bubbleElement.classList.add("speechbubble2");
-				bubbleElement.id = "speechBubble";
-				bubbleElement.style = "left:3%;top:370px;max-width:75%;width:320px;padding:20px;";
-				bubbleElement.innerHTML = "Allow insecure TLS: skip certificate authentication";
-				bubbleElement.onclick = function () {
-					this.parentElement.removeChild(this);
-				}
-				container.appendChild(bubbleElement);
-				},300);
-			}
-			container.appendChild(bubbleElement);
-			},300);
-		}
-		container.appendChild(bubbleElement);
-		},300);
-	}
 	if(lastUsedVersionName!=versionName) {
 		if(clearCache)
 			clearCache.checked = true;
@@ -103,12 +63,35 @@ window.onload = function() {
 
 	domainAction();
 
+	if(formUsername.value=="" || !isNaN(formUsername.value)) {
+		// username is a number
+		console.log("formUsername.value ("+formUsername.value+") is numeric");
+		formUsername.setAttribute('type','number');
+		numericIdCheckbox.checked = true;
+	} else {
+		console.log("formUsername.value ("+formUsername.value+") is NOT numeric");
+		numericIdCheckbox.checked = false;
+	}
+	numericIdCheckbox.addEventListener('change', function() {
+		if(this.checked) {
+			console.log("numericIdCheckbox checked");
+			if(formUsername.value!="" && isNaN(formUsername.value)) {
+				formUsername.value = "";
+			}
+			formUsername.setAttribute('type','number');
+		} else {
+			console.log("numericIdCheckbox unchecked");
+			formUsername.setAttribute('type','text');
+		}
+		formUsername.focus();
+	});
+
 	// remove focus from any of the elements (to prevent accidental modification)
 	setTimeout(function() {
 		document.activeElement.blur();
 	},400);
 
-	// will proceed in submitFormDone()
+	// will proceed in connectServer() or requestNewId()
 }
 
 function clearForm(idx) {
@@ -122,6 +105,7 @@ function clearForm(idx) {
 }
 
 function domainAction() {
+	// call insecureTlsAction() if valueDomain (without :port) is an ip-address
 	let valueDomain = formDomain.value;
 	let valueDomainWithoutPort = valueDomain;
 	let portIdx = valueDomainWithoutPort.indexOf(":");
@@ -145,13 +129,35 @@ function insecureTlsAction() {
 	if(insecureTls.checked) {
 		console.log("insecureTls checked");
 		insecureTlsLabel.style.color = "#f44";
+		Android.insecureTls(true);
+		Android.wsClearCache();
 	} else {
 		console.log("insecureTls unchecked");
 		insecureTlsLabel.style.color = "";
+		Android.insecureTls(false);
+		Android.wsClearCache();
 	}
 }
 
-function submitFormDone(theForm) {
+function requestNewId() {
+	if(formUsername.value!="") {
+		Android.toast("To register a new User-ID, clear the User-ID field first.");
+		document.activeElement.blur(); // deactivate button
+		return;
+	}
+
+	Android.storePreference("username", "");
+	Android.wsClearCookies();
+	// using randId for better ssl-err detection
+	let randId = ""+Math.floor(Math.random()*1000000);
+	let url = "https://"+formDomain.value+"/callee/register/?i="+randId;
+	console.log('load register page='+url);
+	document.activeElement.blur(); // deactivate button
+	// TODO when url fails, due to an ssl-err, we do NOT get an error in JS (only in Java: # onReceivedSslError)
+	window.location.href = url;
+}
+
+function connectServer() {
 	var valueDomain = formDomain.value;
 	console.log('valueDomain',valueDomain);
 	var valueUsername = formUsername.value.toLowerCase();
@@ -192,6 +198,8 @@ function submitFormDone(theForm) {
 			}
 		}
 	}
+
+/*
 	if(insecureTls.checked) {
 		console.log('insecureTls true');
 		Android.insecureTls(true);
@@ -199,22 +207,20 @@ function submitFormDone(theForm) {
 		console.log('insecureTls false');
 		Android.insecureTls(false);
 	}
+*/
 
 	if(valueUsername=="") {
+		// register new ID
 		console.log('username is empty');
-		Android.storePreference("username", "");
-		Android.wsClearCookies();
-
-		let url = "https://"+valueDomain+"/callee/register";
-		console.log('load register page='+url);
-		window.location.href = url;
+		Android.toast("Cannot start with an empty User-ID.");
+		document.activeElement.blur();
 		return;
 	}
 
-	// there is no point advancing if we have no network
 	let isNetwork = Android.isNetwork();
 	console.log('isNetwork='+isNetwork);
 	if(!isNetwork) {
+		// there is no point advancing if we have no network
 		document.activeElement.blur();
 		alert("no network");
 		return;
@@ -230,22 +236,11 @@ function submitFormDone(theForm) {
 		},200);
 	}
 
-/*
-	setTimeout(function() {
-		// if we are still here after 8s, window.location.replace has failed
-		// maybe an ssl issue
-		console.log('window.location.replace has failed');
-		divspinnerframe.style.display = "none";
-		document.activeElement.blur();
-	},8000);
-	let url = "https://"+valueDomain+"/callee/"+valueUsername+"?auto=1";
-	console.log('load main '+url);
-	window.location.replace(url);
-*/
-
+	let randId = ""+Math.floor(Math.random()*1000000);
 	let api = "https://"+valueDomain+"/rtcsig/online?id="+valueUsername+
-		"&ver="+Android.getVersionName()+"_"+Android.webviewVersion();
-	//console.log('xhr api '+api);
+		"&ver="+Android.getVersionName()+"_"+Android.webviewVersion()+"&i="+randId;
+	console.log('webcall.js check online '+api);
+	// NOTE: we need "notavail" to continue
 	ajaxFetch(new XMLHttpRequest(), "GET", api, function(xhr) {
 		if(xhr.responseText.startsWith("error")) {
 			console.log('xhr response '+xhr.responseText);
@@ -258,11 +253,12 @@ function submitFormDone(theForm) {
 				// if we are still here after 8s, window.location.replace has failed
 				// maybe an ssl issue
 				console.log('window.location.replace has failed');
+				abort = true;
 				divspinnerframe.style.display = "none";
 				document.activeElement.blur();
 			},8000);
 			// switch to callee page
-			let url = "https://"+valueDomain+"/callee/"+valueUsername+"?auto=1";
+			let url = "https://"+valueDomain+"/callee/"+valueUsername+"?auto=1"; // randId?
 			console.log('load main '+url);
 			window.location.replace(url);
 			return;
@@ -275,9 +271,6 @@ function submitFormDone(theForm) {
 			divspinnerframe.style.display = "none";
 			document.activeElement.blur();
 			Android.toast("Busy. Already logged in from another device?");
-			return;
-		} else { // empty or other
-			console.log('xhr response ('+xhr.responseText+') (ignore)');
 			return;
 		}
 		console.log('xhr spinner off');
@@ -318,7 +311,7 @@ function ajaxFetch(xhr, type, api, processData, errorFkt, postData) {
 	} else {
 		api += "?_="+new Date().getTime();
 	}
-	console.log('xhr '+api);
+	console.log('webcall.js xhr '+api);
 	xhr.open(type, api, true);
 	xhr.setRequestHeader("Content-type", "text/plain; charset=utf-8");
 	if(postData) {

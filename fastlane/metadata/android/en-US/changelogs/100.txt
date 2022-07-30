@@ -2,24 +2,25 @@ ID Manager
 See: https://timur.mobi/webcall/more/#id-manager
 
 Federated WebCall server: Dial-ID can now be used to call users on 
-remote WebCall servers. Call-widgets from remote servers are run in 
-an isolated webview instance. Incoming calls, missed calls and 
-Contacts will now show remote user as: id@hostaddress.
+remote WebCall servers. Call-widgets from remote servers are executed
+inside an isolated webview instance. Incoming calls, missed calls and
+Contacts will now show remote user as: id@domain.
 
-WebCall links + NFC-connect are not anymore tight to the timur.mobi 
-domain. Both will work with any domain name you may run across. You 
+WebCall links + NFC-connect are not restricted to the timur.mobi domain
+anymore. Both will work with any domain name you may run across. You
 can click on a link such as: https://sample.com/user/12345678901
 and WebCall for Android will handle it for you, by letting you make
 a call right away. All that is needed for this to work, is for the 
 link to contain "/user/" in the middle.
 
-The new 'Clear cache' feature in the pulldown menu can be used to 
-update the WebCall core client, without a need to exit the app.
+New 'Clear cache' feature in the pulldown menu can be used to update
+the WebCall core client, without being required to exit the app.
 
 WebCall for Android can now make the Android soft keyboard show up,
-without the user being required to explicity tap the input field.
+when needed, without the user being required to explicity tap a input
+field.
 
-WebCall News [!] will now be shown inside the app, without an external
+WebCall News (!) will now be shown inside the app, without an external
 browser being used.
 
 Issues fixed:
