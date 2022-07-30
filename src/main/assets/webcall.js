@@ -141,7 +141,7 @@ function insecureTlsAction() {
 
 function requestNewId() {
 	if(formUsername.value!="") {
-		Android.toast("To register a new User-ID, clear the User-ID field first.");
+		Android.toast("To register a new User-ID, clear the current User-ID first.");
 		setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
 		return;
 	}
