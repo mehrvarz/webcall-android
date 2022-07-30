@@ -142,7 +142,7 @@ function insecureTlsAction() {
 function requestNewId() {
 	if(formUsername.value!="") {
 		Android.toast("To register a new User-ID, clear the User-ID field first.");
-		document.activeElement.blur(); // deactivate button
+		setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
 		return;
 	}
 
@@ -152,7 +152,7 @@ function requestNewId() {
 	let randId = ""+Math.floor(Math.random()*1000000);
 	let url = "https://"+formDomain.value+"/callee/register/?i="+randId;
 	console.log('load register page='+url);
-	document.activeElement.blur(); // deactivate button
+	setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
 	// TODO when url fails, due to an ssl-err, we do NOT get an error in JS (only in Java: # onReceivedSslError)
 	window.location.href = url;
 }
@@ -213,7 +213,7 @@ function connectServer() {
 		// register new ID
 		console.log('username is empty');
 		Android.toast("Cannot start with an empty User-ID.");
-		document.activeElement.blur();
+		setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
 		return;
 	}
 
@@ -221,7 +221,7 @@ function connectServer() {
 	console.log('isNetwork='+isNetwork);
 	if(!isNetwork) {
 		// there is no point advancing if we have no network
-		document.activeElement.blur();
+		setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
 		alert("no network");
 		return;
 	}
@@ -273,17 +273,15 @@ function connectServer() {
 			Android.toast("Busy. Already logged in from another device?");
 			return;
 		}
-		console.log('xhr spinner off');
 		abort = true;
 		divspinnerframe.style.display = "none";
-		document.activeElement.blur();
+		setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
 		Android.toast("Connection failed. Please check server address and user ID.");
 	}, function(errString,errcode) {
 		console.log('xhr error ('+errString+') errcode='+errcode);
 		abort = true;
-		//console.log('xhr spinner off');
 		divspinnerframe.style.display = "none";
-		document.activeElement.blur();
+		setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
 		Android.toast("Connection failed. Please check your server address and user ID.");
 	});
 }
