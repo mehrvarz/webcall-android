@@ -990,7 +990,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	public void onNewIntent(Intent intent) {
 		Uri data = intent.getData();
 		if(data==null) {
-			Log.d(TAG, "# onNewIntent abort no data");
+			//Log.d(TAG, "# onNewIntent abort no data");
 			return;
 		}
 		Log.d(TAG, "onNewIntent original data="+data+" =======================================");

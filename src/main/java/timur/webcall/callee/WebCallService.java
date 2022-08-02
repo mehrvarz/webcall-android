@@ -525,7 +525,7 @@ public class WebCallService extends Service {
 
 				@Override
 				public void onLost(Network network) {
-					Log.d(TAG,"networkCallback default network lost");
+					Log.d(TAG,"networkCallback default network lost; conWant="+connectToSignalingServerIsWanted);
 					if(!connectToSignalingServerIsWanted) {
 						if(wifiLock!=null && wifiLock.isHeld()) {
 							// release wifi lock
@@ -550,11 +550,12 @@ public class WebCallService extends Service {
 					}
 
 					Log.d(TAG,"networkCallback network capab change: " + haveNetworkInt+" "+newNetworkInt+" "+
-						networkCapabi +
+						//networkCapabi +
+						" conWanted="+connectToSignalingServerIsWanted+
 						" wifi="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)+
 						" cell="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)+
-						" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
-						" vpn="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_VPN)+
+						//" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
+						//" vpn="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_VPN)+
 						" wifiAw="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)+
 						" usb="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB));
 
@@ -2806,8 +2807,18 @@ public class WebCallService extends Service {
 					} catch(Exception ex) {
 						status = 0;
 						Log.d(TAG,"reconnecter con.connect()/getInputStream() ex="+ex);
-						// new: turn reconnecter off
-						connectToSignalingServerIsWanted = false;
+
+						// in some cases it makes sense to continue reconnect, in some it does not
+						// possible ex:
+						// java.net.ConnectException: failed to connect to /192.168.0.161 (port 8068)
+						//   after 22000ms: isConnected failed: EHOSTUNREACH (No route to host)
+						String exString = ex.toString();
+						if(exString.indexOf("EHOSTUNREACH")>=0) {
+							// keep reconnecter running
+						} else {
+							// turn reconnecter off
+							connectToSignalingServerIsWanted = false;
+						}
 					}
 					if(!connectToSignalingServerIsWanted) {
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
