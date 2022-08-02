@@ -2766,19 +2766,6 @@ public class WebCallService extends Service {
 					int status=0;
 					try {
 						Log.d(TAG,"reconnecter con.connect()");
-						// TODO when using a selfsigned cert, con.connect() may throw:
-						// javax.net.ssl.SSLHandshakeException "Trust anchor for certification path not found"
-// device console:
-// reconnecter con.connect()/getInputStream() ex=javax.net.ssl.SSLHandshakeException: java.security.cert.CertPathValidatorException: Trust anchor for certification path not found.
-
-// server side:
-// TLS handshake error from 192.168.3.119:60356: remote error: tls: unknown certificate
-
-// problem 1: 'unknown certificate'
-// solution 1: if(insecureTlsFlag) -> HttpsURLConnection.setDefaultSSLSocketFactory(factory)
-
-// problem 2: if we still get this err, it doesn't make sense to retry 40x - as we do below
-
 						con.connect();
 						status = con.getResponseCode();
 						if(!connectToSignalingServerIsWanted) {
@@ -2808,12 +2795,18 @@ public class WebCallService extends Service {
 						status = 0;
 						Log.d(TAG,"reconnecter con.connect()/getInputStream() ex="+ex);
 
-						// in some cases it makes sense to continue reconnect, in some it does not
-						// possible ex:
+						// in some cases it makes sense to continue reconnect
 						// java.net.ConnectException: failed to connect to /192.168.0.161 (port 8068)
 						//   after 22000ms: isConnected failed: EHOSTUNREACH (No route to host)
+						// java.net.ConnectException: failed to connect to /192.168.0.161 (port 8068)
+						//   after 22000ms: isConnected failed: ECONNREFUSED (Connection refused)
+
+						// in some cases it DOES NOT make sense to continue reconnect
+						// javax.net.ssl.SSLHandshakeException: java.security.cert.CertPathValidatorException:
+						//   Trust anchor for certification path not found.
+
 						String exString = ex.toString();
-						if(exString.indexOf("EHOSTUNREACH")>=0) {
+						if(exString.indexOf("EHOSTUNREACH")>=0 || exString.indexOf("ECONNREFUSED")>=0) {
 							// keep reconnecter running
 						} else {
 							// turn reconnecter off
