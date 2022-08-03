@@ -2851,6 +2851,8 @@ public class WebCallService extends Service {
 							}
 							statusMessage("Given up reconnecting",true,true);
 							reconnectBusy = false;
+							// turn reconnecter off
+							connectToSignalingServerIsWanted = false;
 						}
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
