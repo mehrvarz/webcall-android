@@ -549,15 +549,17 @@ public class WebCallService extends Service {
 						newNetworkInt = 1;
 					}
 
-					Log.d(TAG,"networkCallback network capab change: " + haveNetworkInt+" "+newNetworkInt+" "+
-						//networkCapabi +
-						" conWanted="+connectToSignalingServerIsWanted+
-						" wifi="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)+
-						" cell="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)+
-						//" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
-						//" vpn="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_VPN)+
-						" wifiAw="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)+
-						" usb="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB));
+					if(haveNetworkInt!=newNetworkInt || connectToSignalingServerIsWanted==false) {
+						Log.d(TAG,"networkCallback network capab change: " + haveNetworkInt+" "+newNetworkInt+" "+
+							//networkCapabi +
+							" conWanted="+connectToSignalingServerIsWanted+
+							" wifi="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)+
+							" cell="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)+
+							//" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
+							//" vpn="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_VPN)+
+							" wifiAw="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)+
+							" usb="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB));
+					}
 
 					if(haveNetworkInt==2 && newNetworkInt==1) {
 						// losing wifi, switch to other net
