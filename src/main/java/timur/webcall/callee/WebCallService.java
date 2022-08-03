@@ -2795,22 +2795,23 @@ public class WebCallService extends Service {
 						status = 0;
 						Log.d(TAG,"reconnecter con.connect()/getInputStream() ex="+ex);
 
-						// in some cases it makes sense to continue reconnect
+						// in some cases it DOES NOT make sense to continue reconnecter
+						// javax.net.ssl.SSLHandshakeException: java.security.cert.CertPathValidatorException:
+						//   Trust anchor for certification path not found.
+
+						// in many other cases it DOES make sense to continue reconnecter
 						// java.net.ConnectException: failed to connect to /192.168.0.161 (port 8068)
 						//   after 22000ms: isConnected failed: EHOSTUNREACH (No route to host)
 						// java.net.ConnectException: failed to connect to /192.168.0.161 (port 8068)
 						//   after 22000ms: isConnected failed: ECONNREFUSED (Connection refused)
-
-						// in some cases it DOES NOT make sense to continue reconnect
-						// javax.net.ssl.SSLHandshakeException: java.security.cert.CertPathValidatorException:
-						//   Trust anchor for certification path not found.
+						// java.net.ConnectException: Failed to connect to /192.168.0.161:8068
 
 						String exString = ex.toString();
-						if(exString.indexOf("EHOSTUNREACH")>=0 || exString.indexOf("ECONNREFUSED")>=0) {
-							// keep reconnecter running
-						} else {
+						if(exString.indexOf("SSLHandshakeException")>=0) {
 							// turn reconnecter off
 							connectToSignalingServerIsWanted = false;
+						} else {
+							// keep reconnecter running
 						}
 					}
 					if(!connectToSignalingServerIsWanted) {
