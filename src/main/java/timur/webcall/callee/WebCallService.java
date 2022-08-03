@@ -2834,8 +2834,8 @@ public class WebCallService extends Service {
 						}
 						if(reconnectCounter < ReconnectCounterMax) {
 							int delaySecs = reconnectCounter*5;
-							if(delaySecs>30) {
-								delaySecs=30;
+							if(delaySecs>60) {
+								delaySecs=60;
 							}
 							statusMessage("Failed to reconnect. Will try again...",true,false);
 							if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
@@ -3313,7 +3313,9 @@ public class WebCallService extends Service {
 				(mobileInfo==null || !mobileInfo.isConnected())) {
 			// no network is connected
 			Log.d(TAG,"networkState netActiveInfo/wifiInfo/mobileInfo==null "+wsClient+" "+reconnectBusy);
-			statusMessage("No network",true,false);
+			if(connectToSignalingServerIsWanted) {
+				statusMessage("No network",true,false);
+			}
 			if(wifiLock!=null && wifiLock.isHeld() && !connectToSignalingServerIsWanted) {
 				// release wifi lock
 				Log.d(TAG,"networkState wifiLock.release");
