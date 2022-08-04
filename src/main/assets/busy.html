@@ -23,33 +23,70 @@ body {
 	font-weight:300;
 	margin:0;
 }
-.spinnerframe {
+.fullscreenAbs {
 	width:100%;
 	height:100vh;
 	position:absolute;
 }
 .spinner {
-	margin: 0 auto;
+	position: absolute;
+	top: 50%;
+	left: 50%;
 	border: 8px solid #f3f3f3;
 	border-radius: 50%;
 	border-top: 8px solid #3468ab;
 	width: 60px;
 	height: 60px;
 	animation: spin 2s linear infinite;
-	position: absolute;
-	top: 50%;
-	left: 50%;
 	margin: -34px 0 0 -38px;
 }
 @keyframes spin {
 	0% { transform: rotate(0deg); }
 	100% { transform: rotate(360deg); }
 }
+.showUrl {
+	position: absolute;
+	top: 70%;
+	left: 0%;
+	width: 100%;
+	height: 60px;
+    font-size:1.1em;
+	text-align:center;
+}
 </style>
 </head>
 <body>
-<div class="spinnerframe"> <div class="spinner"></div> </div>
+<div class="fullscreenAbs"> <div class="spinner"></div> </div>
+<div class="fullscreenAbs"> <div class="showUrl" id="showUrl"></div> </div>
 <img src="phone.svg"
    style="position:absolute;right:0;top:2vh;width:440px;max-height:80vh;padding:2%;opacity:0.15;z-index:-1;">
 </body>
+<script>
+window.onload = function() {
+	console.log("busy onload");
+	let dispElem = document.getElementById("showUrl");
+	if(dispElem) {
+		//console.log("busy onload show default");
+		dispElem.innerHTML = "loading...";
+
+		let str = getUrlParams("disp");
+		if(typeof str!=="undefined" && str!="") {
+			console.log("busy onload disp str="+str);
+			dispElem.innerHTML = str;
+		}
+	}
+}
+function getUrlParams(param) {
+	if(window.location.search!="") {
+		var query = window.location.search.substring(1);
+		var parts = query.split("&");
+		for (var i=0;i<parts.length;i++) {
+			var seg = parts[i].split("=");
+			if (seg[0] == param) {
+				return seg[1];
+			}
+		}
+	}
+}
+</script>
 

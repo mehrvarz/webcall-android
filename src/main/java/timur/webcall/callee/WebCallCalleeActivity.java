@@ -1225,8 +1225,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			myNewWebView.addJavascriptInterface(webCallServiceBinder.getWebCallJSInterface(), "Android");
 
 			// first, load local busy.html with running spinner (loads fast)
-			Log.d(TAG, "onNewIntent load busy.html");
-			myNewWebView.loadUrl("file:///android_asset/busy.html", null);
+			String urlString = url.toString();
+			Log.d(TAG, "onNewIntent load busy.html disp="+urlString);
+			// display urlString with args cut off
+			int idxArgs = urlString.indexOf("?");
+			if(idxArgs>=0) {
+				urlString = urlString.substring(0,idxArgs);
+			}
+			myNewWebView.loadUrl("file:///android_asset/busy.html?disp="+urlString, null);
 
 			// shortly after load remote caller widget (takes a moment to load)
 			final Handler handler = new Handler(Looper.getMainLooper());
