@@ -988,25 +988,25 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 	@Override
 	public void onNewIntent(Intent intent) {
-		Uri data = intent.getData();
-		if(data==null) {
-			//Log.d(TAG, "# onNewIntent abort no data");
+		Uri url = intent.getData();
+		if(url==null) {
+			//Log.d(TAG, "# onNewIntent abort no url");
 			return;
 		}
-		Log.d(TAG, "onNewIntent original data="+data+" =======================================");
-		// example data (as string):
+		Log.d(TAG, "onNewIntent original url="+url+" =======================================");
+		// example url (as string):
 		// https://timur.mobi/user/id?callerId=id&callerName=username&ds=false
 
 		String webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-		String host = data.getHost().toLowerCase(Locale.getDefault());
-		int port = data.getPort();
+		String host = url.getHost().toLowerCase(Locale.getDefault());
+		int port = url.getPort();
 		String hostport = host;
 		if(port>0) {
 			hostport += ":"+port;
 		}
 		Log.d(TAG, "onNewIntent url hostport="+hostport+" webcalldomain="+webcalldomain);
 
-		String path = data.getPath();
+		String path = url.getPath();
 		int idxUser = path.indexOf("/user/");
 		if(idxUser<0) {
 			Log.d(TAG, "# onNewIntent no /user/ in uri");
@@ -1017,24 +1017,24 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		lastSetDialId = System.currentTimeMillis();	// ???
 		Log.d(TAG, "onNewIntent dialId="+dialId);
 
-		// if data Uri points to the local server
+		// if url points to the local server
 		if(hostport.equals(webcalldomain) || host.equals(webcalldomain)) {
-			// the domain(:andPort) of the requested data-URI is the same as that of the callee
+			// the domain(:andPort) of the requested url is the same as that of the callee
 			// we can run caller-widget in an iframe via: runJScode(openDialId(dialId))
 			// we only hand over the target ID (aka dialId)
 			// note: only run this if we are on the main page
 			if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
-				Log.d(TAG, "# onNewIntent not on the main page, local data="+data);
+				Log.d(TAG, "# onNewIntent not on the main page, local url="+url);
 				return;
 			}
-			Log.d(TAG, "onNewIntent local data="+data);
+			Log.d(TAG, "onNewIntent local url="+url);
 			webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
 			return;
 		}
 
 
 		/////////////////////////////////////////////////////////////////////////////
-		// data Uri points to a remote server
+		// url points to a remote server
 		// we have to run the caller-widget from the remote server in webview2
 
 		// but first: sanitize the given UriArgs
@@ -1042,7 +1042,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		// this is what our url-query might look like
 		// ?callerId=19230843600&callerName=Timur4
 		Map<String, Object> params = new HashMap<String, Object>();
-		String[] pairs = data.getQuery().split("&");
+		String[] pairs = url.getQuery().split("&");
 		for(String pair: pairs) {
 			String[] split = pair.split("=");
 			if(split.length >= 2) {
@@ -1061,15 +1061,15 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(iParamValue==null || iParamValue=="" || iParamValue=="null") {
 			// rebuild the Uri with callerHost = webcalldomain
 			Uri.Builder builder = new Uri.Builder();
-			builder.scheme(data.getScheme())
+			builder.scheme(url.getScheme())
 				.encodedAuthority(hostport)
-				.encodedPath(data.getPath());
+				.encodedPath(url.getPath());
 // NO: set urlArg "callerId" = username (not the nickname, but the calleeID)
 //			builder.appendQueryParameter("callerId", prefs.getString("username", ""));
 // OK: TODO better: allow users to select the outgoing callerId via idSelect
 			// TODO when we have a UI for idSelect, we can also
 			// - xhr the nickname from settings
-			// - store the target-ID (part of data.getPath()) in contacts (and give it a nickname)
+			// - store the target-ID (part of url.getPath()) in contacts (and give it a nickname)
 			// set urlArg "callerHost" = webcalldomain
 			builder.appendQueryParameter("callerHost", webcalldomain);
 			// append all remaining parameters other than the ones above
@@ -1078,8 +1078,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					builder.appendQueryParameter(key, (String)params.get(key));
 				}
 			}
-			data = builder.build();
-			Log.d(TAG, "onNewIntent remote "+data.toString());
+			url = builder.build();
+			Log.d(TAG, "onNewIntent remote "+url.toString());
 
 			// open dial-id-dialog only if we are on the main page
 			if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
@@ -1087,13 +1087,13 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				return;
 			}
 			// dial-id-dialog does NOT require callerID=...
-			String url = "/user/"+dialId +
+			String newUrl = "/user/"+dialId +
 				"?targetHost="+hostport +
 				"&callerName="+(String)params.get("callerName") +
 				"&ds="+(String)params.get("ds") +
 				"&callerId=select";
-			Log.d(TAG, "onNewIntent dial-id-dialog "+url);
-			webCallServiceBinder.runJScode("iframeWindowOpen('"+url+"',false,'',false)");
+			Log.d(TAG, "onNewIntent dial-id-dialog "+newUrl);
+			webCallServiceBinder.runJScode("iframeWindowOpen('"+newUrl+"',false,'',false)");
 			// when uri comes back (sanitized) it will have &i= set
 			return;
 		}
@@ -1230,15 +1230,15 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 			// shortly after load remote caller widget (takes a moment to load)
 			final Handler handler = new Handler(Looper.getMainLooper());
-			final Uri finalData = data;
+			final Uri finalUrl = url;
 			handler.postDelayed(new Runnable() {
 				@Override
 				public void run() {
 					myNewWebView.setVisibility(View.VISIBLE);
 					myNewWebView.setFocusable(true);
 					myWebView.setVisibility(View.INVISIBLE);
-					Log.d(TAG, "onNewIntent load "+finalData.toString());
-					myNewWebView.loadUrl(finalData.toString());
+					Log.d(TAG, "onNewIntent load "+finalUrl.toString());
+					myNewWebView.loadUrl(finalUrl.toString());
 				}
 			}, 300);
 
