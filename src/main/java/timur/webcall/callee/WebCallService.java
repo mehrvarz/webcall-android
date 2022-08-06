@@ -175,8 +175,7 @@ public class WebCallService extends Service {
 	private final static int ReconnectCounterMax = 40;    // max number of reconnect loops
 
 	private Context context = null;
-	private SharedPreferences preferences = null;
-//	private SharedPreferences.Editor prefEditor = null;
+//	private SharedPreferences preferences = null;
     private Binder mBinder = new WebCallServiceBinder();
 	private BroadcastReceiver networkStateReceiver = null; // for api < 24
 	private BroadcastReceiver dozeStateReceiver = null;
@@ -549,10 +548,10 @@ public class WebCallService extends Service {
 						newNetworkInt = 1;
 					}
 
-					if(haveNetworkInt!=newNetworkInt || connectToSignalingServerIsWanted==false) {
+					if(connectToSignalingServerIsWanted && haveNetworkInt!=newNetworkInt) {
 						Log.d(TAG,"networkCallback network capab change: " + haveNetworkInt+" "+newNetworkInt+" "+
-							//networkCapabi +
 							" conWanted="+connectToSignalingServerIsWanted+
+							" wsCon="+(wsClient!=null)+
 							" wifi="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)+
 							" cell="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)+
 							//" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
@@ -568,29 +567,33 @@ public class WebCallService extends Service {
 							wifiLock.release();
 							Log.d(TAG,"networkCallback wifi->other wifiLock.release");
 						}
-						if(connectToSignalingServerIsWanted) {
-							statusMessage("Connecting via other network",true,false);
+						if(wsClient!=null) {
+							if(connectToSignalingServerIsWanted) {
+								statusMessage("Connecting via other network",true,false);
+							}
 						}
 					}
 					if(newNetworkInt==2 && haveNetworkInt!=2) {
 						// gaining wifi
-						if(setWifiLockMode<=0) {
-							Log.d(TAG,"networkCallback gainWifi WifiLockMode off");
-						} else if(wifiLock==null) {
-							Log.d(TAG,"networkCallback gainWifi wifiLock==null");
-						} else if(wifiLock.isHeld()) {
-							Log.d(TAG,"networkCallback gainWifi wifiLock isHeld");
-						} else {
-							// enable wifi lock
-							wifiLock.acquire();
-							Log.d(TAG,"networkCallback gainWifi wifiLock.acquire");
-						}
-						if(connectToSignalingServerIsWanted) {
-							statusMessage("Connecting via Wifi network",true,false);
+						if(wsClient!=null) {
+							if(setWifiLockMode<=0) {
+								Log.d(TAG,"networkCallback gainWifi WifiLockMode off");
+							} else if(wifiLock==null) {
+								Log.d(TAG,"networkCallback gainWifi wifiLock==null");
+							} else if(wifiLock.isHeld()) {
+								Log.d(TAG,"networkCallback gainWifi wifiLock isHeld");
+							} else {
+								// enable wifi lock
+								Log.d(TAG,"networkCallback gainWifi wifiLock.acquire");
+								wifiLock.acquire();
+							}
+							if(connectToSignalingServerIsWanted) {
+								statusMessage("Connecting via Wifi network",true,false);
+							}
 						}
 					}
 
-					// the intended criteria: is goOnline activated
+					// gained network: if goOnline is activated and reconnecter is idle -> start reconnecter
 					if(newNetworkInt>0 && haveNetworkInt<=0 &&
 							connectToSignalingServerIsWanted && !reconnectBusy) {
 						// call scheduler.schedule()
@@ -671,7 +674,7 @@ public class WebCallService extends Service {
 								storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
 								keepAwakeWakeLockStartTime = (new Date()).getTime();
 							}
-							// this is a good opportunity to send a ping
+							// this is a good situation to send a ping
 							// if the connection is bad we will know much quicker
 							if(wsClient!=null) {
 								try {
@@ -742,8 +745,6 @@ public class WebCallService extends Service {
 								Log.d(TAG,"dozeState awake wsClient==null");
 							}
 
-							//statusMessage("Disconnected from WebCall server...",true,true);
-
 							if(reconnectSchedFuture==null && !reconnectBusy) {
 								// if no reconnecter is scheduled at this time (by checkLastPing())
 								// then schedule a new reconnecter
@@ -779,46 +780,87 @@ public class WebCallService extends Service {
 
 		if(wsClient!=null) {
 			Log.d(TAG,"onStartCommand got wsClient");
+			storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 		} else if(reconnectBusy) {
 			Log.d(TAG,"onStartCommand got reconnectBusy");
+			storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 		} else {
-			//Log.d(TAG,"onStartCommand not connected to server");
 			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
 				// create notificationChannel to start service in foreground
+				Log.d(TAG,"onStartCommand startForeground");
 				startForeground(NOTIF_ID,buildFgServiceNotification("","",false));
 			}
-			// check if service was started from boot (by WebCallServiceReceiver.java)
-			// if so, try to auto-connect to webcall server
-			if(intent!=null) {
-				Bundle extras = intent.getExtras();
-				if(extras!=null) {
-					String extraCommand = extras.getString("onstart");
-					if(extraCommand!=null) {
-						if(!extraCommand.equals("") && !extraCommand.equals("donothing")) {
-							Log.d(TAG,"onStartCommand extraCommand="+extraCommand);
-						}
-						if(extraCommand.equals("connect")) {
-							if(webcalldomain!=null && !webcalldomain.equals("") &&
-									username!=null && !username.equals("")) {
-								if(!reconnectBusy) {
-									setLoginUrl();
-									connectToSignalingServerIsWanted = true;
-									Log.d(TAG, "onStartCommand loginUrl="+loginUrl);
-									if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-										Log.d(TAG,"onStartCommand cancel reconnectSchedFuture");
-										reconnectSchedFuture.cancel(false);
-										reconnectSchedFuture = null;
-									}
-									// NOTE: if we wait less than 15secs, our connection may establish
-									// but will then be quickly disconnected - not sure why
-									statusMessage("Going to login...",true,false);
-									reconnectSchedFuture =
-										scheduler.schedule(reconnecter, 16, TimeUnit.SECONDS);
-								} else {
-									Log.d(TAG,"onStartCommand no reconnecter: reconnectBusy="+reconnectBusy);
-								}
+
+			if(webcalldomain==null || webcalldomain.equals("")) {
+				Log.d(TAG,"onStartCommand webcalldomain undefined");
+				storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
+			} else if(username==null || username.equals("")) {
+				Log.d(TAG,"onStartCommand username undefined");
+				storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
+			} else {
+				Log.d(TAG,"onStartCommand webcalldomain and username defined");
+				boolean autoConnect = false;
+				if(intent==null) {
+					Log.d(TAG,"onStartCommand intent==null");
+					// service restart after crash
+					// auto-connect to webcall server if extraCommand.equals("connect")
+					try {
+						boolean connectWanted = prefs.getBoolean("connectWanted", false);
+							//Log.d(TAG,"onStartCommand connectWanted force false");
+							// connectWanted = false
+						Log.d(TAG,"onStartCommand connectWanted="+connectWanted);
+						autoConnect = connectWanted;
+					} catch(Exception ex) {
+						Log.d(TAG,"onStartCommand connectWanted ex="+ex);
+					}
+				} else {
+					Log.d(TAG,"onStartCommand intent!=null");
+					// let's see if service was started by boot...
+					Bundle extras = intent.getExtras();
+					if(extras==null) {
+						Log.d(TAG,"onStartCommand extras==null");
+						storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
+					} else {
+						String extraCommand = extras.getString("onstart");
+						if(extraCommand==null) {
+							Log.d(TAG,"onStartCommand extraCommand==null");
+							storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
+						} else {
+							if(!extraCommand.equals("") && !extraCommand.equals("donothing")) {
+								Log.d(TAG,"onStartCommand extraCommand="+extraCommand);
+							}
+							if(extraCommand.equals("connect")) {
+								// service was started by boot (by WebCallServiceReceiver.java)
+								// auto-connect to webcall server if extraCommand.equals("connect")
+								autoConnect = true;
 							}
 						}
+					}
+				}
+
+				if(!autoConnect) {
+					Log.d(TAG,"onStartCommand no autoConnect");
+					storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
+					// autoConnect is only being used on boot and for restart of a crashed service
+					// in all other cases the connection will be triggered by the activity
+				} else {
+					if(reconnectBusy) {
+						Log.d(TAG,"onStartCommand autoConnect but reconnectBusy");
+					} else {
+						Log.d(TAG,"onStartCommand autoConnect");
+						setLoginUrl();
+						connectToSignalingServerIsWanted = true;
+						storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
+						Log.d(TAG,"onStartCommand autoConnect loginUrl="+loginUrl);
+						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
+							Log.d(TAG,"onStartCommand autoConnect cancel reconnectSchedFuture");
+							reconnectSchedFuture.cancel(false);
+							reconnectSchedFuture = null;
+						}
+						// NOTE: if we wait less than 15secs, our connection may establish
+						// but will then be quickly disconnected - not sure why
+						statusMessage("onStartCommand autoConnect schedule reconnecter...",true,false);
+						reconnectSchedFuture = scheduler.schedule(reconnecter, 16, TimeUnit.SECONDS);
 					}
 				}
 			}
@@ -1091,7 +1133,7 @@ public class WebCallService extends Service {
 				@Override
 				public void onPageFinished(WebView view, String url){
 					// Notify the host application that a page has finished loading
-					Log.d(TAG, "onPageFinished url=" + url);
+					//Log.d(TAG, "onPageFinished url=" + url);
 					// first we want to know if url is just a hashchange
 					// in which case we will NOT do anyhing special
 					if(currentUrl!=null && webviewMainPageLoaded) {
@@ -1116,7 +1158,7 @@ public class WebCallService extends Service {
 							// no need to execute onPageFinished() on hashchange or history back
 							// here we cut off "auto=1"
 							currentUrl = url.replace("auto=1","");
-							Log.d(TAG, "onPageFinished only hashchange currentUrl=" + currentUrl);
+							Log.d(TAG, "onPageFinished only hashchange=" + currentUrl);
 							return;
 						}
 					}
@@ -1125,7 +1167,7 @@ public class WebCallService extends Service {
 					// and if we ARE connected already -> call js:wakeGoOnline()
 					// here we cut off "auto=1"
 					currentUrl = url.replace("auto=1","");
-					Log.d(TAG, "onPageFinished set currentUrl=" + currentUrl);
+					Log.d(TAG, "onPageFinished currentUrl=" + currentUrl);
 					webviewMainPageLoaded = false;
 					webviewCookies = CookieManager.getInstance().getCookie(currentUrl);
 					//Log.d(TAG, "onPageFinished webviewCookies=" + webviewCookies);
@@ -1550,6 +1592,7 @@ public class WebCallService extends Service {
 			if(reconnectBusy && wsClient!=null) {
 				Log.d(TAG,"wsOpen reconnectBusy return existing wsClient");
 				connectToSignalingServerIsWanted = true;
+				storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
 				Intent brintent = new Intent("webcall");
 				brintent.putExtra("state", "connected");
 				sendBroadcast(brintent);
@@ -1561,6 +1604,7 @@ public class WebCallService extends Service {
 				Log.d(TAG,"wsOpen wsClient="+(wsCli!=null));
 				if(wsCli!=null) {
 					connectToSignalingServerIsWanted = true;
+					storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
 					updateNotification("","Online. Waiting for calls.",false,false);
 					Intent brintent = new Intent("webcall");
 					brintent.putExtra("state", "connected");
@@ -1571,6 +1615,7 @@ public class WebCallService extends Service {
 
 			Log.d(TAG,"wsOpen return existing wsClient");
 			connectToSignalingServerIsWanted = true;
+			storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
 			Intent brintent = new Intent("webcall");
 			brintent.putExtra("state", "connected");
 			sendBroadcast(brintent);
@@ -1609,6 +1654,7 @@ public class WebCallService extends Service {
 			// called by JS:goOffline()
 			Log.d(TAG,"wsClose");
 			connectToSignalingServerIsWanted = false;
+			storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 			if(pendingAlarm!=null) {
 				alarmManager.cancel(pendingAlarm);
 				pendingAlarm = null;
@@ -2063,9 +2109,9 @@ public class WebCallService extends Service {
 						tmpWsClient.close();
 						runJS("wsOnClose2()",null); // set wsConn=null; will abort blinkButtonFunc()
 						Log.d(TAG,"onClose wsClient.close() done");
+					} else {
+						statusMessage("Disconnected from WebCall server...",true,true);
 					}
-
-					statusMessage("Disconnected from WebCall server...",true,true);
 
 					if(reconnectSchedFuture==null && !reconnectBusy) {
 						// if no reconnecter is scheduled at this time (say, by checkLastPing())
@@ -2386,7 +2432,7 @@ public class WebCallService extends Service {
 			wsClient = null;
 			// closeBlocking() makes no sense here bc server has stopped sending pings
 			tmpWsClient.close();
-			statusMessage("Disconnected from WebCall server..",true,false);
+			//statusMessage("Disconnected from WebCall server..",true,false);
 		}
 
 		if(haveNetworkInt==0 && wakeIfNoNet && screenForWifiMode>0) {
@@ -2812,6 +2858,7 @@ public class WebCallService extends Service {
 						if(exString.indexOf("SSLHandshakeException")>=0) {
 							// turn reconnecter off
 							connectToSignalingServerIsWanted = false;
+							storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 						} else {
 							// keep reconnecter running
 						}
@@ -2855,6 +2902,7 @@ public class WebCallService extends Service {
 							reconnectBusy = false;
 							// turn reconnecter off
 							connectToSignalingServerIsWanted = false;
+							storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 						}
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
@@ -2890,6 +2938,7 @@ public class WebCallService extends Service {
 						reconnectBusy = false;
 						reconnectCounter = 0;
 						connectToSignalingServerIsWanted = false;
+						storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 						Log.d(TAG,"reconnecter login fail "+wsAddr+" give up "+reader.readLine()+
 							" "+reader.readLine()+" "+reader.readLine()+" "+reader.readLine());
 						statusMessage("Reconnect failed. Giving up. "+response,true,true);
@@ -3117,7 +3166,6 @@ public class WebCallService extends Service {
 		try {
 			if(!setAddr.equals("")) {
 				wsAddr = setAddr;
-				//wsAddr += "&callerId="+callerId+"&name="+callerName;	// TODO?
 				if(auto) {
 					// service reconnect: set auto=true telling server this is not a manual login
 					wsAddr += "&auto=true";
@@ -3160,9 +3208,7 @@ public class WebCallService extends Service {
 				}
 			}
 
-			if(extendedLogsFlag) {
-				Log.d(TAG,"connectHost connectBlocking...");
-			}
+			Log.d(TAG,"connectHost connectBlocking...");
 			boolean isOpen = wsClient.connectBlocking();
 			// ssl error: onError ex javax.net.ssl.SSLHandshakeException:
 			// java.security.cert.CertPathValidatorException: Trust anchor for certification path not found

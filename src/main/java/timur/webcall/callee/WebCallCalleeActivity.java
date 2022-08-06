@@ -993,7 +993,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			//Log.d(TAG, "# onNewIntent abort no url");
 			return;
 		}
-		Log.d(TAG, "onNewIntent original url="+url+" =======================================");
+		Log.d(TAG, "onNewIntent original url="+url);
 		// example url (as string):
 		// https://timur.mobi/user/id?callerId=id&callerName=username&ds=false
 
