@@ -1969,27 +1969,21 @@ public class WebCallService extends Service {
 		public void storePreference(String pref, String str) {
 			// used by WebCallAndroid
 			storePrefsString(pref,str);
-			//if(extendedLogsFlag) {
-				Log.d(TAG, "storePreference "+pref+" "+str+" stored");
-			//}
+			Log.d(TAG, "storePreference "+pref+" "+str+" stored");
 		}
 
 		@android.webkit.JavascriptInterface
 		public void storePreferenceBool(String pref, boolean bool) {
 			// used by WebCallAndroid
 			storePrefsBoolean(pref,bool);
-			//if(extendedLogsFlag) {
-				Log.d(TAG, "storePreferenceBool "+pref+" "+bool+" stored");
-			//}
+			Log.d(TAG, "storePreferenceBool "+pref+" "+bool+" stored");
 		}
 
 		@android.webkit.JavascriptInterface
 		public void storePreferenceLong(String pref, long val) {
 			// used by WebCallAndroid
 			storePrefsLong(pref,val);
-			//if(extendedLogsFlag) {
-				Log.d(TAG, "storePreferenceLong "+pref+" "+val+" stored");
-			//}
+			Log.d(TAG, "storePreferenceLong "+pref+" "+val+" stored");
 		}
 
 		@android.webkit.JavascriptInterface
