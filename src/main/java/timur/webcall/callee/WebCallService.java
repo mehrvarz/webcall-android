@@ -200,6 +200,7 @@ public class WebCallService extends Service {
 	private Intent batteryStatus = null;
 	private String webviewVersionString = "";
 	private WebSettings webSettings = null;
+	private int notificationID = 1;
 
 	// wakeUpWakeLock used for wakeup from doze: FULL_WAKE_LOCK|ACQUIRE_CAUSES_WAKEUP (screen on)
 	// wakeUpWakeLock is released by activity
@@ -215,6 +216,7 @@ public class WebCallService extends Service {
 	private volatile int connectTypeInt = 0;
 
 	// wakeupTypeInt describes why we wake the activity: 1=got disconnected, 2=incoming call
+	// will be delivered to activity via return val of wakeupType()
 	private volatile int wakeupTypeInt = -1;
 
 	// haveNetworkInt describes the type of network cur in use: 0=noNet, 2=wifi, 1=other
@@ -1374,21 +1376,21 @@ public class WebCallService extends Service {
 			wakeupTypeInt = -1;
 
 			if(Build.VERSION.SDK_INT < Build.VERSION_CODES.N) { // <api24
-				Log.d(TAG, "wakeupType() checkNetworkState");
+				Log.d(TAG, "wakeupType() "+ret+" checkNetworkState");
 				checkNetworkState(false);
 			}
 			if(wsClient!=null) {
 				//Log.d(TAG, "wakeupType() wsClient is set: checkLastPing");
 				// tmtmtm if TOO LATE strikes, this is bad for receiving calls
-				Log.d(TAG, "wakeupType() wsClient is set -> checkLastPing()");
+				Log.d(TAG, "wakeupType() "+ret+" wsClient is set -> checkLastPing()");
 				checkLastPing(true,0);
 			} else {
 				if(!connectToSignalingServerIsWanted) {
-					Log.d(TAG,"wakeupType() wsClient not set, no connectToSignalingServerIsWanted");
+					Log.d(TAG,"wakeupType() "+ret+" wsClient not set, no connectToSignalingServerIsWanted");
 				} else if(reconnectBusy) {
-					Log.d(TAG,"wakeupType() wsClient not set, reconnectBusy");
+					Log.d(TAG,"wakeupType() "+ret+" wsClient not set, reconnectBusy");
 				} else {
-					Log.d(TAG,"wakeupType() wsClient not set, startReconnecter");
+					Log.d(TAG,"wakeupType() "+ret+" wsClient not set, startReconnecter");
 					startReconnecter(true,0);
 				}
 			}
@@ -1796,30 +1798,65 @@ public class WebCallService extends Service {
 				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, setvol, 0);
 				Log.d(TAG,"rtcConnect() setStreamVolume "+setvol+" from "+vol);
 			} else {
-				// no need to change vol back after call;
+				// no need to change vol back after ringing is done
 				origvol = 0;
 			}
-			// TODO after call (or better: after ringing is done):
-			// if(origvol>0) audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, origvol, 0);
+// TODO after ringing is done:
+// if(origvol>0) audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, origvol, 0);
 
-			// while phone is still ringing, keep sending wakeIntent to bringActivityToFront
-			final Runnable bringActivityToFront = new Runnable() {
-				public void run() {
-					if(!callPickedUpFlag && !peerConnectFlag && !peerDisconnnectFlag) {
-						Log.d(TAG,"rtcConnect() bringActivityToFront loop");
-						wakeupTypeInt = 2; // incoming call
-						Intent wakeIntent = new Intent(context, WebCallCalleeActivity.class);
-						wakeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
-							Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
-							Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-						context.startActivity(wakeIntent);
-						scheduler.schedule(this, 3, TimeUnit.SECONDS);
-					} else {
-						Log.d(TAG,"rtcConnect() bringActivityToFront end");
+			if(Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+				// while phone is still ringing, keep sending wakeIntent to bringActivityToFront
+				final Runnable bringActivityToFront = new Runnable() {
+					public void run() {
+						if(!callPickedUpFlag && !peerConnectFlag && !peerDisconnnectFlag) {
+							Log.d(TAG,"rtcConnect() bringActivityToFront loop");
+							wakeupTypeInt = 2; // incoming call
+
+							Intent wakeIntent = new Intent(context, WebCallCalleeActivity.class);
+							wakeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
+								Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
+								Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+							context.startActivity(wakeIntent);
+							scheduler.schedule(this, 3, TimeUnit.SECONDS);
+						} else {
+							Log.d(TAG,"rtcConnect() bringActivityToFront end");
+						}
 					}
-				}
-			};
-			scheduler.schedule(bringActivityToFront, 0, TimeUnit.SECONDS);
+				};
+				scheduler.schedule(bringActivityToFront, 0, TimeUnit.SECONDS);
+			} else {
+				Log.d(TAG,"rtcConnect() "+Build.VERSION.SDK_INT+" >= "+Build.VERSION_CODES.Q+" do nothing");
+/*
+				// tmtmtm for Android 10+ we need to use a notification channel
+				// see: NotificationChannel
+				// see: https://developer.android.com/guide/components/activities/background-starts
+				// see: https://developer.android.com/training/notify-user/time-sensitive
+
+				Log.d(TAG,"rtcConnect() -> fullScreenPendingIntent for Android 10+");
+
+				Intent fullScreenIntent = new Intent(context, WebCallCalleeActivity.class);
+
+				PendingIntent fullScreenPendingIntent = PendingIntent.getActivity(context, 0,
+					fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+
+				String NOTIF_CHANNEL_ID_STR = "123";
+
+				NotificationCompat.Builder notificationBuilder =
+						new NotificationCompat.Builder(context, NOTIF_CHANNEL_ID_STR)
+					.setSmallIcon(R.mipmap.notification_icon)
+					.setContentTitle("Incoming call")
+					.setContentText("(919) 555-1234")
+					.setPriority(NotificationCompat.PRIORITY_HIGH)
+					.setCategory(NotificationCompat.CATEGORY_CALL)
+					// must request USE_FULL_SCREEN_INTENT permission
+					.setFullScreenIntent(fullScreenPendingIntent, true);
+
+				// Provide a unique integer for the "notificationId" of each notification.
+				Log.d(TAG,"onMessage incoming call notificationID="+notificationID);
+				startForeground(notificationID, notificationBuilder.build());
+				notificationID++;
+*/
+			}
 		}
 
 		@android.webkit.JavascriptInterface
@@ -2164,7 +2201,7 @@ public class WebCallService extends Service {
 
 		@Override
 		public void onMessage(String message) {
-			//Log.d(TAG,"onMessage '"+message+"'");
+			Log.d(TAG,"onMessage '"+message+"'");
 
 			if(message.startsWith("dummy|")) {
 				Log.d(TAG,"onMessage dummy "+message);
@@ -2172,7 +2209,7 @@ public class WebCallService extends Service {
 				return;
 			}
 
-			if(message.startsWith("callerOffer|")) {
+			if(message.startsWith("callerInfo|")) {
 				// incoming call!!
 				// wake activity so that js code in webview can run. if setting up the call fails,
 				// (no rtcConnect due to bromite) we have turned on the screen for nothing
@@ -2182,16 +2219,54 @@ public class WebCallService extends Service {
 				} else {
 					Log.d(TAG,"onMessage incoming call "+
 						new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date()));
-					// TODO on Android 10+ we may need to use a notification channel instead
-					// see: NotificationChannel
-					// see: https://developer.android.com/guide/components/activities/background-starts
-					// see: https://developer.android.com/training/notify-user/time-sensitive
+
+					String payload = message.substring(11);
+					int idxSeparator = payload.indexOf("\t");
+					if(idxSeparator<0) {
+						// for backward compatibility only
+						idxSeparator = payload.indexOf(":");
+					}
+					String callerID = "";
+					String callerName = "";
+					if(idxSeparator>=0) {
+						callerID = payload.substring(0,idxSeparator);
+						// callerID may have host attached: callerID@host
+						callerName = payload.substring(idxSeparator+1);
+					}
+					Log.d(TAG,"onMessage incoming call name="+callerName+" ID="+callerID);
+
 					wakeupTypeInt = 2; // incoming call
+
+					// this is mainly for < Android 10
+					// but it works also for Android 10+ if the activity is in front and the screen is off
 					Intent wakeIntent = new Intent(context, WebCallCalleeActivity.class);
 					wakeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
 						Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
 						Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
 					context.startActivity(wakeIntent);
+
+					if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+						// for Android 10+ use notification channel
+						// see: https://developer.android.com/guide/components/activities/background-starts
+						// see: https://developer.android.com/training/notify-user/time-sensitive
+						Log.d(TAG,"onMessage incoming call "+Build.VERSION.SDK_INT+" >= "+Build.VERSION_CODES.Q);
+						Intent fullScreenIntent = new Intent(context, WebCallCalleeActivity.class);
+						PendingIntent fullScreenPendingIntent = PendingIntent.getActivity(context, 0,
+							fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+						String NOTIF_CHANNEL_ID_STR = "123";
+						NotificationCompat.Builder notificationBuilder =
+								new NotificationCompat.Builder(context, NOTIF_CHANNEL_ID_STR)
+							.setSmallIcon(R.mipmap.notification_icon)
+							.setContentTitle("Incoming WebCall")
+							.setContentText(callerName+" "+callerID)
+							.setPriority(NotificationCompat.PRIORITY_HIGH)
+							.setCategory(NotificationCompat.CATEGORY_CALL)
+							.setFullScreenIntent(fullScreenPendingIntent, true);
+						// Provide a unique integer for the "notificationId" of each notification.
+						//Log.d(TAG,"onMessage incoming call notificationID="+notificationID);
+						startForeground(notificationID, notificationBuilder.build());
+						notificationID++;
+					}
 				}
 			}
 

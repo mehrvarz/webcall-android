@@ -977,11 +977,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 		if(webCallServiceBinder!=null) {
 			// connected to service already
+			Log.d(TAG, "onStart activityStart()");
 			activityStart(); // may need to turn on screen, etc.
 		} else {
 			// not connected to service yet
 			// request to execute activityStart() when webCallServiceBinder is available
-			Log.d(TAG, "onStart activityStartNeeded");
+			Log.d(TAG, "onStart no ServiceBinder, set activityStartNeeded");
 			activityStartNeeded = true;
 		}
 	}
@@ -1257,9 +1258,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 	@Override
 	public void onStop() {
-		if(extendedLogsFlag) {
-			Log.d(TAG, "onStop");
-		}
+		Log.d(TAG, "onStop");
 		activityStartNeeded = false;
 		super.onStop();
 	}
@@ -1741,6 +1740,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	}
 
 	private void activityStart() {
+		Log.d(TAG, "activityStart...");
 		int typeOfWakeup = 0;
 		if(boundService && webCallServiceBinder!=null) {
 			typeOfWakeup = webCallServiceBinder.wakeupType();
