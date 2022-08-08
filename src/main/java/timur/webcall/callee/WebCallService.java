@@ -1767,7 +1767,7 @@ public class WebCallService extends Service {
 									// at this point the old JS is killed and the new JS will be started
 								}
 							};
-							scheduler.schedule(runnable2, 1, TimeUnit.SECONDS);
+							scheduler.schedule(runnable2, 100l, TimeUnit.MILLISECONDS);
 						}
 					}
 				});
@@ -1862,7 +1862,7 @@ public class WebCallService extends Service {
 				};
 				scheduler.schedule(bringActivityToFront, 0, TimeUnit.SECONDS);
 			} else {
-				Log.d(TAG,"rtcConnect() "+Build.VERSION.SDK_INT+" >= "+Build.VERSION_CODES.Q+" do nothing");
+				//Log.d(TAG,"rtcConnect() "+Build.VERSION.SDK_INT+" >= "+Build.VERSION_CODES.Q+" do nothing");
 			}
 		}
 
@@ -3885,12 +3885,12 @@ public class WebCallService extends Service {
 		Log.d(TAG,"statusMessage: "+msg+" "+disconnected+" "+important);
 		updateNotification("", msg, disconnected, important);
 		if(myWebView!=null && webviewMainPageLoaded) {
-			if(disconnected) {
-				// "Uncaught ReferenceError: wsOnError2 is not defined"
-				runJS("wsOnError2('"+msg+"');",null); // will remove green led
-			} else {
+//			if(disconnected) {
+//				// "Uncaught ReferenceError: wsOnError2 is not defined"
+//				runJS("wsOnError2('"+msg+"');",null); // will remove green led
+//			} else {
 				runJS("showStatus('"+msg+"',-1);",null);
-			}
+//			}
 		}
 	}
 
