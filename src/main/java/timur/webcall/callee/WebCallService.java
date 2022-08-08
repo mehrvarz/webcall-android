@@ -175,7 +175,6 @@ public class WebCallService extends Service {
 	private final static int ReconnectCounterMax = 40;    // max number of reconnect loops
 
 	private Context context = null;
-//	private SharedPreferences preferences = null;
     private Binder mBinder = new WebCallServiceBinder();
 	private BroadcastReceiver networkStateReceiver = null; // for api < 24
 	private BroadcastReceiver dozeStateReceiver = null;
@@ -571,7 +570,7 @@ public class WebCallService extends Service {
 						}
 						if(wsClient!=null) {
 							if(connectToSignalingServerIsWanted) {
-								statusMessage("Connecting via other network",true,false);
+								statusMessage("Using other network (not Wifi)",false,false);
 							}
 						}
 					}
@@ -590,7 +589,7 @@ public class WebCallService extends Service {
 								wifiLock.acquire();
 							}
 							if(connectToSignalingServerIsWanted) {
-								statusMessage("Connecting via Wifi network",true,false);
+								statusMessage("Using Wifi network",false,false);
 							}
 						}
 					}
@@ -689,7 +688,7 @@ public class WebCallService extends Service {
 							}
 							if(wsClient==null && connectToSignalingServerIsWanted) {
 								// let's go straight to reconnecter
-								statusMessage("Disconnected from WebCall server...",true,true);
+								statusMessage("Disconnected from WebCall server...",true,false);
 
 								if(reconnectSchedFuture==null && !reconnectBusy) {
 									// if no reconnecter is scheduled at this time...
@@ -780,6 +779,17 @@ public class WebCallService extends Service {
 			}
 		}
 
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
+			int importance = NotificationManager.IMPORTANCE_LOW;
+			NotificationChannel notificationChannel1 = new NotificationChannel(
+				"123", "WebCall Status", NotificationManager.IMPORTANCE_LOW);
+			getSystemService(NotificationManager.class).createNotificationChannel(notificationChannel1);
+
+			NotificationChannel notificationChannel2 = new NotificationChannel(
+				"124", "WebCall Incoming", NotificationManager.IMPORTANCE_HIGH);
+			getSystemService(NotificationManager.class).createNotificationChannel(notificationChannel2);
+		}
+
 		if(wsClient!=null) {
 			Log.d(TAG,"onStartCommand got wsClient");
 			storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
@@ -861,7 +871,7 @@ public class WebCallService extends Service {
 						}
 						// NOTE: if we wait less than 15secs, our connection may establish
 						// but will then be quickly disconnected - not sure why
-						statusMessage("onStartCommand autoConnect schedule reconnecter...",true,false);
+						//statusMessage("onStartCommand autoConnect schedule reconnecter...",true,false);
 						reconnectSchedFuture = scheduler.schedule(reconnecter, 16, TimeUnit.SECONDS);
 					}
 				}
@@ -1159,7 +1169,7 @@ public class WebCallService extends Service {
 							// url is just a hashchange; does not need onPageFinished processing
 							// no need to execute onPageFinished() on hashchange or history back
 							// here we cut off "auto=1"
-							currentUrl = url.replace("auto=1","");
+							currentUrl = url.replace("?auto=1","");
 							Log.d(TAG, "onPageFinished only hashchange=" + currentUrl);
 							return;
 						}
@@ -1168,7 +1178,7 @@ public class WebCallService extends Service {
 					// if the url has changed (beyond a hashchange)
 					// and if we ARE connected already -> call js:wakeGoOnline()
 					// here we cut off "auto=1"
-					currentUrl = url.replace("auto=1","");
+					currentUrl = url.replace("?auto=1","");
 					Log.d(TAG, "onPageFinished currentUrl=" + currentUrl);
 					webviewMainPageLoaded = false;
 					webviewCookies = CookieManager.getInstance().getCookie(currentUrl);
@@ -1595,6 +1605,7 @@ public class WebCallService extends Service {
 				Log.d(TAG,"wsOpen reconnectBusy return existing wsClient");
 				connectToSignalingServerIsWanted = true;
 				storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
+				updateNotification("","Online. Waiting for calls.",false,false);
 				Intent brintent = new Intent("webcall");
 				brintent.putExtra("state", "connected");
 				sendBroadcast(brintent);
@@ -1611,6 +1622,10 @@ public class WebCallService extends Service {
 					Intent brintent = new Intent("webcall");
 					brintent.putExtra("state", "connected");
 					sendBroadcast(brintent);
+				} else {
+					connectToSignalingServerIsWanted = false; // TODO ???
+					storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
+					statusMessage("",true,false);
 				}
 				return wsCli;
 			}
@@ -1618,6 +1633,7 @@ public class WebCallService extends Service {
 			Log.d(TAG,"wsOpen return existing wsClient");
 			connectToSignalingServerIsWanted = true;
 			storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
+			updateNotification("","Online. Waiting for calls.",false,false);
 			Intent brintent = new Intent("webcall");
 			brintent.putExtra("state", "connected");
 			sendBroadcast(brintent);
@@ -1673,6 +1689,7 @@ public class WebCallService extends Service {
 			reconnectBusy = false;
 			// wsClient.closeBlocking() + wsClient=null
 			disconnectHost(true);
+			Log.d(TAG,"wsClose done");
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1728,7 +1745,7 @@ public class WebCallService extends Service {
 		}
 
 		@android.webkit.JavascriptInterface
-		public void wsClearCache() {
+		public void wsClearCache(final boolean autoreload, final boolean autoreconnect) {
 			// used by webcall.js + callee.js (clearcache())
 			if(myWebView!=null) {
 				Log.d(TAG,"wsClearCache clearCache()");
@@ -1737,6 +1754,21 @@ public class WebCallService extends Service {
 					public void run() {
 						myWebView.clearCache(true);
 						Log.d(TAG,"wsClearCache clearCache() done");
+						if(autoreload) {
+							// immediate execution of reload() will NOT execute JS code
+							//Log.d(TAG,"wsClearCache reload("+autoreconnect+")");
+							//reload(autoreconnect);
+
+							// but if we wait a little, we can reload and autostart with no problem
+							final Runnable runnable2 = new Runnable() {
+								public void run() {
+									Log.d(TAG,"wsClearCache delayed reload("+autoreconnect+")");
+									reload(autoreconnect);
+									// at this point the old JS is killed and the new JS will be started
+								}
+							};
+							scheduler.schedule(runnable2, 1, TimeUnit.SECONDS);
+						}
 					}
 				});
 				long nowSecs = new Date().getTime();
@@ -1747,7 +1779,7 @@ public class WebCallService extends Service {
 		}
 
 		@android.webkit.JavascriptInterface
-		public void reload() {
+		public void reload(boolean autoconnect) {
 			if(myWebView==null) {
 				Log.d(TAG,"# reload("+currentUrl+") myWebView==null");
 			} else {
@@ -1761,11 +1793,16 @@ public class WebCallService extends Service {
 				if(idxArgs>=0) {
 					baseCurrentUrl = baseCurrentUrl.substring(0,idxArgs);
 				}
-				currentUrl = baseCurrentUrl;
 
-				Log.d(TAG,"reload("+currentUrl+")");
-				String reloadUrl = currentUrl;
-				currentUrl=null; //webviewMainPageLoaded) {
+				currentUrl = baseCurrentUrl;
+				if(autoconnect) {
+					currentUrl += "?auto=1";
+					Log.d(TAG,"reload("+currentUrl+") autoconnect");
+				} else {
+					Log.d(TAG,"reload("+currentUrl+") no autoconnect");
+				}
+				final String reloadUrl = currentUrl;
+				currentUrl=null;
 				myWebView.post(new Runnable() {
 					@Override
 					public void run() {
@@ -1826,36 +1863,6 @@ public class WebCallService extends Service {
 				scheduler.schedule(bringActivityToFront, 0, TimeUnit.SECONDS);
 			} else {
 				Log.d(TAG,"rtcConnect() "+Build.VERSION.SDK_INT+" >= "+Build.VERSION_CODES.Q+" do nothing");
-/*
-				// tmtmtm for Android 10+ we need to use a notification channel
-				// see: NotificationChannel
-				// see: https://developer.android.com/guide/components/activities/background-starts
-				// see: https://developer.android.com/training/notify-user/time-sensitive
-
-				Log.d(TAG,"rtcConnect() -> fullScreenPendingIntent for Android 10+");
-
-				Intent fullScreenIntent = new Intent(context, WebCallCalleeActivity.class);
-
-				PendingIntent fullScreenPendingIntent = PendingIntent.getActivity(context, 0,
-					fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-
-				String NOTIF_CHANNEL_ID_STR = "123";
-
-				NotificationCompat.Builder notificationBuilder =
-						new NotificationCompat.Builder(context, NOTIF_CHANNEL_ID_STR)
-					.setSmallIcon(R.mipmap.notification_icon)
-					.setContentTitle("Incoming call")
-					.setContentText("(919) 555-1234")
-					.setPriority(NotificationCompat.PRIORITY_HIGH)
-					.setCategory(NotificationCompat.CATEGORY_CALL)
-					// must request USE_FULL_SCREEN_INTENT permission
-					.setFullScreenIntent(fullScreenPendingIntent, true);
-
-				// Provide a unique integer for the "notificationId" of each notification.
-				Log.d(TAG,"onMessage incoming call notificationID="+notificationID);
-				startForeground(notificationID, notificationBuilder.build());
-				notificationID++;
-*/
 			}
 		}
 
@@ -1922,6 +1929,9 @@ public class WebCallService extends Service {
 
 			// this is used for ringOnSpeakerOn
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
+
+			Log.d(TAG,"peerDisConnect() -> statusMessage(peer disconnect)");
+			statusMessage("Peer disconnect",true,false);
 		}
 
 		@android.webkit.JavascriptInterface
@@ -2062,12 +2072,13 @@ public class WebCallService extends Service {
 
 		@Override
 		public void onOpen(ServerHandshake handshakedata) {
-			// connection  was opened, so we tell JS code
+			// connection was opened, so we tell JS code
 			if(myWebView!=null && webviewMainPageLoaded) {
-				//Log.d(TAG,"WsClient onOpen -> js:wsOnOpen");
+				Log.d(TAG,"WsClient onOpen -> js:wsOnOpen");
 				runJS("wsOnOpen()",null);
 			} else {
-				//Log.d(TAG,"WsClient onOpen");
+				Log.d(TAG,"WsClient onOpen");
+				updateNotification("","Online. Waiting for calls.",false,false);
 			}
 		}
 
@@ -2141,7 +2152,7 @@ public class WebCallService extends Service {
 						runJS("wsOnClose2()",null); // set wsConn=null; will abort blinkButtonFunc()
 						Log.d(TAG,"onClose wsClient.close() done");
 					} else {
-						statusMessage("Disconnected from WebCall server...",true,true);
+						statusMessage("Disconnected from WebCall server...",true,false);
 					}
 
 					if(reconnectSchedFuture==null && !reconnectBusy) {
@@ -2173,13 +2184,15 @@ public class WebCallService extends Service {
 					if(myWebView!=null && webviewMainPageLoaded) {
 						// offlineAction(): disable offline-button and enable online-button
 						runJS("offlineAction();",null);
+// TODO: wanted=false ?
+// TODO: notif "Offline" ?
 					}
 
 					if(code==-1) {
 						// if code==-1 do not show statusMessage
 						// as it would replace a prev statusMessage with a crucial error text
 					} else {
-						statusMessage("Connection error "+code+". Not reconnecting.",true,true);
+						statusMessage("Connection error "+code+". Not reconnecting.",true,false);
 					}
 
 					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
@@ -2201,7 +2214,7 @@ public class WebCallService extends Service {
 
 		@Override
 		public void onMessage(String message) {
-			Log.d(TAG,"onMessage '"+message+"'");
+			//Log.d(TAG,"onMessage '"+message+"'");
 
 			if(message.startsWith("dummy|")) {
 				Log.d(TAG,"onMessage dummy "+message);
@@ -2244,6 +2257,9 @@ public class WebCallService extends Service {
 						Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
 						Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
 					context.startActivity(wakeIntent);
+					if(Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+						//statusMessage("WebCall "+callerName+" "+callerID,false,false);
+					}
 
 					if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 						// for Android 10+ use notification channel
@@ -2253,19 +2269,17 @@ public class WebCallService extends Service {
 						Intent fullScreenIntent = new Intent(context, WebCallCalleeActivity.class);
 						PendingIntent fullScreenPendingIntent = PendingIntent.getActivity(context, 0,
 							fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-						String NOTIF_CHANNEL_ID_STR = "123";
+						String NOTIF_CHANNEL_ID_STR = "124";
 						NotificationCompat.Builder notificationBuilder =
 								new NotificationCompat.Builder(context, NOTIF_CHANNEL_ID_STR)
 							.setSmallIcon(R.mipmap.notification_icon)
-							.setContentTitle("Incoming WebCall")
+							.setContentTitle("WebCall Incom")
 							.setContentText(callerName+" "+callerID)
 							.setPriority(NotificationCompat.PRIORITY_HIGH)
 							.setCategory(NotificationCompat.CATEGORY_CALL)
 							.setFullScreenIntent(fullScreenPendingIntent, true);
-						// Provide a unique integer for the "notificationId" of each notification.
 						//Log.d(TAG,"onMessage incoming call notificationID="+notificationID);
-						startForeground(notificationID, notificationBuilder.build());
-						notificationID++;
+						startForeground(NOTIF_ID, notificationBuilder.build());
 					}
 				}
 			}
@@ -2796,7 +2810,7 @@ public class WebCallService extends Service {
 					// we pause reconnecter; if network comes back, checkNetworkState() will
 					// schedule a new reconnecter if connectToSignalingServerIsWanted is set
 					Log.d(TAG,"reconnecter no network, reconnect paused...");
-					statusMessage("No network. Reconnect paused.",true,true);
+					statusMessage("No network. Reconnect paused.",true,false);
 					reconnectBusy = false;
 					reconnectCounter = 0;
 					//runJS("offlineAction();",null); // goOnline enabled, goOffline disabled
@@ -3131,7 +3145,7 @@ public class WebCallService extends Service {
 									reconnectCounter = 0;
 									Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
 									//statusMessage("Online. Waiting for calls.",false,false);
-									updateNotification("","Online. Waiting for calls.",false,false);
+									//updateNotification("","Online. Waiting for calls.",false,false);
 									if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 										long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 										Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
@@ -3579,19 +3593,20 @@ public class WebCallService extends Service {
 			if(!reconnectBusy) {
 				if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 					long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-					Log.d(TAG,"networkState keepAwakeWakeLock.release +"+wakeMS);
+					Log.d(TAG,"disconnectHost keepAwakeWakeLock.release +"+wakeMS);
 					keepAwakeWakeLockMS += wakeMS;
 					storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
 					keepAwakeWakeLock.release();
 				}
 				if(wifiLock!=null && wifiLock.isHeld()) {
 					// release wifi lock
-					Log.d(TAG,"networkState wifiLock.release");
+					Log.d(TAG,"disconnectHost wifiLock.release");
 					wifiLock.release();
 				}
 			}
 			reconnectBusy = false;
 		}
+		Log.d(TAG,"disconnectHost done");
 	}
 
 	private void endPeerConAndWebView() {
@@ -3838,14 +3853,14 @@ public class WebCallService extends Service {
 	}
 
 	private void playSoundNotification() {
-		// very simple short beep to indicate a network problem (maybe just temporary)
-		Log.d(TAG,"playSoundNotification");
-		ToneGenerator toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC, 90); // volume
+		Log.d(TAG,"playSoundNotification - skip");
+//		ToneGenerator toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC, 90); // volume
 		//toneGen1.startTone(ToneGenerator.TONE_CDMA_PIP,120); // duration
-		toneGen1.startTone(ToneGenerator.TONE_SUP_INTERCEPT_ABBREV,200); // duration
+//		toneGen1.startTone(ToneGenerator.TONE_SUP_INTERCEPT_ABBREV,200); // duration
 		soundNotificationPlayed = true;
 	}
 
+/*
 	private void playSoundConfirm() {
 		// very simple short beep to indicate a network problem (maybe just temporary)
 		if(soundNotificationPlayed) {
@@ -3855,21 +3870,20 @@ public class WebCallService extends Service {
 			soundNotificationPlayed = false;
 		}
 	}
+*/
 
 	private void playSoundAlarm() {
 		// typical TYPE_NOTIFICATION sound to indicate we given up on reconnect (severe)
-		Log.d(TAG,"playSoundAlarm");
+		// used for beepOnLostNetworkMode
+		Log.d(TAG,"playSoundAlarm - skip");
 		Ringtone r = RingtoneManager.getRingtone(context.getApplicationContext(), 
 			RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
 		r.play();
-		//saveSystemLogs();
 	}
 
 	private void statusMessage(String msg, boolean disconnected, boolean important) {
 		Log.d(TAG,"statusMessage: "+msg+" "+disconnected+" "+important);
-		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
-			updateNotification("", msg, disconnected, important);
-		}
+		updateNotification("", msg, disconnected, important);
 		if(myWebView!=null && webviewMainPageLoaded) {
 			if(disconnected) {
 				// "Uncaught ReferenceError: wsOnError2 is not defined"
@@ -3882,35 +3896,24 @@ public class WebCallService extends Service {
 
 	private void updateNotification(String title, String msg, boolean disconnected, boolean important) {
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
-			//Log.d(TAG,"updateNotification: "+msg+" "+disconnected+" "+important);
+			Log.d(TAG,"updateNotification title="+title+" msg="+msg+" "+disconnected+" "+important);
 			NotificationManager notificationManager =
 				(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
 			Notification notification = buildFgServiceNotification(title, msg, important);
 			notificationManager.notify(NOTIF_ID, notification);
 		} else {
 			// TODO implement notifications for pre-foreground service?
+			//Log.d(TAG,"updateNotification MISSING SDK<26 title="+title+" msg="+msg+" "+
+			//	disconnected+" "+important);
 		}
 	}
 
 	private Notification buildFgServiceNotification(String title, String msg, boolean important) {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
 			String NOTIF_CHANNEL_ID_STR = "123";
-			
-			int importance = NotificationManager.IMPORTANCE_LOW;
-			/*
 			if(important) {
-				Log.d(TAG,"buildFgServiceNotification important");
-				//importance = NotificationManager.IMPORTANCE_DEFAULT;
-				// IMPORTANCE_DEFAULT should play a sound, but it does not
-				// so we play sounds ourselves via playSoundNotification()
+				NOTIF_CHANNEL_ID_STR = "124";
 			}
-			*/
-			NotificationChannel notificationChannel = new NotificationChannel(
-				NOTIF_CHANNEL_ID_STR,
-				"WebCall", // not showing in top-bar
-				importance);
-			getSystemService(NotificationManager.class).createNotificationChannel(notificationChannel);
-
 			Intent notificationIntent = new Intent(this, WebCallCalleeActivity.class);
 			PendingIntent pendingIntent =
 				PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);

@@ -130,12 +130,12 @@ function insecureTlsAction() {
 		console.log("insecureTls checked");
 		insecureTlsLabel.style.color = "#f44";
 		Android.insecureTls(true);
-		Android.wsClearCache();
+		Android.wsClearCache(false,false);
 	} else {
 		console.log("insecureTls unchecked");
 		insecureTlsLabel.style.color = "";
 		Android.insecureTls(false);
-		Android.wsClearCache();
+		Android.wsClearCache(false,false);
 	}
 }
 
@@ -183,7 +183,7 @@ function connectServer() {
 	}
 	if(clearCache.checked) {
 		console.log('wsClearCache');
-		Android.wsClearCache();
+		Android.wsClearCache(false,false);
 	} else {
 		// Android.wsClearCache() also after 2 days
 		var lastClearCache = Android.readPreferenceLong("lastClearCache");
@@ -194,7 +194,7 @@ function connectServer() {
 			console.log("nowTime="+nowTime+" diffSecs="+diffSecs);
 			if(diffSecs > 2*24*3600) {
 				console.log("time triggered wsClearCache");
-				Android.wsClearCache();
+				Android.wsClearCache(false,false);
 			}
 		}
 	}
