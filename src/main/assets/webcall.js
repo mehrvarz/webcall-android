@@ -17,8 +17,8 @@ var username = "";
 var versionName = "";
 
 window.onload = function() {
-	domain = Android.readPreference("webcalldomain");
-	username = Android.readPreference("username");
+	domain = Android.readPreference("webcalldomain").toLowerCase();
+	username = Android.readPreference("username").toLowerCase();
 	if(username=="register") {
 		username="";
 		Android.storePreference("username", "");
@@ -158,7 +158,7 @@ function requestNewId() {
 }
 
 function connectServer() {
-	var valueDomain = formDomain.value;
+	var valueDomain = formDomain.value.toLowerCase();
 	console.log('valueDomain',valueDomain);
 	var valueUsername = formUsername.value.toLowerCase();
 	console.log('valueUsername',valueUsername);
