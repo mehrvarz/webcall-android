@@ -236,19 +236,19 @@ function connectServer() {
 		},200);
 	}
 
-	let randId = ""+Math.floor(Math.random()*1000000);
+	//let randId = ""+Math.floor(Math.random()*1000000); // ajaxFetch() does this for us
 	let api = "https://"+valueDomain+"/rtcsig/online?id="+valueUsername+
-		"&ver="+Android.getVersionName()+"_"+Android.webviewVersion()+"&i="+randId;
+		"&ver="+Android.getVersionName()+"_"+Android.webviewVersion(); //+"&i="+randId;
 	console.log('webcall.js check online '+api);
 	// NOTE: we need "notavail" to continue
 	ajaxFetch(new XMLHttpRequest(), "GET", api, function(xhr) {
+		console.log('xhr response ('+xhr.responseText+')');
 		if(xhr.responseText.startsWith("error")) {
 			console.log('xhr response '+xhr.responseText);
 		} else if(xhr.responseText.startsWith("busy")) {
 			console.log('xhr response '+xhr.responseText);
 		} else if(xhr.responseText.startsWith("notavail")) {
 			// user is not online! this is what we want
-			console.log('xhr response ('+xhr.responseText+')');
 			setTimeout(function() {
 				// if we are still here after 8s, window.location.replace has failed
 				// maybe an ssl issue
@@ -258,7 +258,7 @@ function connectServer() {
 				document.activeElement.blur();
 			},8000);
 			// switch to callee page
-			let url = "https://"+valueDomain+"/callee/"+valueUsername+"?auto=1"; // randId?
+			let url = "https://"+valueDomain+"/callee/"+valueUsername+"?auto=1";
 			console.log('load main '+url);
 			window.location.replace(url);
 			return;

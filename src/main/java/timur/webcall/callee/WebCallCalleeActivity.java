@@ -3,6 +3,7 @@ package timur.webcall.callee;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.DownloadManager;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
@@ -32,6 +33,10 @@ import android.webkit.WebChromeClient;
 import android.webkit.ConsoleMessage;
 import android.webkit.PermissionRequest;
 import android.webkit.SslErrorHandler;
+import android.webkit.DownloadListener;
+import android.webkit.CookieManager;
+import android.webkit.URLUtil;
+import android.webkit.ValueCallback;
 import android.util.Log;
 import android.content.Context;
 import android.content.IntentFilter;
@@ -48,6 +53,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.ActivityInfo;
 import android.content.pm.Signature;
 import android.content.res.Configuration;
+import android.content.ContentValues;
 import android.widget.Toast;
 import android.widget.PopupMenu;
 import android.widget.AdapterView.AdapterContextMenuInfo;
@@ -60,6 +66,7 @@ import android.hardware.SensorManager;
 import android.net.Uri;
 import android.net.http.SslError;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.content.pm.PackageManager;
@@ -87,11 +94,13 @@ import java.io.InputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-//import java.net.Uri;
+import java.net.URLConnection;
 
 import timur.webcall.callee.BuildConfig;
 
@@ -122,6 +131,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private WakeLock wakeLockScreen = null;
 	private	Context context;
 	private NfcAdapter nfcAdapter;
+	private String blobFilename = null;
 	private boolean startupFail = false;
 	private volatile int touchX, touchY;
 	private volatile boolean extendedLogsFlag = false;
@@ -135,6 +145,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private long lastSetDialId = 0;
 	private volatile boolean writeExtStoragePermissionDenied = false;
 	private volatile int callInProgress = 0;
+	private ValueCallback<Uri[]> filePath = null; // for file selector
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -1101,14 +1112,71 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 
 		// if iParamValue is non-empty, it is coming from dial-id (idSelect)
-		/////////////////////////////////////////////////////////////
 		// STEP 2: open remote caller-widget in webview2 (aka myNewWebView)
 		try {
 			WebSettings newWebSettings = myNewWebView.getSettings();
 			newWebSettings.setJavaScriptEnabled(true);
+			newWebSettings.setAllowFileAccessFromFileURLs(true);
+			newWebSettings.setAllowFileAccess(true);
+			newWebSettings.setAllowUniversalAccessFromFileURLs(true);
 			newWebSettings.setMediaPlaybackRequiresUserGesture(false);
 			newWebSettings.setDomStorageEnabled(true);
 			final String finalHostport = hostport;
+
+			myNewWebView.setDownloadListener(new DownloadListener() {
+                @Override
+                public void onDownloadStart(String url, String userAgent,
+						String contentDisposition, String mimetype, long contentLength) {
+					Log.d(TAG,"DownloadListener url="+url+" mime="+mimetype);
+					blobFilename=null;
+					if(url.startsWith("blob:")) {
+						blobFilename = ""; // need the download= of the clicked a href
+						String fetchBlobJS =
+							"javascript: var xhr=new XMLHttpRequest();" +
+							"xhr.open('GET', '"+url+"', true);" +
+							//"xhr.setRequestHeader('Content-type','application/vnd...;charset=UTF-8');" +
+							"xhr.responseType = 'blob';" +
+							"xhr.onload = function(e) {" +
+							"    if (this.status == 200) {" +
+							"        var blob = this.response;" +
+							"        var reader = new FileReader();" +
+							"        reader.readAsDataURL(blob);" +
+							"        reader.onloadend = function() {" +
+							"            base64data = reader.result;" +
+							"            let aElements =document.querySelectorAll(\"a[href='"+url+"']\");"+
+							"            if(aElements[0]) {" +
+							//"                console.log('aElement='+aElements[0]);" +
+							"                let filename = aElements[0].download;" +
+							"                console.log('filename='+filename);" +
+							"                Android.getBase64FromBlobData(base64data,filename);" +
+							"            }" +
+							"        };" +
+							"    }" +
+							"};" +
+							"xhr.send();";
+						//Log.d(TAG,"DownloadListener fetchBlobJS="+fetchBlobJS);
+						myNewWebView.loadUrl(fetchBlobJS);
+						// file will be stored in getBase64FromBlobData()
+					} else {
+						DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+						// TODO userAgent???
+						String cookies = CookieManager.getInstance().getCookie(userAgent);
+						request.addRequestHeader("cookie",cookies);
+						request.addRequestHeader("User-Agent",userAgent);
+						request.setDescription("Downloading File....");
+						request.setTitle(URLUtil.guessFileName(url,contentDisposition,mimetype));
+						request.allowScanningByMediaScanner();
+						request.setNotificationVisibility(
+							DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+						request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS,
+							URLUtil.guessFileName(url,contentDisposition,mimetype));
+						DownloadManager downloadManager =
+							(DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+						downloadManager.enqueue(request);
+						Log.d(TAG,"Downloading File...");
+					}
+				}
+			});
 
 			myNewWebView.setWebChromeClient(new WebChromeClient() {
 				@Override
@@ -1138,6 +1206,32 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						}
 						Log.w(TAG, "onPermissionRequest unexpected "+strArray[i]);
 					}
+				}
+
+				@Override
+				public Bitmap getDefaultVideoPoster() {
+					// this replaces android's ugly default video poster with a dark grey background
+					final Bitmap bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.RGB_565);
+					Canvas canvas = new Canvas(bitmap);
+					canvas.drawARGB(200, 2, 2, 2);
+					return bitmap;
+				}
+
+
+				// handling input[type="file"] requests for android API 21+
+				@Override
+				public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback,
+						FileChooserParams fileChooserParams) {
+					// ValueCallback filePath will be set from fileSelect()
+					filePath = filePathCallback;
+
+					// tell activity to open file selector
+					Intent intent = new Intent("webcall");
+					intent.putExtra("forResults", "x"); // value is not relevant
+					sendBroadcast(intent);
+					// -> activity broadcastReceiver -> startActivityForResult() ->
+					//    onActivityResult() -> fileSelect(results)
+					return true;
 				}
 			});
 
@@ -1468,11 +1562,103 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					results = new Uri[]{Uri.parse(stringData)};
 				}
 			}
-			webCallServiceBinder.fileSelect(results);
+
+			if(filePath!=null) {
+				Log.d(TAG, "onActivityResult onReceiveValue activity");
+				filePath.onReceiveValue(results);
+				filePath = null;
+			} else {
+				Log.d(TAG, "onActivityResult onReceiveValue service");
+				webCallServiceBinder.fileSelect(results);
+			}
 		}
 	}
 
 	////////// private functions //////////////////////////////////////
+
+	private void storeByteArrayToFile(byte[] blobAsBytes, String filename) {
+		String androidFolder = Environment.DIRECTORY_DOWNLOADS;
+		String mimeType = URLConnection.guessContentTypeFromName(filename);
+		String filenameLowerCase = filename.toLowerCase(Locale.getDefault());
+		if(filenameLowerCase.endsWith(".jpg") ||
+		   filenameLowerCase.endsWith(".jpeg")) {
+			androidFolder = Environment.DIRECTORY_DCIM;
+			//mimeType =
+		} else if(filenameLowerCase.endsWith(".png")) {
+			androidFolder = Environment.DIRECTORY_DCIM;
+			//mimeType = "image/png";
+		}
+		Log.d(TAG,"storeByteArrayToFile filenameLowerCase="+filenameLowerCase+" folder="+androidFolder);
+
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) { // <10 <api29
+			final File dwldsPath = new File(Environment.getExternalStoragePublicDirectory(
+				Environment.DIRECTORY_DOWNLOADS) + "/"+ filename);
+			Log.d(TAG,"store to "+dwldsPath+" (andr "+Build.VERSION.SDK_INT+" <28)");
+			int hasWriteStoragePermission = 0;
+			try {
+				FileOutputStream os = new FileOutputStream(dwldsPath, false);
+				os.write(blobAsBytes);
+				os.flush();
+				os.close();
+				Intent intent = new Intent("webcall");
+				intent.putExtra("toast", "file "+filename+" stored in download directory");
+				sendBroadcast(intent);
+			} catch(Exception ex) {
+				// should never happen: activity fetches WRITE_EXTERNAL_STORAGE permission up front
+				Intent intent = new Intent("webcall");
+				intent.putExtra("toast", "exception "+ex);
+				sendBroadcast(intent);
+			}
+		} else {
+			// store to download folder in Android 10+
+			final Bitmap bitmap;
+			final Bitmap.CompressFormat format;
+			final ContentValues values = new ContentValues();
+			values.put(MediaStore.MediaColumns.DISPLAY_NAME, filename);
+			values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
+			values.put(MediaStore.MediaColumns.RELATIVE_PATH, androidFolder);
+
+			final ContentResolver resolver = context.getContentResolver();
+			Uri uri = null;
+
+			try {
+				final Uri contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+				Log.d(TAG,"B store to "+contentUri+" (andr "+Build.VERSION.SDK_INT+" >=29)");
+				try {
+					uri = resolver.insert(contentUri, values);
+				} catch(Exception ex) {
+					Log.d(TAG,"resolver.insert ex="+ex);
+				}
+
+				if (uri == null)
+					throw new IOException("Failed to create new MediaStore record.");
+
+				try (final OutputStream os = resolver.openOutputStream(uri)) {
+					if (os == null) {
+						throw new IOException("Failed to open output stream.");
+					}
+					os.write(blobAsBytes);
+					os.flush();
+					os.close();
+				}
+				resolver.delete(uri, null, null);
+
+				Intent intent = new Intent("webcall");
+				intent.putExtra("toast", "file "+filename+" stored in download directory");
+				sendBroadcast(intent);
+			}
+			catch (IOException ex) {
+				if (uri != null) {
+					// Don't leave an orphan entry in the MediaStore
+					resolver.delete(uri, null, null);
+				}
+
+				Intent intent = new Intent("webcall");
+				intent.putExtra("toast", "exception "+ex);
+				sendBroadcast(intent);
+			}
+		}
+	}
 
 	private void simClickString(String simClick) {
 		Log.d(TAG, "simClick="+simClick);

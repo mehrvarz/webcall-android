@@ -1318,7 +1318,6 @@ public class WebCallService extends Service {
 					return bitmap;
 				}
 
-
 				// handling input[type="file"] requests for android API 21+
 				@Override
 				public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, 
@@ -1625,7 +1624,7 @@ public class WebCallService extends Service {
 				} else {
 					connectToSignalingServerIsWanted = false; // TODO ???
 					storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
-					statusMessage("",true,false);
+					updateNotification("","Offline",false,false);
 				}
 				return wsCli;
 			}
@@ -2419,8 +2418,8 @@ public class WebCallService extends Service {
 			// we request to wakeup out of doze every 10-15 minutes
 			// we do so to check if we are still receiving pings from the server
 			if(pendingAlarm==null) {
-				// TODO if pendingAlarm==null we should abort right now - not sure about this!
-				Log.w(TAG,"pendingAlarm==null !!!");
+				// user is possibly on basepage still
+				Log.w(TAG,"pendingAlarm==null");
 			}
 			pendingAlarm = null;
 			alarmPendingDate = null;
@@ -2606,6 +2605,7 @@ public class WebCallService extends Service {
 			androidFolder = Environment.DIRECTORY_DCIM;
 			//mimeType = "image/png";
 		}
+		Log.d(TAG,"storeByteArrayToFile filenameLowerCase="+filenameLowerCase+" folder="+androidFolder);
 
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) { // <10 <api29
 			final File dwldsPath = new File(Environment.getExternalStoragePublicDirectory(
@@ -2687,7 +2687,7 @@ public class WebCallService extends Service {
 			while(!stringMessageQueue.isEmpty() ) {
 				String message = (String)stringMessageQueue.poll();
 				String argStr = "wsOnMessage2('"+message+"');";
-				Log.d(TAG,"processWebRtcMessages runJS "+argStr);
+				//Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 				runJS(argStr,null);
 			}
 		} else {
@@ -3884,7 +3884,7 @@ public class WebCallService extends Service {
 	private void statusMessage(String msg, boolean disconnected, boolean important) {
 		Log.d(TAG,"statusMessage: "+msg+" "+disconnected+" "+important);
 		updateNotification("", msg, disconnected, important);
-		if(myWebView!=null && webviewMainPageLoaded) {
+		if(myWebView!=null && webviewMainPageLoaded && msg!="") {
 //			if(disconnected) {
 //				// "Uncaught ReferenceError: wsOnError2 is not defined"
 //				runJS("wsOnError2('"+msg+"');",null); // will remove green led
@@ -3895,16 +3895,18 @@ public class WebCallService extends Service {
 	}
 
 	private void updateNotification(String title, String msg, boolean disconnected, boolean important) {
-		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
-			Log.d(TAG,"updateNotification title="+title+" msg="+msg+" "+disconnected+" "+important);
-			NotificationManager notificationManager =
-				(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
-			Notification notification = buildFgServiceNotification(title, msg, important);
-			notificationManager.notify(NOTIF_ID, notification);
-		} else {
-			// TODO implement notifications for pre-foreground service?
-			//Log.d(TAG,"updateNotification MISSING SDK<26 title="+title+" msg="+msg+" "+
-			//	disconnected+" "+important);
+		if(msg!="") {
+			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
+				Log.d(TAG,"updateNotification title="+title+" msg="+msg+" "+disconnected+" "+important);
+				NotificationManager notificationManager =
+					(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+				Notification notification = buildFgServiceNotification(title, msg, important);
+				notificationManager.notify(NOTIF_ID, notification);
+			} else {
+				// TODO implement notifications for pre-foreground service?
+				//Log.d(TAG,"updateNotification MISSING SDK<26 title="+title+" msg="+msg+" "+
+				//	disconnected+" "+important);
+			}
 		}
 	}
 
