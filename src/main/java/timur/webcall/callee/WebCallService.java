@@ -301,6 +301,7 @@ public class WebCallService extends Service {
 	private volatile WebCallJSInterface webCallJSInterface = null;
 
 	private BroadcastReceiver serviceCmdReceiver = null;
+	private volatile boolean activityVisible = false;
 
 
 	// section 1: android service methods
@@ -328,7 +329,18 @@ public class WebCallService extends Service {
 		serviceCmdReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
-				String message = intent.getStringExtra("denyCall");
+				String message = intent.getStringExtra("activityVisible");
+				if(message!=null && message!="") {
+					Log.d(TAG, "serviceCmdReceiver activityVisible "+message);
+					if(message.equals("true")) {
+						activityVisible = true;
+					} else {
+						activityVisible = false;
+					}
+					return;
+				}
+
+				message = intent.getStringExtra("denyCall");
 				if(message!=null && message!="") {
 					Log.d(TAG, "serviceCmdReceiver denyCall "+message);
 
@@ -535,6 +547,13 @@ public class WebCallService extends Service {
 			Log.d(TAG,"onStartCommand keepAwakeWakeLockMS="+keepAwakeWakeLockMS);
 		} catch(Exception ex) {
 			Log.d(TAG,"onStartCommand keepAwakeWakeLockMS ex="+ex);
+		}
+
+		try {
+			insecureTlsFlag = prefs.getBoolean("insecureTlsFlag", false);
+			Log.d(TAG,"onStartCommand insecureTlsFlag="+insecureTlsFlag);
+		} catch(Exception ex) {
+			Log.d(TAG,"onStartCommand insecureTlsFlag ex="+ex);
 		}
 
 		try {
@@ -1770,6 +1789,7 @@ public class WebCallService extends Service {
 		public void insecureTls(boolean flag) {
 			insecureTlsFlag = flag;
 			Log.d(TAG,"insecureTlsFlag="+insecureTlsFlag);
+			storePrefsBoolean("insecureTlsFlag", insecureTlsFlag);
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1883,7 +1903,9 @@ public class WebCallService extends Service {
 // TODO after ringing is done:
 // if(origvol>0) audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, origvol, 0);
 
-			if(Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+			if(activityVisible) {
+				Log.d(TAG,"rtcConnect() with activityVisible: not bringActivityToFront");
+			} else if(Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
 				// while phone is still ringing, keep sending wakeIntent to bringActivityToFront
 				final Runnable bringActivityToFront = new Runnable() {
 					public void run() {
@@ -2277,6 +2299,8 @@ public class WebCallService extends Service {
 				// but devices often need to be awake to allow JS code in the webview to run
 				if(context==null) {
 					Log.e(TAG,"onMessage incoming call, but no context to wake activity");
+				} else if(activityVisible) {
+					Log.d(TAG,"onMessage incoming call, but activityVisible (do nothing)");
 				} else {
 					Log.d(TAG,"onMessage incoming call "+
 						new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date()));
@@ -2988,7 +3012,6 @@ public class WebCallService extends Service {
 					} catch(Exception ex) {
 						status = 0;
 						Log.d(TAG,"reconnecter con.connect()/getInputStream() ex="+ex);
-
 						// in some cases it DOES NOT make sense to continue reconnecter
 						// javax.net.ssl.SSLHandshakeException: java.security.cert.CertPathValidatorException:
 						//   Trust anchor for certification path not found.

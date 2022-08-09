@@ -977,6 +977,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	public void onRestart() {
 		Log.d(TAG, "onRestart");
 		activityVisible = true;
+		Intent intent = new Intent("webcallService");
+		intent.putExtra("activityVisible", "true");
+		sendBroadcast(intent);
 		super.onRestart();
 	}
 
@@ -1404,6 +1407,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onPause");
 		}
 		activityVisible = false;
+		Intent intent = new Intent("webcallService");
+		intent.putExtra("activityVisible", "false");
+		sendBroadcast(intent);
 		super.onPause();
 
 		if(proximitySensorMode>0) {
