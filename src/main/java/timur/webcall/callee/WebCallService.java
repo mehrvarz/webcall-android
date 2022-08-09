@@ -163,6 +163,7 @@ public class WebCallService extends Service {
 	private final static int NOTIF_ID = 1;
 	private final static String startAlarmString = "timur.webcall.callee.START_ALARM";
 	private final static Intent startAlarmIntent = new Intent(startAlarmString);
+	private final static String awaitingCalls = "Awaiting calls";
 
 	// serverPingPeriodPlus corresponds to pingPeriod=60 in wsClient.go
 	// after serverPingPeriodPlus secs with no pings, checkLastPing() considers server connection gone
@@ -1646,7 +1647,7 @@ public class WebCallService extends Service {
 				Log.d(TAG,"wsOpen reconnectBusy return existing wsClient");
 				connectToSignalingServerIsWanted = true;
 				storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
-				updateNotification("","Online. Waiting for calls.",false,false);
+				updateNotification("",awaitingCalls,false,false);
 				Intent brintent = new Intent("webcall");
 				brintent.putExtra("state", "connected");
 				sendBroadcast(brintent);
@@ -1659,7 +1660,7 @@ public class WebCallService extends Service {
 				if(wsCli!=null) {
 					connectToSignalingServerIsWanted = true;
 					storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
-					updateNotification("","Online. Waiting for calls.",false,false);
+					updateNotification("",awaitingCalls,false,false);
 					Intent brintent = new Intent("webcall");
 					brintent.putExtra("state", "connected");
 					sendBroadcast(brintent);
@@ -1674,7 +1675,7 @@ public class WebCallService extends Service {
 			Log.d(TAG,"wsOpen return existing wsClient");
 			connectToSignalingServerIsWanted = true;
 			storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
-			updateNotification("","Online. Waiting for calls.",false,false);
+			updateNotification("",awaitingCalls,false,false);
 			Intent brintent = new Intent("webcall");
 			brintent.putExtra("state", "connected");
 			sendBroadcast(brintent);
@@ -1973,7 +1974,12 @@ public class WebCallService extends Service {
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
 
 			Log.d(TAG,"peerDisConnect() -> statusMessage(peer disconnect)");
-			statusMessage("Peer disconnect",true,false);
+
+			if(wsClient!=null) {
+				statusMessage(awaitingCalls,true,false);
+			} else {
+				statusMessage("Peer disconnect",true,false);
+			}
 		}
 
 		@android.webkit.JavascriptInterface
@@ -2120,7 +2126,7 @@ public class WebCallService extends Service {
 				runJS("wsOnOpen()",null);
 			} else {
 				Log.d(TAG,"WsClient onOpen");
-				updateNotification("","Online. Waiting for calls.",false,false);
+				updateNotification("",awaitingCalls,false,false);
 			}
 		}
 
@@ -3201,8 +3207,8 @@ public class WebCallService extends Service {
 									reconnectBusy = false;
 									reconnectCounter = 0;
 									Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
-									//statusMessage("Online. Waiting for calls.",false,false);
-									//updateNotification("","Online. Waiting for calls.",false,false);
+									//statusMessage(awaitingCalls,false,false);
+									//updateNotification("",awaitingCalls,false,false);
 									if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 										long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 										Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
@@ -3226,8 +3232,8 @@ public class WebCallService extends Service {
 							reconnectBusy = false;
 							reconnectCounter = 0;
 							Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
-							//statusMessage("Online. Waiting for calls.",false,false);
-							updateNotification("","Online. Waiting for calls.",false,false);
+							//statusMessage(awaitingCalls,false,false);
+							updateNotification("",awaitingCalls,false,false);
 							if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 								long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 								Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
