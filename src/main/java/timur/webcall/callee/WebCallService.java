@@ -2293,7 +2293,7 @@ public class WebCallService extends Service {
 					wakeupTypeInt = 2; // incoming call (see typeOfWakeup in activity)
 
 					if(Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-						// for Android <= 9 send primary wakeIntent with ACTIVITY_REORDER_TO_FRONT
+						// for Android <= 9 we send a primary wakeIntent with ACTIVITY_REORDER_TO_FRONT
 						// secondary wakeIntent will be sent in rtcConnect()
 						// NOTE: this works also for Android 10+ if the activity is infront and the screen is off
 						Intent wakeIntent = new Intent(context, WebCallCalleeActivity.class);
