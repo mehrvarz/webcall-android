@@ -118,7 +118,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private long lastSetLowBrightness = 0;
 	private WebView myWebView = null;
 	private WebView myNewWebView = null;
-	private BroadcastReceiver broadcastReceiver;
+	private BroadcastReceiver broadcastReceiver = null;
 
 	private PowerManager powerManager = null;
 	private PowerManager.WakeLock wakeLockProximity = null;
@@ -146,6 +146,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private volatile boolean writeExtStoragePermissionDenied = false;
 	private volatile int callInProgress = 0;
 	private ValueCallback<Uri[]> filePath = null; // for file selector
+	private volatile boolean activityVisible = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -320,7 +321,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		myNewWebView = (WebView)findViewById(R.id.webview2);
 		myNewWebView.setVisibility(View.INVISIBLE);
 
-		// to receive msgs from our service
+		// to receive (pending-)intent msgs from the service
 		broadcastReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
@@ -975,6 +976,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public void onRestart() {
 		Log.d(TAG, "onRestart");
+		activityVisible = true;
 		super.onRestart();
 	}
 
@@ -1401,6 +1403,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(extendedLogsFlag) {
 			Log.d(TAG, "onPause");
 		}
+		activityVisible = false;
 		super.onPause();
 
 		if(proximitySensorMode>0) {

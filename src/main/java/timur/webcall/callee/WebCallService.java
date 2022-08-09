@@ -299,6 +299,8 @@ public class WebCallService extends Service {
 	private volatile Lock lock = new ReentrantLock();
 	private volatile WebCallJSInterface webCallJSInterface = null;
 
+	private BroadcastReceiver serviceCmdReceiver = null;
+
 
 	// section 1: android service methods
 	@Override
@@ -320,6 +322,38 @@ public class WebCallService extends Service {
 		Log.d(TAG,"onCreate "+BuildConfig.VERSION_NAME);
 		alarmReceiver = new AlarmReceiver();
 		registerReceiver(alarmReceiver, new IntentFilter(startAlarmString));
+
+		// to receive msgs from our service
+		serviceCmdReceiver = new BroadcastReceiver() {
+			@Override
+			public void onReceive(Context context, Intent intent) {
+				String message = intent.getStringExtra("denyCall");
+				if(message!=null && message!="") {
+					Log.d(TAG, "serviceCmdReceiver denyCall "+message);
+
+					// prevent secondary wakeIntent from rtcConnect()
+					peerDisconnnectFlag = true;
+
+					// tell the signalling server to disconnect
+					if(wsClient==null) {
+						Log.w(TAG,"serviceCmdReceiver denyCall wsClient==null");
+					} else {
+						try {
+							Log.w(TAG,"serviceCmdReceiver denyCall send cancel|disconnect");
+							wsClient.send("cancel|disconnect");
+						} catch(Exception ex) {
+							Log.w(TAG,"serviceCmdReceiver denyCall ex="+ex);
+						}
+					}
+
+					// make activity stop ringing
+					//runJS("endWebRtcSession(true,false)",null);
+					runJS("hangup(true,true,'userReject')",null);
+					return;
+				}
+			}
+		};
+		registerReceiver(serviceCmdReceiver, new IntentFilter("webcallService"));
 	}
 
 	@Override
@@ -898,6 +932,9 @@ public class WebCallService extends Service {
 		if(dozeStateReceiver!=null) {
 			unregisterReceiver(dozeStateReceiver);
 			dozeStateReceiver = null;
+		}
+		if(serviceCmdReceiver!=null) {
+			unregisterReceiver(serviceCmdReceiver);
 		}
 	}
 
@@ -1853,6 +1890,7 @@ public class WebCallService extends Service {
 							Log.d(TAG,"rtcConnect() bringActivityToFront loop");
 							wakeupTypeInt = 2; // incoming call
 
+							// this is our secondary wakeIntent with ACTIVITY_REORDER_TO_FRONT
 							Intent wakeIntent = new Intent(context, WebCallCalleeActivity.class);
 							wakeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
 								Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
@@ -2252,37 +2290,50 @@ public class WebCallService extends Service {
 					}
 					Log.d(TAG,"onMessage incoming call name="+callerName+" ID="+callerID);
 
-					wakeupTypeInt = 2; // incoming call
+					wakeupTypeInt = 2; // incoming call (see typeOfWakeup in activity)
 
-					// this is mainly for < Android 10
-					// but it works also for Android 10+ if the activity is in front and the screen is off
-					Intent wakeIntent = new Intent(context, WebCallCalleeActivity.class);
-					wakeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
-						Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
-						Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-					context.startActivity(wakeIntent);
 					if(Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+						// for Android <= 9 send primary wakeIntent with ACTIVITY_REORDER_TO_FRONT
+						// secondary wakeIntent will be sent in rtcConnect()
+						// NOTE: this works also for Android 10+ if the activity is infront and the screen is off
+						Intent wakeIntent = new Intent(context, WebCallCalleeActivity.class);
+						wakeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
+							Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
+							Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+						context.startActivity(wakeIntent);
 						//statusMessage("WebCall "+callerName+" "+callerID,false,false);
-					}
-
-					if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-						// for Android 10+ use notification channel
+					} else {
+						// for Android 10+ (SDK_INT >= Build.VERSION_CODES.Q) use notification channel
+						// with Accpet + Deny buttons
 						// see: https://developer.android.com/guide/components/activities/background-starts
 						// see: https://developer.android.com/training/notify-user/time-sensitive
 						Log.d(TAG,"onMessage incoming call "+Build.VERSION.SDK_INT+" >= "+Build.VERSION_CODES.Q);
 						Intent fullScreenIntent = new Intent(context, WebCallCalleeActivity.class);
 						PendingIntent fullScreenPendingIntent = PendingIntent.getActivity(context, 0,
 							fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-						String NOTIF_CHANNEL_ID_STR = "124";
+
+						Intent acceptIntent = new Intent(context, WebCallCalleeActivity.class);
+						PendingIntent acceptPendingIntent = PendingIntent.getActivity(context, 0,
+							acceptIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+
+						Intent denyIntent = new Intent("webcallService");
+						denyIntent.putExtra("denyCall", "true");
+						PendingIntent denyPendingIntent = PendingIntent.getBroadcast(context, 0,
+							denyIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+
+						String NOTIF_CHANNEL_ID_STR = "124"; // high priority
 						NotificationCompat.Builder notificationBuilder =
 								new NotificationCompat.Builder(context, NOTIF_CHANNEL_ID_STR)
 							.setSmallIcon(R.mipmap.notification_icon)
-							.setContentTitle("WebCall Incom")
+							.setContentTitle("Incoming WebCall")
 							.setContentText(callerName+" "+callerID)
 							.setPriority(NotificationCompat.PRIORITY_HIGH)
 							.setCategory(NotificationCompat.CATEGORY_CALL)
+							.addAction(R.mipmap.notification_icon,"Accept",acceptPendingIntent)
+							.addAction(R.mipmap.notification_icon,"Deny",denyPendingIntent)
+							.setAutoCancel(true) // any click will close the notification
+							.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
 							.setFullScreenIntent(fullScreenPendingIntent, true);
-						//Log.d(TAG,"onMessage incoming call notificationID="+notificationID);
 						startForeground(NOTIF_ID, notificationBuilder.build());
 					}
 				}
@@ -2293,6 +2344,7 @@ public class WebCallService extends Service {
 				String argStr = "wsOnMessage2('"+message+"');";
 				//Log.d(TAG,"onMessage runJS "+argStr);
 				runJS(argStr,null);
+
 			} else {
 				// we can not send messages (for instance callerCandidate's) into the JS 
 				// if the page is not fully loaded (webviewMainPageLoaded==true)
