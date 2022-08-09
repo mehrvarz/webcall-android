@@ -188,7 +188,7 @@ public class WebCallService extends Service {
 	private Runnable reconnecter = null;
 	private SharedPreferences prefs;
 	private ValueCallback<Uri[]> filePath; // for file selector
-	private String blobFilename = null;
+//	private String blobFilename = null;
 	private AlarmManager alarmManager = null;
 	private WakeLock keepAwakeWakeLock = null; // PARTIAL_WAKE_LOCK (screen off)
 	private ConnectivityManager connectivityManager = null;
@@ -972,11 +972,13 @@ public class WebCallService extends Service {
 			Log.d(TAG, "startWebView ua="+userAgentString);
 
 			webSettings.setJavaScriptEnabled(true);
+			webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
 			webSettings.setAllowFileAccessFromFileURLs(true);
 			webSettings.setAllowFileAccess(true);
 			webSettings.setAllowUniversalAccessFromFileURLs(true);
 			webSettings.setMediaPlaybackRequiresUserGesture(false);
 			webSettings.setDomStorageEnabled(true);
+			webSettings.setAllowContentAccess(true);
 //			webSettings.setDatabaseEnabled(true);
 //			webSettings.setSaveFormData(true); // does not have the desired effect
 //			CookieManager.getInstance().setAcceptCookie(true);
@@ -988,9 +990,10 @@ public class WebCallService extends Service {
                 public void onDownloadStart(String url, String userAgent,
 						String contentDisposition, String mimetype, long contentLength) {
 					Log.d(TAG,"DownloadListener url="+url+" mime="+mimetype);
-					blobFilename=null;
+//					blobFilename=null;
 					if(url.startsWith("blob:")) {
-						blobFilename = ""; // need the download= of the clicked a href
+						// this is for "downloading" files to disk, that were previously received from peer
+//						blobFilename = ""; // need the download= of the clicked a href
 						String fetchBlobJS =
 							"javascript: var xhr=new XMLHttpRequest();" +
 							"xhr.open('GET', '"+url+"', true);" +
@@ -1011,10 +1014,12 @@ public class WebCallService extends Service {
 							"                Android.getBase64FromBlobData(base64data,filename);" +
 							"            }" +
 							"        };" +
+							"    } else {" +
+							"        console.log('this.status not 200='+this.status);" +
 							"    }" +
 							"};" +
 							"xhr.send();";
-						//Log.d(TAG,"DownloadListener fetchBlobJS="+fetchBlobJS);
+						Log.d(TAG,"DownloadListener fetchBlobJS="+fetchBlobJS);
 						myWebView.loadUrl(fetchBlobJS);
 						// file will be stored in getBase64FromBlobData()
 					} else {

@@ -131,7 +131,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private WakeLock wakeLockScreen = null;
 	private	Context context;
 	private NfcAdapter nfcAdapter;
-	private String blobFilename = null;
+//	private String blobFilename = null;
 	private boolean startupFail = false;
 	private volatile int touchX, touchY;
 	private volatile boolean extendedLogsFlag = false;
@@ -1116,11 +1116,13 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		try {
 			WebSettings newWebSettings = myNewWebView.getSettings();
 			newWebSettings.setJavaScriptEnabled(true);
+			newWebSettings.setJavaScriptCanOpenWindowsAutomatically(true);
 			newWebSettings.setAllowFileAccessFromFileURLs(true);
 			newWebSettings.setAllowFileAccess(true);
 			newWebSettings.setAllowUniversalAccessFromFileURLs(true);
 			newWebSettings.setMediaPlaybackRequiresUserGesture(false);
 			newWebSettings.setDomStorageEnabled(true);
+			newWebSettings.setAllowContentAccess(true);
 			final String finalHostport = hostport;
 
 			myNewWebView.setDownloadListener(new DownloadListener() {
@@ -1128,9 +1130,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
                 public void onDownloadStart(String url, String userAgent,
 						String contentDisposition, String mimetype, long contentLength) {
 					Log.d(TAG,"DownloadListener url="+url+" mime="+mimetype);
-					blobFilename=null;
+//					blobFilename=null;
 					if(url.startsWith("blob:")) {
-						blobFilename = ""; // need the download= of the clicked a href
+						// this is for "downloading" files to disk, that were previously received from peer
+//						blobFilename = ""; // need the download= of the clicked a href
 						String fetchBlobJS =
 							"javascript: var xhr=new XMLHttpRequest();" +
 							"xhr.open('GET', '"+url+"', true);" +
@@ -1151,10 +1154,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							"                Android.getBase64FromBlobData(base64data,filename);" +
 							"            }" +
 							"        };" +
+							"    } else {" +
+							"        console.log('this.status not 200='+this.status);" +
 							"    }" +
 							"};" +
 							"xhr.send();";
-						//Log.d(TAG,"DownloadListener fetchBlobJS="+fetchBlobJS);
+						Log.d(TAG,"DownloadListener fetchBlobJS="+fetchBlobJS);
 						myNewWebView.loadUrl(fetchBlobJS);
 						// file will be stored in getBase64FromBlobData()
 					} else {
