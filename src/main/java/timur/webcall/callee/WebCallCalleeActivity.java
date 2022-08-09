@@ -683,7 +683,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					menu.add(none,menuProximityActionOff,none,R.string.msg_proximity_action_screen_off);
 				}
 
-				if(!writeExtStoragePermissionDenied) {
+				if(writeExtStoragePermissionDenied) {
+					Log.d(TAG,"onCreateContextMenu writeExtStoragePermissionDenied");
+				} else {
 					menu.add(none,menuCaptureLogs,none,R.string.msg_capture_logs);
 					if(lastLogfileName!=null) {
 						menu.add(none,menuOpenLogs,none,R.string.msg_open_logs);
@@ -1234,10 +1236,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						FileChooserParams fileChooserParams) {
 					// ValueCallback filePath will be set from fileSelect()
 					filePath = filePathCallback;
+					Log.d(TAG, "onShowFileChooser filePath="+filePath+" (from input[type='file'])");
 
 					// tell activity to open file selector
 					Intent intent = new Intent("webcall");
-					intent.putExtra("forResults", "x"); // value is not relevant
+					intent.putExtra("forResults", "x"); // any string value will do
 					sendBroadcast(intent);
 					// -> activity broadcastReceiver -> startActivityForResult() ->
 					//    onActivityResult() -> fileSelect(results)
@@ -1578,10 +1581,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 
 			if(filePath!=null) {
+				// from activity WebChromeClient
 				Log.d(TAG, "onActivityResult onReceiveValue activity");
 				filePath.onReceiveValue(results);
 				filePath = null;
 			} else {
+				// from service WebChromeClient
 				Log.d(TAG, "onActivityResult onReceiveValue service");
 				webCallServiceBinder.fileSelect(results);
 			}
@@ -1594,15 +1599,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		String androidFolder = Environment.DIRECTORY_DOWNLOADS;
 		String mimeType = URLConnection.guessContentTypeFromName(filename);
 		String filenameLowerCase = filename.toLowerCase(Locale.getDefault());
-		if(filenameLowerCase.endsWith(".jpg") ||
-		   filenameLowerCase.endsWith(".jpeg")) {
+/*
+		if(filenameLowerCase.endsWith(".jpg") || filenameLowerCase.endsWith(".jpeg")) {
 			androidFolder = Environment.DIRECTORY_DCIM;
-			//mimeType =
+			mimeType = "image/jpg";
 		} else if(filenameLowerCase.endsWith(".png")) {
 			androidFolder = Environment.DIRECTORY_DCIM;
-			//mimeType = "image/png";
+			mimeType = "image/png";
 		}
-		Log.d(TAG,"storeByteArrayToFile filenameLowerCase="+filenameLowerCase+" folder="+androidFolder);
+*/
+		Log.d(TAG,"storeByteArrayToFile filename="+filename+" folder="+androidFolder+" mime="+mimeType);
 
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) { // <10 <api29
 			final File dwldsPath = new File(Environment.getExternalStoragePublicDirectory(
@@ -1619,6 +1625,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				sendBroadcast(intent);
 			} catch(Exception ex) {
 				// should never happen: activity fetches WRITE_EXTERNAL_STORAGE permission up front
+				Log.d(TAG,"store to ex="+ex);
 				Intent intent = new Intent("webcall");
 				intent.putExtra("toast", "exception "+ex);
 				sendBroadcast(intent);
@@ -1636,7 +1643,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Uri uri = null;
 
 			try {
-				final Uri contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+				final Uri contentUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI;
 				Log.d(TAG,"B store to "+contentUri+" (andr "+Build.VERSION.SDK_INT+" >=29)");
 				try {
 					uri = resolver.insert(contentUri, values);
@@ -1647,6 +1654,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				if (uri == null)
 					throw new IOException("Failed to create new MediaStore record.");
 
+				Log.d(TAG,"C uri="+uri);
 				try (final OutputStream os = resolver.openOutputStream(uri)) {
 					if (os == null) {
 						throw new IOException("Failed to open output stream.");
@@ -1655,13 +1663,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					os.flush();
 					os.close();
 				}
-				resolver.delete(uri, null, null);
+				//resolver.delete(uri, null, null);
 
 				Intent intent = new Intent("webcall");
 				intent.putExtra("toast", "file "+filename+" stored in download directory");
 				sendBroadcast(intent);
 			}
 			catch (IOException ex) {
+				Log.d(TAG,"storeByteArrayToFile ex="+ex);
 				if (uri != null) {
 					// Don't leave an orphan entry in the MediaStore
 					resolver.delete(uri, null, null);
@@ -2092,12 +2101,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 				break;
 			case MY_PERMISSIONS_WRITE_EXTERNAL_STORAGE:
+				Log.d(TAG, "grantResults.length="+grantResults.length);
+				if(grantResults.length > 0) {
+					Log.d(TAG, "grantResults[0]="+grantResults[0]+" "+PackageManager.PERMISSION_GRANTED);
+				}
 				if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 					Log.d(TAG, "onRequestPermissionsResult WRITE_EXTERNAL_STORAGE granted");
 					Toast.makeText(this, "Permission WRITE_EXTERNAL_STORAGE granted", Toast.LENGTH_SHORT).show();
 					checkPermissions();
 				} else {
-					Log.d(TAG, "onRequestPermissionsResult WRITE_EXTERNAL_STORAGE denied");
+					Log.d(TAG, "# onRequestPermissionsResult WRITE_EXTERNAL_STORAGE denied");
 					//Toast.makeText(this, "Permission WRITE_EXTERNAL_STORAGE denied", Toast.LENGTH_SHORT).show();
 					// TODO when we get this, we should NOT offer "Capture logs now"
 					writeExtStoragePermissionDenied = true;
