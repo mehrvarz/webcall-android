@@ -1731,6 +1731,7 @@ public class WebCallService extends Service {
 			} else {
 				if(initSent && str.startsWith("init|")) {
 					// don't send init if service has done that already
+					Log.d(TAG,"wsSend don't send init (already sent)");
 				} else {
 					if(extendedLogsFlag) {
 						Log.d(TAG,"wsSend "+logstr);
@@ -2207,6 +2208,7 @@ public class WebCallService extends Service {
 			// code 1002: an endpoint is terminating the connection due to a protocol error
 			// code 1006: connection was closed abnormally (locally)
 			// code 1000: indicates a normal closure (when we click goOffline)
+			initSent = false;
 			if(reconnectBusy) {
 				Log.d(TAG,"onClose skip busy (code="+code+" "+reason+")");
 			} else if(code==1000) { // TODO hack?!
@@ -2581,6 +2583,7 @@ public class WebCallService extends Service {
 						}
 						wsClient.sendPing();
 					} catch(Exception ex) {
+						// possibly: org.java_websocket.exceptions.WebsocketNotConnectedException
 						Log.d(TAG,"sendPing ex="+ex);
 						wsClient = null;
 					}
