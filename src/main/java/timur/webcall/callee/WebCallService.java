@@ -286,7 +286,7 @@ public class WebCallService extends Service {
 	private static volatile long wakeUpFromDozeSecs = 0; // last wakeUpFromDoze() time
 	private static volatile long keepAwakeWakeLockStartTime = 0;
 	private static volatile int lastMinuteOfDay = 0;
-	private static volatile int origvol = 0;
+	private static volatile int origvol = -1;
 	private static volatile int proximityNear = -1;
 	private static volatile boolean insecureTlsFlag = false;
 
@@ -1929,10 +1929,8 @@ public class WebCallService extends Service {
 				Log.d(TAG,"rtcConnect() setStreamVolume "+setvol+" from "+vol);
 			} else {
 				// no need to change vol back after ringing is done
-				origvol = 0;
+				origvol = -1;
 			}
-// TODO after ringing is done:
-// if(origvol>0) audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, origvol, 0);
 
 			if(activityVisible) {
 				Log.d(TAG,"rtcConnect() with activityVisible: not bringActivityToFront");
@@ -2009,6 +2007,13 @@ public class WebCallService extends Service {
 			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
 			audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
 */
+
+			// after ringing is done:
+			if(origvol>=0) {
+				// we changed the ring volume on call. change it back
+				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, origvol, 0);
+				origvol = -1;
+			}
 		}
 
 		@android.webkit.JavascriptInterface
@@ -2040,6 +2045,13 @@ public class WebCallService extends Service {
 				statusMessage(awaitingCalls,false);
 			} else {
 				statusMessage("Peer disconnect",false);
+			}
+
+			// after ringing is done:
+			if(origvol>=0) {
+				// we changed the ring volume on call. change it back
+				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, origvol, 0);
+				origvol = -1;
 			}
 		}
 
