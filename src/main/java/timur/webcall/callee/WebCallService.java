@@ -2418,16 +2418,14 @@ public class WebCallService extends Service {
 				// we can not send messages (for instance callerCandidate's) into the JS 
 				// if the page is not fully loaded (webviewMainPageLoaded==true)
 				// in such cases we queue the WebRTC messages
-				if( /*!message.startsWith("sessionId") &&*/ !message.startsWith("missedCalls")) {
-					String shortMessage = message;
-					if(message.length()>24) {
-						shortMessage = message.substring(0,24);
-					}
-					Log.d(TAG,"onMessage queueWebRtcMessage("+shortMessage+") "+
-						webviewMainPageLoaded+" "+myWebView);
-					queueWebRtcMessage(message);
-					// same as stringMessageQueue.add(message);
+				String shortMessage = message;
+				if(message.length()>24) {
+					shortMessage = message.substring(0,24);
 				}
+				Log.d(TAG,"onMessage queueWebRtcMessage("+shortMessage+") "+
+					webviewMainPageLoaded+" "+myWebView);
+				queueWebRtcMessage(message);
+				// same as stringMessageQueue.add(message);
 			}
 		}
 
