@@ -490,6 +490,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				Log.d(TAG, "onServiceConnected bind service failed");
 			} else {
 				boundService = true;
+
 				// immediately start our webview
 				Log.d(TAG, "onServiceConnected startWebView");
 				myWebView = findViewById(R.id.webview);
@@ -510,6 +511,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					activityStart(); // may need to turn on screen, etc.
 					activityStartNeeded = false;
 				}
+
+				// send current state of activityVisible
+				Intent intent = new Intent("webcallService");
+				intent.putExtra("activityVisible", "true");
+				sendBroadcast(intent);
 
 				if(dialIdIntent!=null) {
 					Log.d(TAG, "onServiceConnected dialId is set");
