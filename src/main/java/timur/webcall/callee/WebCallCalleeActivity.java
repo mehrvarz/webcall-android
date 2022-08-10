@@ -1396,7 +1396,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 
 		if(proximitySensorMode==0) {
-			Log.d(TAG,"onResume proximitySensorEventListener not registered: proximitySensorMode==0");
+//			Log.d(TAG,"onResume proximitySensorEventListener not registered: proximitySensorMode==0");
 		} else if(proximitySensor==null) {
 			Log.d(TAG,"onResume proximitySensorEventListener not registered: proximitySensor==null");
 		} else if(sensorManager==null) {
@@ -1963,6 +1963,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(typeOfWakeup>0) {
 			Log.d(TAG, "activityStart typeOfWakeup="+typeOfWakeup);
 		}
+// NOTE typeOfWakeup>0 COULD be an outdated value
+// bc maybe we failed to fetch it when it was fresh
 		if(typeOfWakeup==1) {
 			// disconnected from webcall server
 			// screen on + bring webcall activity to front

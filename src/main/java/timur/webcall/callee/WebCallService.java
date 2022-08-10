@@ -217,6 +217,8 @@ public class WebCallService extends Service {
 
 	// wakeupTypeInt describes why we wake the activity: 1=got disconnected, 2=incoming call
 	// will be delivered to activity via return val of wakeupType()
+	// whenever we set this value>0, we must make sure it gets set back to -1 shortly after
+	// (in case activity fails to start etc)
 	private static volatile int wakeupTypeInt = -1;
 
 	// haveNetworkInt describes the type of network cur in use: 0=noNet, 2=wifi, 1=other
@@ -360,8 +362,10 @@ public class WebCallService extends Service {
 
 					// prevent secondary wakeIntent from rtcConnect()
 					peerDisconnnectFlag = true;
+					// reset wakeupTypeInt
+					wakeupTypeInt = -1;
 
-					// tell signalling server to disconnect the caller
+					// tell signaling server to disconnect the caller
 					if(wsClient==null) {
 						Log.w(TAG,"serviceCmdReceiver denyCall wsClient==null");
 					} else {
@@ -1949,6 +1953,7 @@ public class WebCallService extends Service {
 							scheduler.schedule(this, 3, TimeUnit.SECONDS);
 						} else {
 							Log.d(TAG,"rtcConnect() bringActivityToFront end");
+							wakeupTypeInt = -1;
 						}
 					}
 				};
@@ -2013,6 +2018,7 @@ public class WebCallService extends Service {
 			peerConnectFlag=false;
 			callPickedUpFlag=false;
 			peerDisconnnectFlag=true;
+			wakeupTypeInt = -1;
 
 			if(audioManager!=null) {
 				if(audioManager.isWiredHeadsetOn()) {
@@ -2319,6 +2325,8 @@ public class WebCallService extends Service {
 		public void onMessage(String message) {
 			//Log.d(TAG,"onMessage '"+message+"'");
 
+			lastPingDate = new Date();
+
 			if(message.startsWith("dummy|")) {
 				Log.d(TAG,"onMessage dummy "+message);
 				// send response ?
@@ -2365,6 +2373,14 @@ public class WebCallService extends Service {
 							Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
 						context.startActivity(wakeIntent);
 						//statusMessage("WebCall "+callerName+" "+callerID,false);
+
+						// making sure to reset wakeupTypeInt in a short while
+						final Runnable runnable = new Runnable() {
+							public void run() {
+								wakeupTypeInt = -1;
+							}
+						};
+						scheduler.schedule(runnable, 2000l, TimeUnit.MILLISECONDS);
 					} else {
 						// for Android 10+ (SDK_INT >= Build.VERSION_CODES.Q) use notification channel
 						// with Accpet + Deny buttons
@@ -2375,7 +2391,13 @@ public class WebCallService extends Service {
 						wakeupTypeInt = 3; // incoming call (see typeOfWakeup in activity)
 						// 2 = show activity on top, no wakelock, no keyguardLock
 						// 3 = like 2, but activity will send "acceptCall" intent to cause runJS("pickup()")
-// TODO does it make sense to set 3 if we know that activity/webview/callee.js are not yet started?
+// TODO wakeupTypeInt should really be set to 2
+// and it should be set to 3 if the user clicks "Accept" (so in acceptPendingIntent)
+// but I don't know how to do that
+// the problem with setting it to 3 here is:
+// for example: if the user presses the power button (to turn the screen off) and then again
+// to turn the screen on and if webcall activity is then in front, activityStart() will fetch the value 3
+// and launch "acceptCall"
 
 						Intent fullScreenIntent = new Intent(context, WebCallCalleeActivity.class);
 						PendingIntent fullScreenPendingIntent = PendingIntent.getActivity(context, 0,
@@ -2409,6 +2431,18 @@ public class WebCallService extends Service {
 						NotificationManager notificationManager =
 							(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
 						notificationManager.notify(NOTIF_ID, notification);
+
+/*
+						// make sure to reset wakeupTypeInt in a short while
+// TODO problem here is that it can take a long time before user responds with acceptPendingIntent
+// it is not clear how and when we should reset the value of wakeupTypeInt
+						final Runnable runnable = new Runnable() {
+							public void run() {
+								wakeupTypeInt = -1;
+							}
+						};
+						scheduler.schedule(runnable, 2000l, TimeUnit.MILLISECONDS);
+*/
 					}
 				}
 			}
@@ -2884,6 +2918,14 @@ public class WebCallService extends Service {
 			Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
 			Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
 		context.startActivity(webcallToFrontIntent);
+
+		// making sure to reset wakeupTypeInt in a short while
+		final Runnable runnable = new Runnable() {
+			public void run() {
+				wakeupTypeInt = -1;
+			}
+		};
+		scheduler.schedule(runnable, 2000l, TimeUnit.MILLISECONDS);
 
 		// step b: invoke FULL_WAKE_LOCK + ACQUIRE_CAUSES_WAKEUP 
 		//          to wake the device (+screen) from deep sleep
