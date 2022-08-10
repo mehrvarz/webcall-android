@@ -302,7 +302,6 @@ public class WebCallService extends Service {
 
 	private static BroadcastReceiver serviceCmdReceiver = null;
 	private static volatile boolean activityVisible = false;
-	private static volatile boolean initSent = false;
 
 
 	// section 1: android service methods
@@ -389,8 +388,12 @@ public class WebCallService extends Service {
 					//Log.d(TAG, "serviceCmdReceiver -> updateNotification");
 					updateNotification("","Incoming WebCall",false);
 
-					// next: auto-answer the call
-					runJS("pickup()",null);
+					if(webviewMainPageLoaded) {
+						// next: auto-answer the call
+						runJS("pickup()",null);
+					} else {
+// TODO we need to call pickup() later (as soon as possible) once we are connected as callee
+					}
 					return;
 				}
 
@@ -1729,24 +1732,19 @@ public class WebCallService extends Service {
 			if(wsClient==null) {
 				Log.w(TAG,"wsSend wsClient==null "+logstr);
 			} else {
-				if(initSent && str.startsWith("init|")) {
-					// don't send init if service has done that already
-					Log.d(TAG,"wsSend don't send init (already sent)");
-				} else {
-					if(extendedLogsFlag) {
-						Log.d(TAG,"wsSend "+logstr);
-					}
-					try {
-						wsClient.send(str);
-					} catch(Exception ex) {
-						Log.d(TAG,"wsSend ex="+ex);
-						// TODO
-						return;
-					}
+				if(extendedLogsFlag) {
+					Log.d(TAG,"wsSend "+logstr);
 				}
+				try {
+					wsClient.send(str);
+				} catch(Exception ex) {
+					Log.d(TAG,"wsSend ex="+ex);
+					// TODO
+					return;
+				}
+
 				if(sendRtcMessagesAfterInit && str.startsWith("init|")) {
 					// after callee has registered as callee, we can process queued WebRtc messages
-					initSent = true; // on disconnectHost() set initSent = false
 					sendRtcMessagesAfterInit=false;
 					Log.d(TAG,"processWebRtcMessages start");
 					processWebRtcMessages();
@@ -2208,7 +2206,6 @@ public class WebCallService extends Service {
 			// code 1002: an endpoint is terminating the connection due to a protocol error
 			// code 1006: connection was closed abnormally (locally)
 			// code 1000: indicates a normal closure (when we click goOffline)
-			initSent = false;
 			if(reconnectBusy) {
 				Log.d(TAG,"onClose skip busy (code="+code+" "+reason+")");
 			} else if(code==1000) { // TODO hack?!
@@ -2368,7 +2365,8 @@ public class WebCallService extends Service {
 
 						wakeupTypeInt = 3; // incoming call (see typeOfWakeup in activity)
 						// 2 = show activity on top, no wakelock, no keyguardLock
-						// 3 = like 2, but activity will also send "acceptCall" intent to cause auto-pickup()
+						// 3 = like 2, but activity will send "acceptCall" intent to cause runJS("pickup()")
+// TODO does it make sense to set 3 if we know that activity/webview/callee.js are not yet started?
 
 						Intent fullScreenIntent = new Intent(context, WebCallCalleeActivity.class);
 						PendingIntent fullScreenPendingIntent = PendingIntent.getActivity(context, 0,
@@ -3320,7 +3318,6 @@ public class WebCallService extends Service {
 							Log.d(TAG,"reconnecter send init "+(myWebView!=null)+" "+webviewMainPageLoaded);
 							try {
 								wsClient.send("init|");
-								initSent = true;
 							} catch(Exception ex) {
 								Log.d(TAG,"reconnecter send init ex="+ex);
 								// TODO
@@ -3731,7 +3728,6 @@ public class WebCallService extends Service {
 
 	private void disconnectHost(boolean sendNotification) {
 		connectTypeInt = 0;
-		initSent = false;
 		if(wsClient!=null) {
 			// disable networkStateReceiver
 			if(networkStateReceiver!=null) {
@@ -3814,6 +3810,7 @@ public class WebCallService extends Service {
 			Log.d(TAG, "runJS("+logstr+") but no webview");
 		} else if(!webviewMainPageLoaded && !str.equals("history.back()")) {
 			Log.d(TAG, "runJS("+logstr+") but no webviewMainPageLoaded");
+// TODO if str is "pickup()", we may need to call it later
 		} else {
 			if(extendedLogsFlag && !logstr.startsWith("wsOnError") && !logstr.startsWith("showStatus")) {
 				Log.d(TAG, "runJS("+logstr+")");

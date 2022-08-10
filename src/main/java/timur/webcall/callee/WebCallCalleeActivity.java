@@ -2028,7 +2028,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			}, 500);
 
-			if(typeOfWakeup==3) {
+			if(typeOfWakeup==3) { // wakeupTypeInt in service
 				Log.d(TAG, "activityStart typeOfWakeup==3 -> webcallService acceptCall");
 				Intent intent = new Intent("webcallService");
 				intent.putExtra("acceptCall", "true");
