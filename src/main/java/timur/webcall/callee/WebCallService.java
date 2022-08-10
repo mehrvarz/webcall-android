@@ -175,133 +175,135 @@ public class WebCallService extends Service {
 	private final static int ReconnectCounterScreen = 20; // turn screen on after x reconnect loops
 	private final static int ReconnectCounterMax = 40;    // max number of reconnect loops
 
-	private Context context = null;
     private Binder mBinder = new WebCallServiceBinder();
-	private BroadcastReceiver networkStateReceiver = null; // for api < 24
-	private BroadcastReceiver dozeStateReceiver = null;
-	private BroadcastReceiver alarmReceiver = null;
-	private BroadcastReceiver powerConnectionReceiver = null;
-	private PowerManager powerManager = null;
-	private WifiManager wifiManager = null;
-	private WifiManager.WifiLock wifiLock = null; // if connected and haveNetworkInt=2
-	private Queue stringMessageQueue = new LinkedList<String>();
-	private ScheduledExecutorService scheduler = null;
-	private Runnable reconnecter = null;
-	private SharedPreferences prefs;
-	private ValueCallback<Uri[]> filePath; // for file selector
-//	private String blobFilename = null;
-	private AlarmManager alarmManager = null;
-	private WakeLock keepAwakeWakeLock = null; // PARTIAL_WAKE_LOCK (screen off)
-	private ConnectivityManager connectivityManager = null;
-	private DisplayManager displayManager = null;
-	private String userAgentString = null;
-	private AudioManager audioManager = null;
-	private IntentFilter batteryStatusfilter = null;
-	private Intent batteryStatus = null;
-	private String webviewVersionString = "";
-	private WebSettings webSettings = null;
-	private int notificationID = 1;
+
+	private static Context context = null;
+	private static BroadcastReceiver networkStateReceiver = null; // for api < 24
+	private static BroadcastReceiver dozeStateReceiver = null;
+	private static BroadcastReceiver alarmReceiver = null;
+	private static BroadcastReceiver powerConnectionReceiver = null;
+	private static PowerManager powerManager = null;
+	private static WifiManager wifiManager = null;
+	private static WifiManager.WifiLock wifiLock = null; // if connected and haveNetworkInt=2
+	private static Queue stringMessageQueue = new LinkedList<String>();
+	private static ScheduledExecutorService scheduler = null;
+	private static Runnable reconnecter = null;
+	private static SharedPreferences prefs;
+	private static ValueCallback<Uri[]> filePath; // for file selector
+	private static AlarmManager alarmManager = null;
+	private static WakeLock keepAwakeWakeLock = null; // PARTIAL_WAKE_LOCK (screen off)
+	private static ConnectivityManager connectivityManager = null;
+	private static DisplayManager displayManager = null;
+	private static String userAgentString = null;
+	private static AudioManager audioManager = null;
+	private static IntentFilter batteryStatusfilter = null;
+	private static Intent batteryStatus = null;
+	private static String webviewVersionString = "";
+	private static WebSettings webSettings = null;
+	private static int notificationID = 1;
 
 	// wakeUpWakeLock used for wakeup from doze: FULL_WAKE_LOCK|ACQUIRE_CAUSES_WAKEUP (screen on)
 	// wakeUpWakeLock is released by activity
-	private volatile WakeLock wakeUpWakeLock = null; 
+	private static volatile WakeLock wakeUpWakeLock = null;
 
 	// the websocket URL provided by the login service
-	private volatile String wsAddr = "";
+	private static volatile String wsAddr = "";
 
 	// all ws-communications with and from the signalling server go through wsClient
-	private volatile WebSocketClient wsClient = null;
+	private static volatile WebSocketClient wsClient = null;
 
 	// connectTypeInt >0 (if wsClient!=null) means we are connected to webcall server
-	private volatile int connectTypeInt = 0;
+	private static volatile int connectTypeInt = 0;
 
 	// wakeupTypeInt describes why we wake the activity: 1=got disconnected, 2=incoming call
 	// will be delivered to activity via return val of wakeupType()
-	private volatile int wakeupTypeInt = -1;
+	private static volatile int wakeupTypeInt = -1;
 
 	// haveNetworkInt describes the type of network cur in use: 0=noNet, 2=wifi, 1=other
-	private volatile int haveNetworkInt = -1;
+	private static volatile int haveNetworkInt = -1;
 
-	private volatile WebView myWebView = null;
+	private static volatile WebView myWebView = null;
 
 	// currentUrl contains the currently loaded URL
-	private volatile String currentUrl = null;
+	private static volatile String currentUrl = null;
 
 	// webviewMainPageLoaded is set true if currentUrl is pointing to the main page
-	private volatile boolean webviewMainPageLoaded = false;
+	private static volatile boolean webviewMainPageLoaded = false;
 
 	// callPickedUpFlag is set from pickup until peerConnect, activates proximitySensor
-	private volatile boolean callPickedUpFlag = false; 
+	private static volatile boolean callPickedUpFlag = false;
 
 	// peerConnectFlag set if full mediaConnect is established
-	private volatile boolean peerConnectFlag = false;
+	private static volatile boolean peerConnectFlag = false;
 
 	// peerDisconnnectFlag is set when call is ended by endWebRtcSession() -> peerDisConnect()
 	// peerDisconnnectFlag will get cleard by rtcConnect() of the next call
 	// peerDisconnnectFlag is used to detect 'ringing' state
 	// !callPickedUpFlag && !peerConnectFlag && !peerDisconnnectFlag = ringing
 	// !callPickedUpFlag && !peerConnectFlag && peerDisconnnectFlag  = not ringing
-	private volatile boolean peerDisconnnectFlag = false;
+	private static volatile boolean peerDisconnnectFlag = false;
 
 	// sendRtcMessagesAfterInit is used to decide if processWebRtcMessages() should be called
-	private volatile boolean sendRtcMessagesAfterInit;
+	private static volatile boolean sendRtcMessagesAfterInit = false;
 
 	// reconnectSchedFuture holds the currently scheduled reconnecter task
-	private volatile ScheduledFuture<?> reconnectSchedFuture = null;
+	private static volatile ScheduledFuture<?> reconnectSchedFuture = null;
 
 	// reconnectBusy is set true while reconnecter is running
 	// reconnectBusy can be set false to abort reconnecter
-	private volatile boolean reconnectBusy = false;
+	private static volatile boolean reconnectBusy = false;
 
 	// reconnectCounter is the reconnecter loop counter
-	private volatile int reconnectCounter = 0;
+	private static volatile int reconnectCounter = 0;
 
 	// audioToSpeakerActive holds the current state of audioToSpeakerMode
-	private volatile boolean audioToSpeakerActive = false;
+	private static volatile boolean audioToSpeakerActive = false;
 
 	// loginUrl will be constructed from webcalldomain + "/rtcsig/login"
-	private volatile String loginUrl = null;
+	private static volatile String loginUrl = null;
 
 	// pingCounter is the number of server pings received and processed
-	private volatile long pingCounter = 0l;
+	private static volatile long pingCounter = 0l;
 
 	// lastPingDate used by checkLastPing() to calculated seconds since last received ping
-	private volatile Date lastPingDate = null;
+	private static volatile Date lastPingDate = null;
 
 	// dozeIdle is set by dozeStateReceiver isDeviceIdleMode() and isInteractive()
-	private volatile boolean dozeIdle = false;
+	private static volatile boolean dozeIdle = false;
 
-	private volatile boolean charging = false;
+	private static volatile boolean charging = false;
 
 	// alarmPendingDate holds the last time a (pending) alarm was scheduled
-	private volatile Date alarmPendingDate = null;
-	private volatile PendingIntent pendingAlarm = null;
+	private static volatile Date alarmPendingDate = null;
+	private static volatile PendingIntent pendingAlarm = null;
 
-	private volatile String webviewCookies = null;
-	private volatile boolean soundNotificationPlayed = false;
-	private volatile boolean extendedLogsFlag = false;
-	private volatile boolean connectToSignalingServerIsWanted = false;
-	private volatile long wakeUpFromDozeSecs = 0; // last wakeUpFromDoze() time
-	private volatile long keepAwakeWakeLockStartTime = 0;
-	private volatile int lastMinuteOfDay = 0;
-	private volatile int origvol = 0;
-	private volatile int proximityNear = -1;
-	private volatile boolean insecureTlsFlag = false;
+	private static volatile String webviewCookies = null;
+	private static volatile boolean soundNotificationPlayed = false;
+	private static volatile boolean extendedLogsFlag = false;
+	private static volatile boolean connectToSignalingServerIsWanted = false;
+	private static volatile long wakeUpFromDozeSecs = 0; // last wakeUpFromDoze() time
+	private static volatile long keepAwakeWakeLockStartTime = 0;
+	private static volatile int lastMinuteOfDay = 0;
+	private static volatile int origvol = 0;
+	private static volatile int proximityNear = -1;
+	private static volatile boolean insecureTlsFlag = false;
 
 	// below are variables backed by preference persistens
-	private volatile int beepOnLostNetworkMode = 0;
-	private volatile int startOnBootMode = 0;
-	private volatile int setWifiLockMode = 0;
-	private volatile int audioToSpeakerMode = 0;
-	private volatile int screenForWifiMode = 0;
+	private static volatile int beepOnLostNetworkMode = 0;
+	private static volatile int startOnBootMode = 0;
+	private static volatile int setWifiLockMode = 0;
+	private static volatile int audioToSpeakerMode = 0;
+	private static volatile int screenForWifiMode = 0;
 	// keepAwakeWakeLockMS holds the sum of MS while keepAwakeWakeLock was held since midnight
-	private volatile long keepAwakeWakeLockMS = 0;
+	private static volatile long keepAwakeWakeLockMS = 0;
 
-	private volatile Lock lock = new ReentrantLock();
-	private volatile WebCallJSInterface webCallJSInterface = null;
+	private static volatile Lock lock = new ReentrantLock();
+	private static volatile WebCallJSInterface webCallJSInterface = null;
 
-	private BroadcastReceiver serviceCmdReceiver = null;
-	private volatile boolean activityVisible = false;
+	private static BroadcastReceiver serviceCmdReceiver = null;
+	private static volatile boolean activityVisible = false;
+	private static volatile boolean initSent = false;
+
 
 	// section 1: android service methods
 	@Override
@@ -323,6 +325,17 @@ public class WebCallService extends Service {
 		Log.d(TAG,"onCreate "+BuildConfig.VERSION_NAME);
 		alarmReceiver = new AlarmReceiver();
 		registerReceiver(alarmReceiver, new IntentFilter(startAlarmString));
+
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
+			int importance = NotificationManager.IMPORTANCE_LOW;
+			NotificationChannel notificationChannel1 = new NotificationChannel(
+				"123", "WebCall Status", NotificationManager.IMPORTANCE_LOW);
+			getSystemService(NotificationManager.class).createNotificationChannel(notificationChannel1);
+
+			NotificationChannel notificationChannel2 = new NotificationChannel(
+				"124", "WebCall Incoming", NotificationManager.IMPORTANCE_HIGH);
+			getSystemService(NotificationManager.class).createNotificationChannel(notificationChannel2);
+		}
 
 		// to receive msgs from our service
 		serviceCmdReceiver = new BroadcastReceiver() {
@@ -508,8 +521,6 @@ public class WebCallService extends Service {
 		}
 
 		prefs = PreferenceManager.getDefaultSharedPreferences(context);
-		String webcalldomain = null;
-		String username = null;
 		try {
 			audioToSpeakerMode = prefs.getInt("audioToSpeaker", 0);
 			Log.d(TAG,"onStartCommand audioToSpeakerMode="+audioToSpeakerMode);
@@ -524,13 +535,14 @@ public class WebCallService extends Service {
 			Log.d(TAG,"onStartCommand beepOnLostNetworkMode ex="+ex);
 		}
 
+		String webcalldomain = null;
+		String username = null;
 		try {
 			webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 			Log.d(TAG,"onStartCommand webcalldomain="+webcalldomain);
 		} catch(Exception ex) {
 			Log.d(TAG,"onStartCommand webcalldomain ex="+ex);
 		}
-
 		try {
 			username = prefs.getString("username", "");
 			Log.d(TAG,"onStartCommand username="+username);
@@ -848,17 +860,6 @@ public class WebCallService extends Service {
 				registerReceiver(dozeStateReceiver,
 					new IntentFilter(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED));
 			}
-		}
-
-		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
-			int importance = NotificationManager.IMPORTANCE_LOW;
-			NotificationChannel notificationChannel1 = new NotificationChannel(
-				"123", "WebCall Status", NotificationManager.IMPORTANCE_LOW);
-			getSystemService(NotificationManager.class).createNotificationChannel(notificationChannel1);
-
-			NotificationChannel notificationChannel2 = new NotificationChannel(
-				"124", "WebCall Incoming", NotificationManager.IMPORTANCE_HIGH);
-			getSystemService(NotificationManager.class).createNotificationChannel(notificationChannel2);
 		}
 
 		if(wsClient!=null) {
@@ -1272,7 +1273,7 @@ public class WebCallService extends Service {
 					sendRtcMessagesAfterInit=false;
 
 					if(url.indexOf("/callee/")>=0 && url.indexOf("/callee/register")<0) {
-						// webview has just finished loading the main page
+						// webview has just finished loading the callee main page
 						Intent brintent = new Intent("webcall");
 						brintent.putExtra("state", "mainpage");
 						sendBroadcast(brintent);
@@ -1338,7 +1339,7 @@ public class WebCallService extends Service {
 							scheduler.schedule(runnable2, 1, TimeUnit.SECONDS);
 						}
 					} else {
-						// this is NOT the main page
+						// this is NOT the callee main page
 					}
 				}
 			});
@@ -1728,19 +1729,25 @@ public class WebCallService extends Service {
 			if(wsClient==null) {
 				Log.w(TAG,"wsSend wsClient==null "+logstr);
 			} else {
-				if(extendedLogsFlag) {
-					Log.d(TAG,"wsSend "+logstr);
-				}
-				try {
-					wsClient.send(str);
-				} catch(Exception ex) {
-					Log.d(TAG,"wsSend ex="+ex);
-					// TODO
-					return;
+				if(initSent && str.startsWith("init|")) {
+					// don't send init if service has done that already
+				} else {
+					if(extendedLogsFlag) {
+						Log.d(TAG,"wsSend "+logstr);
+					}
+					try {
+						wsClient.send(str);
+					} catch(Exception ex) {
+						Log.d(TAG,"wsSend ex="+ex);
+						// TODO
+						return;
+					}
 				}
 				if(sendRtcMessagesAfterInit && str.startsWith("init|")) {
 					// after callee has registered as callee, we can process queued WebRtc messages
+					initSent = true; // on disconnectHost() set initSent = false
 					sendRtcMessagesAfterInit=false;
+					Log.d(TAG,"processWebRtcMessages start");
 					processWebRtcMessages();
 				}
 			}
@@ -2310,6 +2317,7 @@ public class WebCallService extends Service {
 				return;
 			}
 
+//			if(message.startsWith("callerOffer|")) {
 			if(message.startsWith("callerInfo|")) {
 				// incoming call!!
 				// wake activity so that js code in webview can run. if setting up the call fails,
@@ -2323,21 +2331,22 @@ public class WebCallService extends Service {
 					Log.d(TAG,"onMessage incoming call "+
 						new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date()));
 
+					String callerID = "";
+					String callerName = "";
+/*
 					String payload = message.substring(11);
 					int idxSeparator = payload.indexOf("\t");
 					if(idxSeparator<0) {
 						// for backward compatibility only
 						idxSeparator = payload.indexOf(":");
 					}
-					String callerID = "";
-					String callerName = "";
 					if(idxSeparator>=0) {
 						callerID = payload.substring(0,idxSeparator);
 						// callerID may have host attached: callerID@host
 						callerName = payload.substring(idxSeparator+1);
 					}
 					Log.d(TAG,"onMessage incoming call name="+callerName+" ID="+callerID);
-
+*/
 
 					if(Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
 						// for Android <= 9 we send a primary wakeIntent with ACTIVITY_REORDER_TO_FRONT
@@ -2389,7 +2398,6 @@ public class WebCallService extends Service {
 							.setFullScreenIntent(fullScreenPendingIntent, true);
 						Notification notification = notificationBuilder.build();
 
-//						startForeground(NOTIF_ID, notification);
 						NotificationManager notificationManager =
 							(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
 						notificationManager.notify(NOTIF_ID, notification);
@@ -2398,9 +2406,11 @@ public class WebCallService extends Service {
 			}
 
 			if(myWebView!=null && webviewMainPageLoaded) {
+				// webviewMainPageLoaded is set by onPageFinished() when a /callee/ url has been loaded
 				// NOTE: message MUST NOT contain apostroph (') characters
 				String argStr = "wsOnMessage2('"+message+"');";
 				//Log.d(TAG,"onMessage runJS "+argStr);
+				// this message goes straight to callee.js signalingCommand()
 				runJS(argStr,null);
 
 			} else {
@@ -2408,13 +2418,16 @@ public class WebCallService extends Service {
 				// if the page is not fully loaded (webviewMainPageLoaded==true)
 				// in such cases we queue the WebRTC messages
 				// TODO show cmd before pipe char
-				String shortMessage = message;
-				if(message.length()>24) {
-					shortMessage = message.substring(0,24);
+				if(!message.startsWith("sessionId") && !message.startsWith("missedCalls")) {
+					String shortMessage = message;
+					if(message.length()>24) {
+						shortMessage = message.substring(0,24);
+					}
+					Log.d(TAG,"onMessage queueWebRtcMessage("+shortMessage+") "+
+						webviewMainPageLoaded+" "+myWebView);
+					queueWebRtcMessage(message);
+					// same as stringMessageQueue.add(message);
 				}
-				Log.d(TAG,"onMessage queueWebRtcMessage("+shortMessage+") "+
-					webviewMainPageLoaded+" "+myWebView);
-				queueWebRtcMessage(message); 
 			}
 		}
 
@@ -2801,6 +2814,8 @@ public class WebCallService extends Service {
 		stringMessageQueue.add(message);
 	}
 
+/*
+	// will be started from wsSend()
 	private void processWebRtcMessages() {
 		if(myWebView!=null && webviewMainPageLoaded) {
 			// send all queued rtcMessages
@@ -2812,6 +2827,28 @@ public class WebCallService extends Service {
 			}
 		} else {
 			Log.d(TAG,"processWebRtcMessages myWebView==null || !webviewMainPageLoaded");
+		}
+	}
+*/
+
+	// push all queued rtcMessages into callee.js signalingCommand()
+	// will be started from wsSend()
+	private void processWebRtcMessages() {
+		if(myWebView!=null && webviewMainPageLoaded && !stringMessageQueue.isEmpty()) {
+			String message = (String)(stringMessageQueue.poll());
+			String argStr = "wsOnMessage2('"+message+"');";
+			//Log.d(TAG,"processWebRtcMessages runJS "+argStr);
+
+			// wir müssen warten bis runJS abgearbeitet wurde
+	        runJS(argStr, new ValueCallback<String>() {
+			    @Override
+			    public void onReceiveValue(String s) {
+					// continue with next msg
+					processWebRtcMessages();
+				}
+			});
+		} else {
+			Log.d(TAG,"processWebRtcMessages end");
 		}
 	}
 
@@ -3280,6 +3317,7 @@ public class WebCallService extends Service {
 							Log.d(TAG,"reconnecter send init "+(myWebView!=null)+" "+webviewMainPageLoaded);
 							try {
 								wsClient.send("init|");
+								initSent = true;
 							} catch(Exception ex) {
 								Log.d(TAG,"reconnecter send init ex="+ex);
 								// TODO
@@ -3690,6 +3728,7 @@ public class WebCallService extends Service {
 
 	private void disconnectHost(boolean sendNotification) {
 		connectTypeInt = 0;
+		initSent = false;
 		if(wsClient!=null) {
 			// disable networkStateReceiver
 			if(networkStateReceiver!=null) {
