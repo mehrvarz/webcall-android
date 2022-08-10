@@ -2961,17 +2961,21 @@ public class WebCallService extends Service {
 						wakeUpFromDoze();
 					}
 					if(beepOnLostNetworkMode>0) {
+						// while playSoundAlarm() plays, a "networkCallback network capab change" may come in
 						playSoundAlarm();
 					}
 
-					// we pause reconnecter; if network comes back, checkNetworkState() will
-					// schedule a new reconnecter if connectToSignalingServerIsWanted is set
-					Log.d(TAG,"reconnecter no network, reconnect paused...");
-					statusMessage("No network. Reconnect paused.",true,false);
-					reconnectBusy = false;
-					reconnectCounter = 0;
-					//runJS("offlineAction();",null); // goOnline enabled, goOffline disabled
-					return;
+					// we check haveNetworkInt again, bc it may have come in during playSoundAlarm()
+					if(haveNetworkInt<=0) {
+						// we pause reconnecter; if network comes back, checkNetworkState() will
+						// schedule a new reconnecter if connectToSignalingServerIsWanted is set
+						Log.d(TAG,"reconnecter no network, reconnect paused...");
+						statusMessage("No network. Reconnect paused.",true,false);
+						reconnectBusy = false;
+						reconnectCounter = 0;
+						//runJS("offlineAction();",null); // goOnline enabled, goOffline disabled
+						return;
+					}
 				}
 
 				if(!connectToSignalingServerIsWanted) {
@@ -4033,7 +4037,7 @@ public class WebCallService extends Service {
 	private void playSoundAlarm() {
 		// typical TYPE_NOTIFICATION sound to indicate we given up on reconnect (severe)
 		// used for beepOnLostNetworkMode
-		Log.d(TAG,"playSoundAlarm - skip");
+		Log.d(TAG,"playSoundAlarm");
 		Ringtone r = RingtoneManager.getRingtone(context.getApplicationContext(), 
 			RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
 		r.play();
