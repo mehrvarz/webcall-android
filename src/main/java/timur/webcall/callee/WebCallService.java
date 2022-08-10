@@ -303,7 +303,6 @@ public class WebCallService extends Service {
 	private BroadcastReceiver serviceCmdReceiver = null;
 	private volatile boolean activityVisible = false;
 
-
 	// section 1: android service methods
 	@Override
 	public IBinder onBind(Intent arg0) {
@@ -331,6 +330,7 @@ public class WebCallService extends Service {
 			public void onReceive(Context context, Intent intent) {
 				String message = intent.getStringExtra("activityVisible");
 				if(message!=null && message!="") {
+					// here the activity tells us if she is in front or in the back
 					Log.d(TAG, "serviceCmdReceiver activityVisible "+message);
 					if(message.equals("true")) {
 						activityVisible = true;
@@ -342,12 +342,13 @@ public class WebCallService extends Service {
 
 				message = intent.getStringExtra("denyCall");
 				if(message!=null && message!="") {
+					// user responded to the visible call-notification by denying the call
 					Log.d(TAG, "serviceCmdReceiver denyCall "+message);
 
 					// prevent secondary wakeIntent from rtcConnect()
 					peerDisconnnectFlag = true;
 
-					// tell the signalling server to disconnect
+					// tell signalling server to disconnect the caller
 					if(wsClient==null) {
 						Log.w(TAG,"serviceCmdReceiver denyCall wsClient==null");
 					} else {
@@ -359,11 +360,27 @@ public class WebCallService extends Service {
 						}
 					}
 
-					// make activity stop ringing
-					//runJS("endWebRtcSession(true,false)",null);
+					// tell callee.js to stop ringing
 					runJS("hangup(true,true,'userReject')",null);
 					return;
 				}
+
+				message = intent.getStringExtra("acceptCall");
+				if(message!=null && message!="") {
+					// user responded to the visible call-notification by accepting the call
+					// this intent is coming from the started activity
+					Log.d(TAG, "serviceCmdReceiver acceptCall "+message);
+
+					// first: hide the notification
+					// (replace the IMPORTANT notification with a NOT-IMPORTANT notification)
+					//Log.d(TAG, "serviceCmdReceiver -> updateNotification");
+					updateNotification("","Incoming WebCall",false,false);
+
+					// next: auto-answer the call
+					runJS("pickup()",null);
+					return;
+				}
+
 			}
 		};
 		registerReceiver(serviceCmdReceiver, new IntentFilter("webcallService"));
@@ -2321,12 +2338,12 @@ public class WebCallService extends Service {
 					}
 					Log.d(TAG,"onMessage incoming call name="+callerName+" ID="+callerID);
 
-					wakeupTypeInt = 2; // incoming call (see typeOfWakeup in activity)
 
 					if(Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
 						// for Android <= 9 we send a primary wakeIntent with ACTIVITY_REORDER_TO_FRONT
 						// secondary wakeIntent will be sent in rtcConnect()
 						// NOTE: this works also for Android 10+ if the activity is infront and the screen is off
+						wakeupTypeInt = 2; // incoming call (see typeOfWakeup in activity)
 						Intent wakeIntent = new Intent(context, WebCallCalleeActivity.class);
 						wakeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
 							Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
@@ -2339,6 +2356,11 @@ public class WebCallService extends Service {
 						// see: https://developer.android.com/guide/components/activities/background-starts
 						// see: https://developer.android.com/training/notify-user/time-sensitive
 						Log.d(TAG,"onMessage incoming call "+Build.VERSION.SDK_INT+" >= "+Build.VERSION_CODES.Q);
+
+						wakeupTypeInt = 3; // incoming call (see typeOfWakeup in activity)
+						// 2 = show activity on top, no wakelock, no keyguardLock
+						// 3 = like 2, but activity will also send "acceptCall" intent to cause auto-pickup()
+
 						Intent fullScreenIntent = new Intent(context, WebCallCalleeActivity.class);
 						PendingIntent fullScreenPendingIntent = PendingIntent.getActivity(context, 0,
 							fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
@@ -2349,7 +2371,7 @@ public class WebCallService extends Service {
 
 						Intent denyIntent = new Intent("webcallService");
 						denyIntent.putExtra("denyCall", "true");
-						PendingIntent denyPendingIntent = PendingIntent.getBroadcast(context, 0,
+						PendingIntent denyPendingIntent = PendingIntent.getBroadcast(context, 1,
 							denyIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
 
 						String NOTIF_CHANNEL_ID_STR = "124"; // high priority
@@ -2365,7 +2387,12 @@ public class WebCallService extends Service {
 							.setAutoCancel(true) // any click will close the notification
 							.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
 							.setFullScreenIntent(fullScreenPendingIntent, true);
-						startForeground(NOTIF_ID, notificationBuilder.build());
+						Notification notification = notificationBuilder.build();
+
+//						startForeground(NOTIF_ID, notification);
+						NotificationManager notificationManager =
+							(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+						notificationManager.notify(NOTIF_ID, notification);
 					}
 				}
 			}
@@ -3986,6 +4013,7 @@ public class WebCallService extends Service {
 		}
 	}
 
+// TODO boolean disconnected is not being used
 	private void updateNotification(String title, String msg, boolean disconnected, boolean important) {
 		if(msg!="") {
 			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26

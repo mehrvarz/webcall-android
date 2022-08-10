@@ -1957,7 +1957,30 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(typeOfWakeup>0) {
 			Log.d(TAG, "activityStart typeOfWakeup="+typeOfWakeup);
 		}
-		if(typeOfWakeup==2) {
+		if(typeOfWakeup==1) {
+			// disconnected from webcall server
+			// screen on + bring webcall activity to front
+			Log.d(TAG, "activityStart screen on + webcall to front");
+			mParams.screenBrightness = 0.01f;
+			getWindow().setAttributes(mParams);
+			lastSetLowBrightness = System.currentTimeMillis();
+
+			// after 3s we release the WakeLock
+			// needs to be long enough for wifi to be lifted up
+			final Handler handler = new Handler(Looper.getMainLooper());
+			handler.postDelayed(new Runnable() {
+				@Override
+				public void run() {
+					if(boundService && webCallServiceBinder!=null) {
+						Log.d(TAG, "activityStart releaseWakeUpWakeLock");
+						webCallServiceBinder.releaseWakeUpWakeLock();
+					} else {
+						Log.d(TAG, "activityStart releaseWakeUpWakeLock, no boundService");
+					}
+				}
+			}, 3000);
+
+		} else if(typeOfWakeup==2 || typeOfWakeup==3) {
 			// incoming call
 			if(wakeLockScreen!=null /*&& wakeLockScreen.isHeld()*/) {
 				Log.d(TAG, "activityStart wakelock + screen already held");
@@ -1999,30 +2022,13 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			}, 500);
 
-		} else if(typeOfWakeup==1) {
-			// disconnected from webcall server
-			// screen on + bring webcall activity to front
-			Log.d(TAG, "activityStart screen on + webcall to front");
-			mParams.screenBrightness = 0.01f;
-			getWindow().setAttributes(mParams);
-			lastSetLowBrightness = System.currentTimeMillis();
-
-			// after 3s we release the WakeLock
-			// needs to be long enough for wifi to be lifted up
-			final Handler handler = new Handler(Looper.getMainLooper());
-			handler.postDelayed(new Runnable() {
-				@Override
-				public void run() {
-					if(boundService && webCallServiceBinder!=null) {
-						Log.d(TAG, "activityStart releaseWakeUpWakeLock");
-						webCallServiceBinder.releaseWakeUpWakeLock();
-					} else {
-						Log.d(TAG, "activityStart releaseWakeUpWakeLock, no boundService");
-					}
-				}
-			}, 3000);
-
-		} else {
+			if(typeOfWakeup==3) {
+				Log.d(TAG, "activityStart typeOfWakeup==3 -> webcallService acceptCall");
+				Intent intent = new Intent("webcallService");
+				intent.putExtra("acceptCall", "true");
+				sendBroadcast(intent);
+			}
+		} else  {
 			Log.d(TAG, "activityStart no special wakeup");
 			// set screenBrightness only if LowBrightness (0.01f) occured more than 2s ago
 			if(System.currentTimeMillis() - lastSetLowBrightness >= 2000) {
