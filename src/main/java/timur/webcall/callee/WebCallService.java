@@ -302,6 +302,7 @@ public class WebCallService extends Service {
 
 	private static BroadcastReceiver serviceCmdReceiver = null;
 	private static volatile boolean activityVisible = false;
+	private static volatile boolean autoPickup = false;
 
 
 	// section 1: android service methods
@@ -388,11 +389,13 @@ public class WebCallService extends Service {
 					//Log.d(TAG, "serviceCmdReceiver -> updateNotification");
 					updateNotification("","Incoming WebCall",false);
 
-					if(webviewMainPageLoaded) {
-						// next: auto-answer the call
+					// next: autoPickup the call
+					if(webviewMainPageLoaded) {		// TODO: eigentlich if !rtcConnect
+						// autoPickup now
 						runJS("pickup()",null);
 					} else {
-// TODO we need to call pickup() later (as soon as possible) once we are connected as callee
+						// autoPickup when we get connected as callee
+						autoPickup = true;
 					}
 					return;
 				}
@@ -886,17 +889,17 @@ public class WebCallService extends Service {
 				storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 			} else {
 				Log.d(TAG,"onStartCommand webcalldomain and username defined");
-				boolean autoConnect = false;
+				boolean autoCalleeConnect = false;
 				if(intent==null) {
 					Log.d(TAG,"onStartCommand intent==null");
 					// service restart after crash
-					// auto-connect to webcall server if extraCommand.equals("connect")
+					// autoCalleeConnect to webcall server if extraCommand.equals("connect")
 					try {
 						boolean connectWanted = prefs.getBoolean("connectWanted", false);
 							//Log.d(TAG,"onStartCommand connectWanted force false");
 							// connectWanted = false
 						Log.d(TAG,"onStartCommand connectWanted="+connectWanted);
-						autoConnect = connectWanted;
+						autoCalleeConnect = connectWanted;
 					} catch(Exception ex) {
 						Log.d(TAG,"onStartCommand connectWanted ex="+ex);
 					}
@@ -919,34 +922,34 @@ public class WebCallService extends Service {
 							if(extraCommand.equals("connect")) {
 								// service was started by boot (by WebCallServiceReceiver.java)
 								// auto-connect (login) to webcall server
-								autoConnect = true;
+								autoCalleeConnect = true;
 							}
 						}
 					}
 				}
 
-				if(!autoConnect) {
-					Log.d(TAG,"onStartCommand no autoConnect");
+				if(!autoCalleeConnect) {
+					Log.d(TAG,"onStartCommand no autoCalleeConnect");
 					storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
-					// autoConnect is only being used on boot and for restart of a crashed service
+					// autoCalleeConnect is only being used on boot and for restart of a crashed service
 					// in all other cases the connection will be triggered by the activity
 				} else {
 					if(reconnectBusy) {
-						Log.d(TAG,"onStartCommand autoConnect but reconnectBusy");
+						Log.d(TAG,"onStartCommand autoCalleeConnect but reconnectBusy");
 					} else {
-						Log.d(TAG,"onStartCommand autoConnect");
+						Log.d(TAG,"onStartCommand autoCalleeConnect");
 						setLoginUrl();
 						connectToSignalingServerIsWanted = true;
 						storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
-						Log.d(TAG,"onStartCommand autoConnect loginUrl="+loginUrl);
+						Log.d(TAG,"onStartCommand autoCalleeConnect loginUrl="+loginUrl);
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
-							Log.d(TAG,"onStartCommand autoConnect cancel reconnectSchedFuture");
+							Log.d(TAG,"onStartCommand autoCalleeConnect cancel reconnectSchedFuture");
 							reconnectSchedFuture.cancel(false);
 							reconnectSchedFuture = null;
 						}
 						// NOTE: if we wait less than 15secs, our connection may establish
 						// but will then be quickly disconnected - not sure why
-						//statusMessage("onStartCommand autoConnect schedule reconnecter...",false);
+						//statusMessage("onStartCommand autoCalleeConnect schedule reconnecter...",false);
 						reconnectSchedFuture = scheduler.schedule(reconnecter, 16, TimeUnit.SECONDS);
 					}
 				}
@@ -1952,6 +1955,12 @@ public class WebCallService extends Service {
 				scheduler.schedule(bringActivityToFront, 0, TimeUnit.SECONDS);
 			} else {
 				//Log.d(TAG,"rtcConnect() "+Build.VERSION.SDK_INT+" >= "+Build.VERSION_CODES.Q+" do nothing");
+			}
+
+			if(autoPickup) {
+				autoPickup = false;
+				Log.d(TAG,"rtcConnect() autoPickup...");
+				runJS("pickup()",null);
 			}
 		}
 
