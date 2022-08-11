@@ -999,6 +999,21 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
+// TODO if I could attache info to the intent, I would not need to call webCallServiceBinder.wakeupType()
+		Intent intent = getIntent();
+		if(intent!=null) {
+			Log.d(TAG, "onStart intent="+intent.getAction());
+			Log.d(TAG, "onStart intent str="+intent.toString());
+			String pickup = intent.getStringExtra("pickup");
+			if(pickup!=null) {
+				Log.d(TAG, "onStart intent pickup="+pickup);
+			}
+			Bundle bundle = intent.getExtras();
+			if(bundle!=null) {
+				Log.d(TAG, "onStart intent getExtras pickup="+bundle.get("pickup"));
+			}
+		}
+
 		if(webCallServiceBinder!=null) {
 			// connected to service already
 			Log.d(TAG, "onStart activityStart()");

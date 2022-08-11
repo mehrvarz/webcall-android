@@ -627,7 +627,7 @@ public class WebCallService extends Service {
 						}
 					}
 					haveNetworkInt = 0;
-					statusMessage("No network",false);
+					statusMessage("No network",-1,true);
 				}
 
 				@Override
@@ -663,7 +663,7 @@ public class WebCallService extends Service {
 						}
 						if(wsClient!=null) {
 							if(connectToSignalingServerIsWanted) {
-								statusMessage("Using other network (not Wifi)",false);
+								statusMessage("Using other network (not Wifi)",-1,false);
 							}
 						}
 					}
@@ -682,7 +682,7 @@ public class WebCallService extends Service {
 								wifiLock.acquire();
 							}
 							if(connectToSignalingServerIsWanted) {
-								statusMessage("Using Wifi network",false);
+								statusMessage("Using Wifi network",-1,false);
 							}
 						}
 					}
@@ -781,7 +781,7 @@ public class WebCallService extends Service {
 							}
 							if(wsClient==null && connectToSignalingServerIsWanted) {
 								// let's go straight to reconnecter
-								statusMessage("Disconnected from WebCall server...",false);
+								statusMessage("Disconnected from WebCall server...",-1,true);
 
 								if(reconnectSchedFuture==null && !reconnectBusy) {
 									// if no reconnecter is scheduled at this time...
@@ -1775,7 +1775,7 @@ public class WebCallService extends Service {
 				Log.d(TAG,"wsClose cancel reconnectSchedFuture");
 				reconnectSchedFuture.cancel(false);	
 				reconnectSchedFuture = null;
-				statusMessage("Stopped reconnecting",false);
+				statusMessage("Stopped reconnecting",-1,true);
 			}
 			// this is needed for wakelock and wifilock to be released
 			reconnectBusy = false;
@@ -2039,13 +2039,8 @@ public class WebCallService extends Service {
 			// this is used for ringOnSpeakerOn
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
 
-			Log.d(TAG,"peerDisConnect() -> statusMessage(peer disconnect)");
-
-			if(wsClient!=null) {
-				statusMessage(awaitingCalls,false);
-			} else {
-				statusMessage("Peer disconnect",false);
-			}
+			statusMessage("Peer disconnect",1000,false);
+			updateNotification("",awaitingCalls,false);
 
 			// after ringing is done:
 			if(origvol>=0) {
@@ -2224,7 +2219,7 @@ public class WebCallService extends Service {
 					Log.d(TAG,"onError hide from JS");
 				}
 			} else {
-				statusMessage(ex.toString(),false);
+				statusMessage(ex.toString(),-1,false);
 			}
 		}
 
@@ -2273,7 +2268,7 @@ public class WebCallService extends Service {
 						runJS("wsOnClose2()",null); // set wsConn=null; will abort blinkButtonFunc()
 						Log.d(TAG,"onClose wsClient.close() done");
 					} else {
-						statusMessage("Disconnected from WebCall server...",false);
+						statusMessage("Disconnected from WebCall server...",-1,true);
 					}
 
 					if(reconnectSchedFuture==null && !reconnectBusy) {
@@ -2313,7 +2308,7 @@ public class WebCallService extends Service {
 						// if code==-1 do not show statusMessage
 						// as it would replace a prev statusMessage with a crucial error text
 					} else {
-						statusMessage("Connection error "+code+". Not reconnecting.",false);
+						statusMessage("Connection error "+code+". Not reconnecting.",-1,true);
 					}
 
 					if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
@@ -2384,7 +2379,7 @@ public class WebCallService extends Service {
 							Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
 							Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
 						context.startActivity(wakeIntent);
-						//statusMessage("WebCall "+callerName+" "+callerID,false);
+						//statusMessage("WebCall "+callerName+" "+callerID,-1,false);
 
 						// making sure to reset wakeupTypeInt in a short while
 						final Runnable runnable = new Runnable() {
@@ -2411,18 +2406,14 @@ public class WebCallService extends Service {
 // to turn the screen on and if webcall activity is then in front, activityStart() will fetch the value 3
 // and launch "acceptCall"
 
-						Intent fullScreenIntent = new Intent(context, WebCallCalleeActivity.class);
-						PendingIntent fullScreenPendingIntent = PendingIntent.getActivity(context, 0,
-							fullScreenIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-
-						Intent acceptIntent = new Intent(context, WebCallCalleeActivity.class);
-						PendingIntent acceptPendingIntent = PendingIntent.getActivity(context, 0,
-							acceptIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
-
-						Intent denyIntent = new Intent("webcallService");
-						denyIntent.putExtra("denyCall", "true");
-						PendingIntent denyPendingIntent = PendingIntent.getBroadcast(context, 1,
-							denyIntent, PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
+//						Intent fullScreenIntent =
+//							new Intent(context, WebCallCalleeActivity.class).putExtra("pickup", "test");
+						Intent acceptIntent =
+							new Intent(context, WebCallCalleeActivity.class).putExtra("pickup", "true");
+						Intent switchToIntent =
+							new Intent(context, WebCallCalleeActivity.class).putExtra("pickup", "false");
+						Intent denyIntent =
+							new Intent("webcallService").putExtra("denyCall", "true");
 
 						String NOTIF_CHANNEL_ID_STR = "124"; // high priority
 						NotificationCompat.Builder notificationBuilder =
@@ -2432,29 +2423,30 @@ public class WebCallService extends Service {
 							.setContentText(callerName+" "+callerID)
 							.setPriority(NotificationCompat.PRIORITY_HIGH)
 							.setCategory(NotificationCompat.CATEGORY_CALL)
-							.addAction(R.mipmap.notification_icon,"Accept",acceptPendingIntent)
-							.addAction(R.mipmap.notification_icon,"Deny",denyPendingIntent)
-							.setAutoCancel(true) // any click will close the notification
-							.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
-							.setFullScreenIntent(fullScreenPendingIntent, true);
-						Notification notification = notificationBuilder.build();
 
-						// was startForeground(
+							.addAction(R.mipmap.notification_icon,"Accept",
+								PendingIntent.getActivity(context, 1, acceptIntent,
+									PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE))
+
+							.addAction(R.mipmap.notification_icon,"Switch",
+								PendingIntent.getActivity(context, 2, switchToIntent,
+									PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE))
+
+							.addAction(R.mipmap.notification_icon,"Deny",
+								PendingIntent.getActivity(context, 3, denyIntent,
+									PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE))
+
+							.setAutoCancel(true) // any click will close the notification
+
+							.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
+
+//							.setFullScreenIntent(PendingIntent.getActivity(context, 0, fullScreenIntent,
+//								PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE), true);
+
+						Notification notification = notificationBuilder.build();
 						NotificationManager notificationManager =
 							(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
 						notificationManager.notify(NOTIF_ID, notification);
-
-/*
-						// make sure to reset wakeupTypeInt in a short while
-// TODO problem here is that it can take a long time before user responds with acceptPendingIntent
-// it is not clear how and when we should reset the value of wakeupTypeInt
-						final Runnable runnable = new Runnable() {
-							public void run() {
-								wakeupTypeInt = -1;
-							}
-						};
-						scheduler.schedule(runnable, 2000l, TimeUnit.MILLISECONDS);
-*/
 					}
 				}
 			}
@@ -2694,7 +2686,6 @@ public class WebCallService extends Service {
 			wsClient = null;
 			// closeBlocking() makes no sense here bc server has stopped sending pings
 			tmpWsClient.close();
-			//statusMessage("Disconnected from WebCall server..",false);
 		}
 
 		if(haveNetworkInt==0 && wakeIfNoNet && screenForWifiMode>0) {
@@ -3030,7 +3021,7 @@ public class WebCallService extends Service {
 						// we pause reconnecter; if network comes back, checkNetworkState() will
 						// schedule a new reconnecter if connectToSignalingServerIsWanted is set
 						Log.d(TAG,"reconnecter no network, reconnect paused...");
-						statusMessage("No network. Reconnect paused.",false);
+						statusMessage("No network. Reconnect paused.",-1,true);
 						reconnectBusy = false;
 						reconnectCounter = 0;
 						//runJS("offlineAction();",null); // goOnline enabled, goOffline disabled
@@ -3043,7 +3034,7 @@ public class WebCallService extends Service {
 				}
 
 				Log.d(TAG,"reconnecter login "+loginUrl);
-				statusMessage("Login...",false);
+				statusMessage("Login...",-1,true);
 				try {
 					URL url = new URL(loginUrl);
 					//Log.d(TAG,"reconnecter openCon("+url+")");
@@ -3187,7 +3178,7 @@ public class WebCallService extends Service {
 							if(delaySecs>60) {
 								delaySecs=60;
 							}
-							statusMessage("Failed to reconnect. Will try again...",false);
+							statusMessage("Failed to reconnect. Will try again...",-1,true);
 							if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 								reconnectSchedFuture.cancel(false);
 								reconnectSchedFuture = null;
@@ -3201,7 +3192,7 @@ public class WebCallService extends Service {
 							if(beepOnLostNetworkMode>0) {
 								playSoundAlarm();
 							}
-							statusMessage("Given up reconnecting",true);
+							statusMessage("Given up reconnecting",-1,true);
 							reconnectBusy = false;
 							// turn reconnecter off
 							connectToSignalingServerIsWanted = false;
@@ -3244,7 +3235,7 @@ public class WebCallService extends Service {
 						storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 						Log.d(TAG,"reconnecter login fail "+wsAddr+" give up "+reader.readLine()+
 							" "+reader.readLine()+" "+reader.readLine()+" "+reader.readLine());
-						statusMessage("Reconnect failed. Giving up. "+response,true);
+						statusMessage("Reconnect failed. Giving up. "+response,-1,true);
 						if(myWebView!=null && webviewMainPageLoaded) {
 							// offlineAction(): disable offline-button and enable online-button
 							runJS("offlineAction();", new ValueCallback<String>() {
@@ -3294,7 +3285,7 @@ public class WebCallService extends Service {
 						return;
 					}
 
-					statusMessage("Connecting..",false);
+					statusMessage("Connecting..",-1,true);
 					//Log.d(TAG,"reconnecter connectHost("+wsAddr+")");
 					connectHost(wsAddr,true); // will set wsClient on success
 					if(wsClient==null) {
@@ -3304,7 +3295,7 @@ public class WebCallService extends Service {
 								delaySecs=30;
 							}
 							Log.d(TAG,"reconnecter connectHost() fail - retry...");
-							statusMessage("Connection lost. Will try again...",false);
+							statusMessage("Connection lost. Will try again...",-1,true);
 							if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 								reconnectSchedFuture.cancel(false);
 								reconnectSchedFuture = null;
@@ -3318,7 +3309,7 @@ public class WebCallService extends Service {
 							if(beepOnLostNetworkMode>0) {
 								playSoundAlarm();
 							}
-							statusMessage("Connection lost. Given up reconnecting.",true);
+							statusMessage("Connection lost. Given up reconnecting.",-1,true);
 						}
 						if(myWebView!=null && webviewMainPageLoaded) {
 							// offlineAction(): disable offline-button and enable online-button
@@ -3364,8 +3355,8 @@ public class WebCallService extends Service {
 									reconnectBusy = false;
 									reconnectCounter = 0;
 									Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
-									//statusMessage(awaitingCalls,false);
-									//updateNotification("",awaitingCalls,false);
+									//statusMessage(awaitingCalls,-1,false);
+									updateNotification("",awaitingCalls,false);
 									if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 										long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 										Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
@@ -3389,7 +3380,7 @@ public class WebCallService extends Service {
 							reconnectBusy = false;
 							reconnectCounter = 0;
 							Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
-							//statusMessage(awaitingCalls,false);
+							//statusMessage(awaitingCalls,-1,false);
 							updateNotification("",awaitingCalls,false);
 							if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 								long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
@@ -3428,7 +3419,7 @@ public class WebCallService extends Service {
 							delaySecs=30;
 						}
 						Log.d(TAG,"reconnecter reconnect ex="+ex+" retry...");
-						statusMessage("Connection lost. Will try again...",false);
+						statusMessage("Connection lost. Will try again...",-1,true);
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							reconnectSchedFuture.cancel(false);
 							reconnectSchedFuture = null;
@@ -3441,7 +3432,7 @@ public class WebCallService extends Service {
 						if(beepOnLostNetworkMode>0) {
 							playSoundAlarm();
 						}
-						statusMessage("Connection lost. Given up reconnecting.",true);
+						statusMessage("Connection lost. Given up reconnecting.",-1,true);
 						if(myWebView!=null && webviewMainPageLoaded) {
 							// offlineAction(): disable offline-button and enable online-button
 							runJS("offlineAction();",null);
@@ -3663,7 +3654,7 @@ public class WebCallService extends Service {
 			// no network is connected
 			Log.d(TAG,"networkState netActiveInfo/wifiInfo/mobileInfo==null "+wsClient+" "+reconnectBusy);
 			if(connectToSignalingServerIsWanted) {
-				statusMessage("No network",false);
+				statusMessage("No network",-1,true);
 			}
 			if(wifiLock!=null && wifiLock.isHeld() && !connectToSignalingServerIsWanted) {
 				// release wifi lock
@@ -3782,7 +3773,7 @@ public class WebCallService extends Service {
 		} else {
 			// no network at all
 			// if we should be connected to webcall server, we need to do something
-			statusMessage("No network",false);
+			statusMessage("No network",-1,true);
 			Log.d(TAG,"networkState connected to nothing - auto wake...");
 			// this will make onClose postpone reconnect attempts
 			haveNetworkInt=0;
@@ -4102,11 +4093,13 @@ public class WebCallService extends Service {
 		r.play();
 	}
 
-	private void statusMessage(String msg, boolean important) {
-		Log.d(TAG,"statusMessage: "+msg+" "+important);
-		updateNotification("", msg, important);
+	private void statusMessage(String msg, int timeoutMs, boolean notifi) {
+		//Log.d(TAG,"statusMessage: "+msg+" "+important);
 		if(myWebView!=null && webviewMainPageLoaded && msg!="") {
-			runJS("showStatus('"+msg+"',-1);",null);
+			runJS("showStatus('"+msg+"',"+timeoutMs+");",null);
+		}
+		if(notifi) {
+			updateNotification("", msg, false);
 		}
 	}
 
