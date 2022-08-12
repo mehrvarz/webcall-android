@@ -2189,12 +2189,17 @@ public class WebCallService extends Service {
 			// code 1002: an endpoint is terminating the connection due to a protocol error
 			// code 1006: connection was closed abnormally (locally)
 			// code 1000: indicates a normal closure (when we click goOffline)
+			Intent brintent = new Intent("webcall");
+			brintent.putExtra("state", "disconnected");
+			sendBroadcast(brintent);
+
 			if(reconnectBusy) {
 				Log.d(TAG,"onClose skip busy (code="+code+" "+reason+")");
 			} else if(code==1000) { // TODO hack?!
 				Log.d(TAG,"onClose skip code=1000");
 			} else {
 				Log.d(TAG,"onClose code="+code+" reason="+reason);
+
 				if(code==1006) {
 					// connection to webcall server has been interrupted and must be reconnected asap
 					// normally this happens "all of a sudden"
