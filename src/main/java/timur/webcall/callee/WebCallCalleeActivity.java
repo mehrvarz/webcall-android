@@ -127,7 +127,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private SensorManager sensorManager = null;
 	private KeyguardManager keyguardManager = null;
 	private SharedPreferences prefs = null;
-	private volatile boolean activityStartNeeded = false;
 	private WakeLock wakeLockScreen = null;
 	private	Context context;
 	private NfcAdapter nfcAdapter;
@@ -223,7 +222,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onCreate PackageManager.GET_SIGNATURES ex=" + ex);
 		}
 */
-		activityStartNeeded = false;
 
 		if(powerManager==null) {
 			powerManager = (PowerManager)getSystemService(POWER_SERVICE);
@@ -381,6 +379,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				String url = intent.getStringExtra("browse");
 				if(url!=null && url!=null) {
 					Log.d(TAG, "broadcastReceiver browse "+url);
+					// start external browser
 					Intent i = new Intent(Intent.ACTION_VIEW);
 					i.setData(Uri.parse(url));
 					startActivity(i);
@@ -505,15 +504,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				webSettings.setAppCachePath(appCachePath);
 				webSettings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
 				webSettings.setAppCacheEnabled(true);
-
 				webCallServiceBinder.startWebView(myWebView);
-				if(activityStartNeeded) {
-					activityStart(); // may need to turn on screen, etc.
-					activityStartNeeded = false;
-				}
 
 				// send current state of activityVisible
-				Intent intent = new Intent("webcallService");
+				Intent intent = new Intent("serviceCmdReceiver");
 				intent.putExtra("activityVisible", "true");
 				sendBroadcast(intent);
 
@@ -985,7 +979,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	public void onRestart() {
 		Log.d(TAG, "onRestart");
 		activityVisible = true;
-		Intent intent = new Intent("webcallService");
+		Intent intent = new Intent("serviceCmdReceiver");
 		intent.putExtra("activityVisible", "true");
 		sendBroadcast(intent);
 		super.onRestart();
@@ -999,395 +993,37 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
-// TODO if I could attache info to the intent, I would not need to call webCallServiceBinder.wakeupType()
-		Intent intent = getIntent();
-		if(intent!=null) {
-			Log.d(TAG, "onStart intent="+intent.getAction());
-			Log.d(TAG, "onStart intent str="+intent.toString());
-			String pickup = intent.getStringExtra("pickup");
-			if(pickup!=null) {
-				Log.d(TAG, "onStart intent pickup="+pickup);
-			}
-			Bundle bundle = intent.getExtras();
-			if(bundle!=null) {
-				Log.d(TAG, "onStart intent getExtras pickup="+bundle.get("pickup"));
-			}
+		// set screenBrightness only if LowBrightness (0.01f) occured more than 2s ago
+		if(System.currentTimeMillis() - lastSetLowBrightness >= 2000) {
+			mParams.screenBrightness = -1f;
+			getWindow().setAttributes(mParams);
 		}
 
-		if(webCallServiceBinder!=null) {
-			// connected to service already
-			Log.d(TAG, "onStart activityStart()");
-			activityStart(); // may need to turn on screen, etc.
-		} else {
-			// not connected to service yet
-			// request to execute activityStart() when webCallServiceBinder is available
-			Log.d(TAG, "onStart no ServiceBinder, set activityStartNeeded");
-			activityStartNeeded = true;
-		}
+		checkPermissions();
 	}
 
 	@Override
 	public void onNewIntent(Intent intent) {
+		Log.d(TAG, "onNewIntent toString="+intent.toString());
+
+		String wakeup = intent.getStringExtra("wakeup");
+		if(wakeup!=null) {
+			Log.d(TAG, "onNewIntent wakeup="+wakeup);
+			activityWake(wakeup);
+			return;
+		}
+
 		Uri url = intent.getData();
-		if(url==null) {
-			//Log.d(TAG, "# onNewIntent abort no url");
+		if(url!=null) {
+			Log.d(TAG, "onNewIntent dialId url="+url);
+			dialId(url);
 			return;
-		}
-		Log.d(TAG, "onNewIntent original url="+url);
-		// example url (as string):
-		// https://timur.mobi/user/id?callerId=id&callerName=username&ds=false
-
-		String webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-		String host = url.getHost().toLowerCase(Locale.getDefault());
-		int port = url.getPort();
-		String hostport = host;
-		if(port>0) {
-			hostport += ":"+port;
-		}
-		Log.d(TAG, "onNewIntent url hostport="+hostport+" webcalldomain="+webcalldomain);
-
-		String path = url.getPath();
-		int idxUser = path.indexOf("/user/");
-		if(idxUser<0) {
-			Log.d(TAG, "# onNewIntent no /user/ in uri");
-			return;
-		}
-
-		String dialId = path.substring(idxUser+6);
-		lastSetDialId = System.currentTimeMillis();	// ???
-		Log.d(TAG, "onNewIntent dialId="+dialId);
-
-		// if url points to the local server
-		if(hostport.equals(webcalldomain) || host.equals(webcalldomain)) {
-			// the domain(:andPort) of the requested url is the same as that of the callee
-			// we can run caller-widget in an iframe via: runJScode(openDialId(dialId))
-			// we only hand over the target ID (aka dialId)
-			// note: only run this if we are on the main page
-			if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
-				Log.d(TAG, "# onNewIntent not on the main page, local url="+url);
-				return;
-			}
-			Log.d(TAG, "onNewIntent local url="+url);
-			webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
-			return;
-		}
-
-
-		/////////////////////////////////////////////////////////////////////////////
-		// url points to a remote server
-		// we have to run the caller-widget from the remote server in webview2
-
-		// but first: sanitize the given UriArgs
-		// build params HashMap to simplify access to urlArgs
-		// this is what our url-query might look like
-		// ?callerId=19230843600&callerName=Timur4
-		Map<String, Object> params = new HashMap<String, Object>();
-		String[] pairs = url.getQuery().split("&");
-		for(String pair: pairs) {
-			String[] split = pair.split("=");
-			if(split.length >= 2) {
-				params.put(split[0], split[1]);
-			} else if(split.length == 1) {
-				params.put(split[0], "");
-			}
-		}
-
-		String iParamValue = (String)params.get("i");
-		Log.d(TAG, "onNewIntent iParamValue="+iParamValue);
-
-
-		/////////////////////////////////////////////////////////////
-		// STEP 1: if parameter "i" is NOT set -> open dial-id-dialog with callerId=select
-		if(iParamValue==null || iParamValue=="" || iParamValue=="null") {
-			// rebuild the Uri with callerHost = webcalldomain
-			Uri.Builder builder = new Uri.Builder();
-			builder.scheme(url.getScheme())
-				.encodedAuthority(hostport)
-				.encodedPath(url.getPath());
-// NO: set urlArg "callerId" = username (not the nickname, but the calleeID)
-//			builder.appendQueryParameter("callerId", prefs.getString("username", ""));
-// OK: TODO better: allow users to select the outgoing callerId via idSelect
-			// TODO when we have a UI for idSelect, we can also
-			// - xhr the nickname from settings
-			// - store the target-ID (part of url.getPath()) in contacts (and give it a nickname)
-			// set urlArg "callerHost" = webcalldomain
-			builder.appendQueryParameter("callerHost", webcalldomain);
-			// append all remaining parameters other than the ones above
-			for(String key: params.keySet()) {
-				if(!key.equals("callerHost")) {
-					builder.appendQueryParameter(key, (String)params.get(key));
-				}
-			}
-			url = builder.build();
-			Log.d(TAG, "onNewIntent remote "+url.toString());
-
-			// open dial-id-dialog only if we are on the main page
-			if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
-				Log.d(TAG, "# onNewIntent not on the main page");
-				return;
-			}
-			// dial-id-dialog does NOT require callerID=...
-			String newUrl = "/user/"+dialId +
-				"?targetHost="+hostport +
-				"&callerName="+(String)params.get("callerName") +
-				"&ds="+(String)params.get("ds") +
-				"&callerId=select";
-			Log.d(TAG, "onNewIntent dial-id-dialog "+newUrl);
-			webCallServiceBinder.runJScode("iframeWindowOpen('"+newUrl+"',false,'',false)");
-			// when uri comes back (sanitized) it will have &i= set
-			return;
-		}
-
-
-		// if iParamValue is non-empty, it is coming from dial-id (idSelect)
-		// STEP 2: open remote caller-widget in webview2 (aka myNewWebView)
-		try {
-			WebSettings newWebSettings = myNewWebView.getSettings();
-			newWebSettings.setJavaScriptEnabled(true);
-			newWebSettings.setJavaScriptCanOpenWindowsAutomatically(true);
-			newWebSettings.setAllowFileAccessFromFileURLs(true);
-			newWebSettings.setAllowFileAccess(true);
-			newWebSettings.setAllowUniversalAccessFromFileURLs(true);
-			newWebSettings.setMediaPlaybackRequiresUserGesture(false);
-			newWebSettings.setDomStorageEnabled(true);
-			newWebSettings.setAllowContentAccess(true);
-			final String finalHostport = hostport;
-
-			myNewWebView.setDownloadListener(new DownloadListener() {
-                @Override
-                public void onDownloadStart(String url, String userAgent,
-						String contentDisposition, String mimetype, long contentLength) {
-					Log.d(TAG,"DownloadListener url="+url+" mime="+mimetype);
-//					blobFilename=null;
-					if(url.startsWith("blob:")) {
-						// this is for "downloading" files to disk, that were previously received from peer
-//						blobFilename = ""; // need the download= of the clicked a href
-						String fetchBlobJS =
-							"javascript: var xhr=new XMLHttpRequest();" +
-							"xhr.open('GET', '"+url+"', true);" +
-							//"xhr.setRequestHeader('Content-type','application/vnd...;charset=UTF-8');" +
-							"xhr.responseType = 'blob';" +
-							"xhr.onload = function(e) {" +
-							"    if (this.status == 200) {" +
-							"        var blob = this.response;" +
-							"        var reader = new FileReader();" +
-							"        reader.readAsDataURL(blob);" +
-							"        reader.onloadend = function() {" +
-							"            base64data = reader.result;" +
-							"            let aElements =document.querySelectorAll(\"a[href='"+url+"']\");"+
-							"            if(aElements[0]) {" +
-							//"                console.log('aElement='+aElements[0]);" +
-							"                let filename = aElements[0].download;" +
-							"                console.log('filename='+filename);" +
-							"                Android.getBase64FromBlobData(base64data,filename);" +
-							"            }" +
-							"        };" +
-							"    } else {" +
-							"        console.log('this.status not 200='+this.status);" +
-							"    }" +
-							"};" +
-							"xhr.send();";
-						Log.d(TAG,"DownloadListener fetchBlobJS="+fetchBlobJS);
-						myNewWebView.loadUrl(fetchBlobJS);
-						// file will be stored in getBase64FromBlobData()
-					} else {
-						DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-						// TODO userAgent???
-						String cookies = CookieManager.getInstance().getCookie(userAgent);
-						request.addRequestHeader("cookie",cookies);
-						request.addRequestHeader("User-Agent",userAgent);
-						request.setDescription("Downloading File....");
-						request.setTitle(URLUtil.guessFileName(url,contentDisposition,mimetype));
-						request.allowScanningByMediaScanner();
-						request.setNotificationVisibility(
-							DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-						request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS,
-							URLUtil.guessFileName(url,contentDisposition,mimetype));
-						DownloadManager downloadManager =
-							(DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-						downloadManager.enqueue(request);
-						Log.d(TAG,"Downloading File...");
-					}
-				}
-			});
-
-			myNewWebView.setWebChromeClient(new WebChromeClient() {
-				@Override
-				public boolean onConsoleMessage(ConsoleMessage cm) {
-					String msg = cm.message();
-					Log.d(TAG,"console: "+msg + " L"+cm.lineNumber());
-					if(msg.startsWith("showNumberForm pos")) {
-						// showNumberForm pos 95.0390625 52.1953125 155.5859375 83.7421875 L1590
-						String simClick = msg.substring(19).trim();
-						if(simClick!=null && simClick!="") {
-							simClickString(simClick);
-						}
-					}
-					return true;
-				}
-
-				@Override
-				public void onPermissionRequest(PermissionRequest request) {
-					String[] strArray = request.getResources();
-					for(int i=0; i<strArray.length; i++) {
-						Log.w(TAG, "onPermissionRequest "+i+" ("+strArray[i]+")");
-						// we only grant the permission we want to grant
-						if(strArray[i].equals("android.webkit.resource.AUDIO_CAPTURE") ||
-						   strArray[i].equals("android.webkit.resource.VIDEO_CAPTURE")) {
-							request.grant(strArray);
-							break;
-						}
-						Log.w(TAG, "onPermissionRequest unexpected "+strArray[i]);
-					}
-				}
-
-				@Override
-				public Bitmap getDefaultVideoPoster() {
-					// this replaces android's ugly default video poster with a dark grey background
-					final Bitmap bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.RGB_565);
-					Canvas canvas = new Canvas(bitmap);
-					canvas.drawARGB(200, 2, 2, 2);
-					return bitmap;
-				}
-
-
-				// handling input[type="file"] requests for android API 21+
-				@Override
-				public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback,
-						FileChooserParams fileChooserParams) {
-					// ValueCallback filePath will be set from fileSelect()
-					filePath = filePathCallback;
-					Log.d(TAG, "onShowFileChooser filePath="+filePath+" (from input[type='file'])");
-
-					// tell activity to open file selector
-					Intent intent = new Intent("webcall");
-					intent.putExtra("forResults", "x"); // any string value will do
-					sendBroadcast(intent);
-					// -> activity broadcastReceiver -> startActivityForResult() ->
-					//    onActivityResult() -> fileSelect(results)
-					return true;
-				}
-			});
-
-			myNewWebView.setWebViewClient(new WebViewClient() {
-				@SuppressWarnings("deprecation")
-				@Override
-				public boolean shouldOverrideUrlLoading(WebView view, String url) {
-					Log.d(TAG, "_shouldOverrideUrl "+url);
-					return false;
-				}
-
-				//@TargetApi(Build.VERSION_CODES.N)
-				@Override
-				public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-					final Uri uri = request.getUrl();
-					Log.d(TAG, "_shouldOverrideUrlL="+uri);
-					return false;
-				}
-
-				@Override
-				public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
-					// this is called when webview does a https PAGE request and fails
-					// error.getPrimaryError()
-					// -1 = no error
-					// 0 = not yet valid
-					// 1 = SSL_EXPIRED
-					// 2 = SSL_IDMISMATCH  certificate Hostname mismatch
-					// 3 = SSL_UNTRUSTED   certificate authority is not trusted
-					// 5 = SSL_INVALID
-					// primary error: 3 certificate: Issued to: O=Internet Widgits Pty Ltd,ST=...
-
-					// only proceed if 1) InsecureTlsFlag is set
-					if(webCallServiceBinder.getInsecureTlsFlag()) {
-						Log.d(TAG, "onReceivedSslError (proceed) "+error);
-						handler.proceed();
-						return;
-					}
-
-					// or if 2) user confirms SSL-error dialog
-					final AlertDialog.Builder builder = new AlertDialog.Builder(context);
-					builder.setTitle("SSL Certificate Error");
-					String message = "SSL Certificate error on "+finalHostport;
-					switch(error.getPrimaryError()) {
-					case SslError.SSL_UNTRUSTED:
-						message = "Link encrypted but certificate authority not trusted on "+finalHostport;
-						break;
-					case SslError.SSL_EXPIRED:
-						message = "Certificate expired on "+finalHostport;
-						break;
-					case SslError.SSL_IDMISMATCH:
-						message = "Certificate hostname mismatch on "+finalHostport;
-						break;
-					case SslError.SSL_NOTYETVALID:
-						message = "Certificate is not yet valid on "+finalHostport;
-						break;
-					}
-					message += ".\nContinue anyway?";
-					builder.setMessage(message);
-					builder.setPositiveButton("continue", new DialogInterface.OnClickListener() {
-						@Override
-						public void onClick(DialogInterface dialog, int which) {
-							Log.d(TAG, "onReceivedSslError confirmed by user "+error);
-							handler.proceed();
-						}
-					});
-					builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
-						@Override
-						public void onClick(DialogInterface dialog, int which) {
-							Log.d(TAG, "# onReceivedSslError user canceled "+error);
-							handler.cancel();
-							//super.onReceivedSslError(view, handler, error);
-							// abort loading page: mimic onBackPressed()
-							myWebView.setVisibility(View.VISIBLE);
-							myNewWebView.setVisibility(View.INVISIBLE);
-							myNewWebView.loadUrl("");
-						}
-					});
-					final AlertDialog dialog = builder.create();
-					dialog.show();
-				}
-			});
-
-			// let JS call java service code
-			// this provides us for instance with access to webCallServiceBinder.callInProgress()
-			// because our JS code can call WebCallJSInterface.peerConnect() etc.
-			myNewWebView.addJavascriptInterface(webCallServiceBinder.getWebCallJSInterface(), "Android");
-
-			// first, load local busy.html with running spinner (loads fast)
-			String urlString = url.toString();
-			Log.d(TAG, "onNewIntent load busy.html disp="+urlString);
-			// display urlString with args cut off
-			int idxArgs = urlString.indexOf("?");
-			if(idxArgs>=0) {
-				urlString = urlString.substring(0,idxArgs);
-			}
-			myNewWebView.loadUrl("file:///android_asset/busy.html?disp="+urlString, null);
-
-			// shortly after load remote caller widget (takes a moment to load)
-			final Handler handler = new Handler(Looper.getMainLooper());
-			final Uri finalUrl = url;
-			handler.postDelayed(new Runnable() {
-				@Override
-				public void run() {
-					myNewWebView.setVisibility(View.VISIBLE);
-					myNewWebView.setFocusable(true);
-					myWebView.setVisibility(View.INVISIBLE);
-					Log.d(TAG, "onNewIntent load "+finalUrl.toString());
-					myNewWebView.loadUrl(finalUrl.toString());
-				}
-			}, 300);
-
-			// myNewWebView will be closed in onBackPressed()
-		} catch(Exception ex) {
-			Log.d(TAG, "# onNewIntent myNewWebView ex="+ex);
-			myWebView.setVisibility(View.VISIBLE);
 		}
 	}
 
 	@Override
 	public void onStop() {
 		Log.d(TAG, "onStop");
-		activityStartNeeded = false;
 		super.onStop();
 	}
 
@@ -1431,7 +1067,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onPause");
 		}
 		activityVisible = false;
-		Intent intent = new Intent("webcallService");
+		Intent intent = new Intent("serviceCmdReceiver");
 		intent.putExtra("activityVisible", "false");
 		sendBroadcast(intent);
 		super.onPause();
@@ -1613,6 +1249,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 		}
 	}
+
 
 	////////// private functions //////////////////////////////////////
 
@@ -1937,14 +1574,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			// deactivate battery optimizations
 			AlertDialog.Builder alertbox = new AlertDialog.Builder(context);
 
-			// method 1: we show a dialog that says: 
+			// method 1: we show a dialog that says:
 			// Select 'All apps' from context menu, scroll down to 'WebCall' and change to 'Don't optimize'
-			// to undo this, user can go to: 
+			// to undo this, user can go to:
 			// settings, apps, special app access, battery optimizations, WebCall, Optimize
 			//alertbox.setTitle("Action needed");
 			//alertbox.setMessage(getString(R.string.msg_noopti));
 
-			// method 2: we show a dialog that says: 
+			// method 2: we show a dialog that says:
 			alertbox.setTitle("Permission needed");
 			// msg_noopti2 = "A permission is needed for reliable connection handling."
 			alertbox.setMessage(getString(R.string.msg_noopti2));
@@ -1952,11 +1589,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			alertbox.setPositiveButton("Continue", new DialogInterface.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
-					// method 1: 
+					// method 1:
 					//startActivityForResult(
 					//	new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS), 0);
 
-					// method 2: appears to do the same and is more comfortable to setup, 
+					// method 2: appears to do the same and is more comfortable to setup,
 					// but the only way this can be undone, is by uninstalling the app
 					Intent myIntent = new Intent();
 					String packageName = context.getPackageName();
@@ -1969,21 +1606,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 	}
 
-	private void activityStart() {
-		Log.d(TAG, "activityStart...");
-		int typeOfWakeup = 0;
-		if(boundService && webCallServiceBinder!=null) {
-			typeOfWakeup = webCallServiceBinder.wakeupType();
-		}
-		if(typeOfWakeup>0) {
-			Log.d(TAG, "activityStart typeOfWakeup="+typeOfWakeup);
-		}
-// NOTE typeOfWakeup>0 COULD be an outdated value
-// bc maybe we failed to fetch it when it was fresh
-		if(typeOfWakeup==1) {
-			// disconnected from webcall server
-			// screen on + bring webcall activity to front
-			Log.d(TAG, "activityStart screen on + webcall to front");
+	private void activityWake(String typeOfWakeup) {
+		Log.d(TAG, "activityWake typeOfWakeup="+typeOfWakeup);
+		if(typeOfWakeup.equals("wake")) {
+			// service detected a disconnected from webcall server
+			// put screen on + bring webcall activity to front (to help reconnect)
+			Log.d(TAG, "activityWake screen on + webcall to front");
 			mParams.screenBrightness = 0.01f;
 			getWindow().setAttributes(mParams);
 			lastSetLowBrightness = System.currentTimeMillis();
@@ -1995,22 +1623,22 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				@Override
 				public void run() {
 					if(boundService && webCallServiceBinder!=null) {
-						Log.d(TAG, "activityStart releaseWakeUpWakeLock");
+						Log.d(TAG, "activityWake releaseWakeUpWakeLock");
 						webCallServiceBinder.releaseWakeUpWakeLock();
 					} else {
-						Log.d(TAG, "activityStart releaseWakeUpWakeLock, no boundService");
+						Log.d(TAG, "activityWake releaseWakeUpWakeLock, no boundService");
 					}
 				}
 			}, 3000);
 
-		} else if(typeOfWakeup==2 || typeOfWakeup==3) {
+		} else if(typeOfWakeup.equals("call") || typeOfWakeup.equals("pickup")) {
 			// incoming call
-			if(wakeLockScreen!=null /*&& wakeLockScreen.isHeld()*/) {
-				Log.d(TAG, "activityStart wakelock + screen already held");
+			if(wakeLockScreen!=null) {
+				Log.d(TAG, "activityWake type="+typeOfWakeup+" wakeLockScreen already held");
 				// this can happen when we receive onStart, onStop, onStart in quick order
 				return;
 			}
-			Log.d(TAG, "activityStart wakelock + screen");
+			Log.d(TAG, "activityWake type="+typeOfWakeup);
 			mParams.screenBrightness = -1f;
 			getWindow().setAttributes(mParams);
 
@@ -2037,7 +1665,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				public void run() {
 					if(wakeLockScreen.isHeld()) {
 						if(extendedLogsFlag) {
-							Log.d(TAG, "activityStart delayed wakeLockScreen.release");
+							Log.d(TAG, "activityWake delayed wakeLockScreen.release");
 						}
 						wakeLockScreen.release();
 						wakeLockScreen = null;
@@ -2045,21 +1673,367 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			}, 500);
 
-			if(typeOfWakeup==3) { // wakeupTypeInt in service
-				Log.d(TAG, "activityStart typeOfWakeup==3 -> webcallService acceptCall");
-				Intent intent = new Intent("webcallService");
+			if(typeOfWakeup.equals("pickup")) {
+				Log.d(TAG, "activityWake acceptCall");
+				Intent intent = new Intent("serviceCmdReceiver");
 				intent.putExtra("acceptCall", "true");
 				sendBroadcast(intent);
 			}
-		} else  {
-			Log.d(TAG, "activityStart no special wakeup");
-			// set screenBrightness only if LowBrightness (0.01f) occured more than 2s ago
-			if(System.currentTimeMillis() - lastSetLowBrightness >= 2000) {
-				mParams.screenBrightness = -1f;
-				getWindow().setAttributes(mParams);
-			}
 
-			checkPermissions();
+			Log.d(TAG, "activityWake dismiss notification");
+			Intent intent = new Intent("serviceCmdReceiver");
+			intent.putExtra("dismissNotification", "true");
+			sendBroadcast(intent);
+		}
+	}
+
+	private void dialId(Uri url) {
+		// example url (as string):
+		// https://timur.mobi/user/id?callerId=id&callerName=username&ds=false
+		String webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+		String host = url.getHost().toLowerCase(Locale.getDefault());
+		int port = url.getPort();
+		String hostport = host;
+		if(port>0) {
+			hostport += ":"+port;
+		}
+		Log.d(TAG, "dialId url hostport="+hostport+" webcalldomain="+webcalldomain);
+
+		String path = url.getPath();
+		int idxUser = path.indexOf("/user/");
+		if(idxUser<0) {
+			Log.d(TAG, "# dialId no /user/ in uri");
+			return;
+		}
+
+		String dialId = path.substring(idxUser+6);
+		lastSetDialId = System.currentTimeMillis();	// ???
+		Log.d(TAG, "dialId dialId="+dialId);
+
+		// if url points to the local server
+		if(hostport.equals(webcalldomain) || host.equals(webcalldomain)) {
+			// the domain(:andPort) of the requested url is the same as that of the callee
+			// we can run caller-widget in an iframe via: runJScode(openDialId(dialId))
+			// we only hand over the target ID (aka dialId)
+			// note: only run this if we are on the main page
+			if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
+				Log.d(TAG, "# dialId not on the main page, local url="+url);
+				return;
+			}
+			Log.d(TAG, "dialId local url="+url);
+			webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
+			return;
+		}
+
+
+		/////////////////////////////////////////////////////////////////////////////
+		// url points to a remote server
+		// we have to run the caller-widget from the remote server in webview2
+
+		// but first: sanitize the given UriArgs
+		// build params HashMap to simplify access to urlArgs
+		// this is what our url-query might look like
+		// ?callerId=19230843600&callerName=Timur4
+		Map<String, Object> params = new HashMap<String, Object>();
+		String[] pairs = url.getQuery().split("&");
+		for(String pair: pairs) {
+			String[] split = pair.split("=");
+			if(split.length >= 2) {
+				params.put(split[0], split[1]);
+			} else if(split.length == 1) {
+				params.put(split[0], "");
+			}
+		}
+
+		String iParamValue = (String)params.get("i");
+		Log.d(TAG, "dialId iParamValue="+iParamValue);
+
+
+		/////////////////////////////////////////////////////////////
+		// STEP 1: if parameter "i" is NOT set -> open dial-id-dialog with callerId=select
+		if(iParamValue==null || iParamValue=="" || iParamValue=="null") {
+			// rebuild the Uri with callerHost = webcalldomain
+			Uri.Builder builder = new Uri.Builder();
+			builder.scheme(url.getScheme())
+				.encodedAuthority(hostport)
+				.encodedPath(url.getPath());
+// NO: set urlArg "callerId" = username (not the nickname, but the calleeID)
+//			builder.appendQueryParameter("callerId", prefs.getString("username", ""));
+// OK: TODO better: allow users to select the outgoing callerId via idSelect
+			// TODO when we have a UI for idSelect, we can also
+			// - xhr the nickname from settings
+			// - store the target-ID (part of url.getPath()) in contacts (and give it a nickname)
+			// set urlArg "callerHost" = webcalldomain
+			builder.appendQueryParameter("callerHost", webcalldomain);
+			// append all remaining parameters other than the ones above
+			for(String key: params.keySet()) {
+				if(!key.equals("callerHost")) {
+					builder.appendQueryParameter(key, (String)params.get(key));
+				}
+			}
+			url = builder.build();
+			Log.d(TAG, "dialId remote "+url.toString());
+
+			// open dial-id-dialog only if we are on the main page
+			if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
+				Log.d(TAG, "# dialId not on the main page");
+				return;
+			}
+			// dial-id-dialog does NOT require callerID=...
+			String newUrl = "/user/"+dialId +
+				"?targetHost="+hostport +
+				"&callerName="+(String)params.get("callerName") +
+				"&ds="+(String)params.get("ds") +
+				"&callerId=select";
+			Log.d(TAG, "dialId dial-id-dialog "+newUrl);
+			webCallServiceBinder.runJScode("iframeWindowOpen('"+newUrl+"',false,'',false)");
+			// when uri comes back (sanitized) it will have &i= set
+			return;
+		}
+
+
+		// if iParamValue is non-empty, it is coming from dial-id (idSelect)
+		// STEP 2: open remote caller-widget in webview2 (aka myNewWebView)
+		try {
+			WebSettings newWebSettings = myNewWebView.getSettings();
+			newWebSettings.setJavaScriptEnabled(true);
+			newWebSettings.setJavaScriptCanOpenWindowsAutomatically(true);
+			newWebSettings.setAllowFileAccessFromFileURLs(true);
+			newWebSettings.setAllowFileAccess(true);
+			newWebSettings.setAllowUniversalAccessFromFileURLs(true);
+			newWebSettings.setMediaPlaybackRequiresUserGesture(false);
+			newWebSettings.setDomStorageEnabled(true);
+			newWebSettings.setAllowContentAccess(true);
+			final String finalHostport = hostport;
+
+			myNewWebView.setDownloadListener(new DownloadListener() {
+                @Override
+                public void onDownloadStart(String url, String userAgent,
+						String contentDisposition, String mimetype, long contentLength) {
+					Log.d(TAG,"DownloadListener url="+url+" mime="+mimetype);
+//					blobFilename=null;
+					if(url.startsWith("blob:")) {
+						// this is for "downloading" files to disk, that were previously received from peer
+//						blobFilename = ""; // need the download= of the clicked a href
+						String fetchBlobJS =
+							"javascript: var xhr=new XMLHttpRequest();" +
+							"xhr.open('GET', '"+url+"', true);" +
+							//"xhr.setRequestHeader('Content-type','application/vnd...;charset=UTF-8');" +
+							"xhr.responseType = 'blob';" +
+							"xhr.onload = function(e) {" +
+							"    if (this.status == 200) {" +
+							"        var blob = this.response;" +
+							"        var reader = new FileReader();" +
+							"        reader.readAsDataURL(blob);" +
+							"        reader.onloadend = function() {" +
+							"            base64data = reader.result;" +
+							"            let aElements =document.querySelectorAll(\"a[href='"+url+"']\");"+
+							"            if(aElements[0]) {" +
+							//"                console.log('aElement='+aElements[0]);" +
+							"                let filename = aElements[0].download;" +
+							"                console.log('filename='+filename);" +
+							"                Android.getBase64FromBlobData(base64data,filename);" +
+							"            }" +
+							"        };" +
+							"    } else {" +
+							"        console.log('this.status not 200='+this.status);" +
+							"    }" +
+							"};" +
+							"xhr.send();";
+						Log.d(TAG,"DownloadListener fetchBlobJS="+fetchBlobJS);
+						myNewWebView.loadUrl(fetchBlobJS);
+						// file will be stored in getBase64FromBlobData()
+					} else {
+						DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+						// TODO userAgent???
+						String cookies = CookieManager.getInstance().getCookie(userAgent);
+						request.addRequestHeader("cookie",cookies);
+						request.addRequestHeader("User-Agent",userAgent);
+						request.setDescription("Downloading File....");
+						request.setTitle(URLUtil.guessFileName(url,contentDisposition,mimetype));
+						request.allowScanningByMediaScanner();
+						request.setNotificationVisibility(
+							DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+						request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS,
+							URLUtil.guessFileName(url,contentDisposition,mimetype));
+						DownloadManager downloadManager =
+							(DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+						downloadManager.enqueue(request);
+						Log.d(TAG,"Downloading File...");
+					}
+				}
+			});
+
+			myNewWebView.setWebChromeClient(new WebChromeClient() {
+				@Override
+				public boolean onConsoleMessage(ConsoleMessage cm) {
+					String msg = cm.message();
+					Log.d(TAG,"console: "+msg + " L"+cm.lineNumber());
+					if(msg.startsWith("showNumberForm pos")) {
+						// showNumberForm pos 95.0390625 52.1953125 155.5859375 83.7421875 L1590
+						String simClick = msg.substring(19).trim();
+						if(simClick!=null && simClick!="") {
+							simClickString(simClick);
+						}
+					}
+					return true;
+				}
+
+				@Override
+				public void onPermissionRequest(PermissionRequest request) {
+					String[] strArray = request.getResources();
+					for(int i=0; i<strArray.length; i++) {
+						Log.w(TAG, "onPermissionRequest "+i+" ("+strArray[i]+")");
+						// we only grant the permission we want to grant
+						if(strArray[i].equals("android.webkit.resource.AUDIO_CAPTURE") ||
+						   strArray[i].equals("android.webkit.resource.VIDEO_CAPTURE")) {
+							request.grant(strArray);
+							break;
+						}
+						Log.w(TAG, "onPermissionRequest unexpected "+strArray[i]);
+					}
+				}
+
+				@Override
+				public Bitmap getDefaultVideoPoster() {
+					// this replaces android's ugly default video poster with a dark grey background
+					final Bitmap bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.RGB_565);
+					Canvas canvas = new Canvas(bitmap);
+					canvas.drawARGB(200, 2, 2, 2);
+					return bitmap;
+				}
+
+
+				// handling input[type="file"] requests for android API 21+
+				@Override
+				public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback,
+						FileChooserParams fileChooserParams) {
+					// ValueCallback filePath will be set from fileSelect()
+					filePath = filePathCallback;
+					Log.d(TAG, "onShowFileChooser filePath="+filePath+" (from input[type='file'])");
+
+					// tell activity to open file selector
+					Intent intent = new Intent("webcall");
+					intent.putExtra("forResults", "x"); // any string value will do
+					sendBroadcast(intent);
+					// -> activity broadcastReceiver -> startActivityForResult() ->
+					//    onActivityResult() -> fileSelect(results)
+					return true;
+				}
+			});
+
+			myNewWebView.setWebViewClient(new WebViewClient() {
+				@SuppressWarnings("deprecation")
+				@Override
+				public boolean shouldOverrideUrlLoading(WebView view, String url) {
+					Log.d(TAG, "_shouldOverrideUrl "+url);
+					return false;
+				}
+
+				//@TargetApi(Build.VERSION_CODES.N)
+				@Override
+				public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+					final Uri uri = request.getUrl();
+					Log.d(TAG, "_shouldOverrideUrlL="+uri);
+					return false;
+				}
+
+				@Override
+				public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+					// this is called when webview does a https PAGE request and fails
+					// error.getPrimaryError()
+					// -1 = no error
+					// 0 = not yet valid
+					// 1 = SSL_EXPIRED
+					// 2 = SSL_IDMISMATCH  certificate Hostname mismatch
+					// 3 = SSL_UNTRUSTED   certificate authority is not trusted
+					// 5 = SSL_INVALID
+					// primary error: 3 certificate: Issued to: O=Internet Widgits Pty Ltd,ST=...
+
+					// only proceed if 1) InsecureTlsFlag is set
+					if(webCallServiceBinder.getInsecureTlsFlag()) {
+						Log.d(TAG, "onReceivedSslError (proceed) "+error);
+						handler.proceed();
+						return;
+					}
+
+					// or if 2) user confirms SSL-error dialog
+					final AlertDialog.Builder builder = new AlertDialog.Builder(context);
+					builder.setTitle("SSL Certificate Error");
+					String message = "SSL Certificate error on "+finalHostport;
+					switch(error.getPrimaryError()) {
+					case SslError.SSL_UNTRUSTED:
+						message = "Link encrypted but certificate authority not trusted on "+finalHostport;
+						break;
+					case SslError.SSL_EXPIRED:
+						message = "Certificate expired on "+finalHostport;
+						break;
+					case SslError.SSL_IDMISMATCH:
+						message = "Certificate hostname mismatch on "+finalHostport;
+						break;
+					case SslError.SSL_NOTYETVALID:
+						message = "Certificate is not yet valid on "+finalHostport;
+						break;
+					}
+					message += ".\nContinue anyway?";
+					builder.setMessage(message);
+					builder.setPositiveButton("continue", new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							Log.d(TAG, "onReceivedSslError confirmed by user "+error);
+							handler.proceed();
+						}
+					});
+					builder.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							Log.d(TAG, "# onReceivedSslError user canceled "+error);
+							handler.cancel();
+							//super.onReceivedSslError(view, handler, error);
+							// abort loading page: mimic onBackPressed()
+							myWebView.setVisibility(View.VISIBLE);
+							myNewWebView.setVisibility(View.INVISIBLE);
+							myNewWebView.loadUrl("");
+						}
+					});
+					final AlertDialog dialog = builder.create();
+					dialog.show();
+				}
+			});
+
+			// let JS call java service code
+			// this provides us for instance with access to webCallServiceBinder.callInProgress()
+			// because our JS code can call WebCallJSInterface.peerConnect() etc.
+			myNewWebView.addJavascriptInterface(webCallServiceBinder.getWebCallJSInterface(), "Android");
+
+			// first, load local busy.html with running spinner (loads fast)
+			String urlString = url.toString();
+			Log.d(TAG, "dialId load busy.html disp="+urlString);
+			// display urlString with args cut off
+			int idxArgs = urlString.indexOf("?");
+			if(idxArgs>=0) {
+				urlString = urlString.substring(0,idxArgs);
+			}
+			myNewWebView.loadUrl("file:///android_asset/busy.html?disp="+urlString, null);
+
+			// shortly after load remote caller widget (takes a moment to load)
+			final Handler handler = new Handler(Looper.getMainLooper());
+			final Uri finalUrl = url;
+			handler.postDelayed(new Runnable() {
+				@Override
+				public void run() {
+					myNewWebView.setVisibility(View.VISIBLE);
+					myNewWebView.setFocusable(true);
+					myWebView.setVisibility(View.INVISIBLE);
+					Log.d(TAG, "dialId load "+finalUrl.toString());
+					myNewWebView.loadUrl(finalUrl.toString());
+				}
+			}, 300);
+
+			// myNewWebView will be closed in onBackPressed()
+		} catch(Exception ex) {
+			Log.d(TAG, "# dialId myNewWebView ex="+ex);
+			myWebView.setVisibility(View.VISIBLE);
 		}
 	}
 
