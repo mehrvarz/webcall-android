@@ -2243,10 +2243,11 @@ public class WebCallService extends Service {
 							Log.d(TAG,"onClose cannot reconnect: webcalldomain is not set");
 						} else if(username.equals("")) {
 							Log.d(TAG,"onClose cannot reconnect: username is not set");
+						} else if(haveNetworkInt==0) {
+							Log.d(TAG,"onClose cannot reconnect: no network");
 						} else {
 							setLoginUrl();
 							Log.d(TAG,"onClose re-login in 5s url="+loginUrl);
-							// hopefully network is avilable in 8s again
 							// TODO on P9 in some cases this reconnecter does NOT come
 							// these are cases where the cause of the 1006 was wifi being gone (client side)
 							// shortly after this 1006 we then receive a networkStateReceiver event with all null
@@ -2267,7 +2268,7 @@ public class WebCallService extends Service {
 
 					if(code==-1) {
 						// if code==-1 do not show statusMessage
-						// as it would replace a prev statusMessage with a crucial error text
+						// as it could replace a prev statusMessage with a crucial error text
 					} else {
 						statusMessage("Connection error "+code+". Not reconnecting.",-1,true);
 					}
@@ -3293,7 +3294,6 @@ public class WebCallService extends Service {
 					}
 
 					if(currentUrl==null) {
-// TODO haben wir nicht eine extra fkt dafür?
 						String webcalldomain =
 							prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 						String username = prefs.getString("username", "");
