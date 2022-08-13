@@ -238,9 +238,6 @@ public class WebCallService extends Service {
 	// !callPickedUpFlag && !peerConnectFlag && peerDisconnnectFlag  = not ringing
 	private static volatile boolean peerDisconnnectFlag = false;
 
-	// sendRtcMessagesAfterInit is used to decide if processWebRtcMessages() should be called
-	private static volatile boolean sendRtcMessagesAfterInit = false;
-
 	// reconnectSchedFuture holds the currently scheduled reconnecter task
 	private static volatile ScheduledFuture<?> reconnectSchedFuture = null;
 
@@ -1295,50 +1292,38 @@ public class WebCallService extends Service {
 					// if page sends "init|" when sendRtcMessagesAfterInit is set true
 					// we call processWebRtcMessages()
 					// we only want to do this for the main page
-					sendRtcMessagesAfterInit=false;
+//					sendRtcMessagesAfterInit=false;
 
 					if(url.indexOf("/callee/")>=0 && url.indexOf("/callee/register")<0) {
 						// webview has just finished loading the callee main page
+						webviewMainPageLoaded = true;
 						Intent brintent = new Intent("webcall");
 						brintent.putExtra("state", "mainpage");
 						sendBroadcast(brintent);
 
 						if(wsClient==null) {
-							webviewMainPageLoaded = true;
 							Log.d(TAG, "onPageFinished main page not yet connected to server");
 						} else {
-							// we are already connected to server (probably from before activity start)
-							// we have to bring the just loaded callee.js online, too
-// TODO not sure this is the right approach
 							Log.d(TAG, "onPageFinished main page: already connected to server");
-							brintent = new Intent("webcall");
-							brintent.putExtra("state", "connected");
-							sendBroadcast(brintent);
+							// we are already connected to server (probably from before activity started)
+							// we have to bring the just loaded callee.js online, too
+							// wakeGoOnlineNoInit() makes sure:
+							// - js:wsConn is set (to wsClient)
+							// - UI in online state (green led + goOfflineButton enabled)
+							// - does NOT send init
+							// once this is done we can start processWebRtcMessages()
+							runJS("wakeGoOnlineNoInit()", new ValueCallback<String>() {
+								@Override
+								public void onReceiveValue(String s) {
+									Log.d(TAG,"onPageFinished main page: broadcast state connected");
+									Intent brintent = new Intent("webcall");
+									brintent.putExtra("state", "connected");
+									sendBroadcast(brintent);
 
-							final Runnable runnable2 = new Runnable() {
-								public void run() {
-									// processWebRtcMessages() will be called after "init|" was sent
-									// see: wsSend(String str)
-									sendRtcMessagesAfterInit=true;
-
-									// page is now loaded
-									webviewMainPageLoaded = true;
-
-									// wakeGoOnline() makes sure:
-									// - js:wsConn is set (to wsClient)
-									// - will send "init|" to register callee
-									// - UI in online state (green led + goOfflineButton enabled)
-									runJS("wakeGoOnline()",null);
-
-									/* TODO is this needed?
-									if(callPickedUpFlag) {
-										runJS("peerConnected()",null);
-									}
-									*/
-									Log.d(TAG, "onPageFinished page loaded (after connect-state-sync)");
+									Log.d(TAG,"onPageFinished main page: processWebRtcMessages start");
+									processWebRtcMessages();
 								}
-							};
-							scheduler.schedule(runnable2, 1, TimeUnit.SECONDS);
+							});
 						}
 					} else {
 						// this is NOT the callee main page
@@ -1721,13 +1706,14 @@ public class WebCallService extends Service {
 					// TODO
 					return;
 				}
-
+/*
 				if(sendRtcMessagesAfterInit && str.startsWith("init|")) {
 					// after callee has registered as callee, we can process queued WebRtc messages
 					sendRtcMessagesAfterInit=false;
 					Log.d(TAG,"JS processWebRtcMessages start");
 					processWebRtcMessages();
 				}
+*/
 			}
 		}
 
@@ -2872,8 +2858,8 @@ public class WebCallService extends Service {
 		if(myWebView!=null && webviewMainPageLoaded && !stringMessageQueue.isEmpty()) {
 			String message = (String)(stringMessageQueue.poll());
 			String argStr = "wsOnMessage2('"+message+"');";
-Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 
+Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 			// wir müssen warten bis runJS abgearbeitet wurde
 	        runJS(argStr, new ValueCallback<String>() {
 			    @Override
@@ -3368,7 +3354,6 @@ Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 						Log.d(TAG,"reconnecter send init "+(myWebView!=null)+" "+webviewMainPageLoaded);
 						try {
 							wsClient.send("init|");
-							//calleeIsConnected(); // fake it
 							if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 								long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 								Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
