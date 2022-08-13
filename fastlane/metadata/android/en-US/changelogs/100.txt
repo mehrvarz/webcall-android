@@ -1,42 +1,54 @@
-ID Manager
+ID Manager lets you register multiple user-ID's and operate them all
+in parallel. #BurnerPhone #BurnerIDs
 See: https://timur.mobi/webcall/more/#id-manager
 
-Federated WebCall server: Dial-ID can now be used to call users on 
-remote WebCall servers. Call-widgets from remote servers are executed
-inside an isolated webview instance. Incoming calls, missed calls and
-Contacts will now show remote user as: id@domain.
+Accept or Deny incoming calls directly from a popup notification on 
+Android 10+.
 
-WebCall links + NFC-connect are not restricted to the timur.mobi domain
-anymore. Both will work with any domain name you may run across. You
-can click on a link such as: https://sample.com/user/12345678901
-and WebCall for Android will handle it for you, by letting you make
-a call right away. All that is needed for this to work, is for the 
-link to contain "/user/" in the middle.
+You can now capture and view WebCall logs on Android 10+.
 
-New 'Clear cache' feature in the pulldown menu can be used to update
-the WebCall core client, without being required to exit the app.
+New [Clear cache] option lets you update the WebCall core client,
+without having to exit the app.
 
-WebCall for Android can now make the Android soft keyboard show up,
-when needed, without the user being required to explicity tap a input
-field.
+Federated WebCall allows many WebCall servers to work together,
+without data synchronization and without operator consultation.
+Call-widgets from remote servers are run inside isolated webview 
+instances. Incoming calls, missed calls and contacts now show
+remote user as: id@domain.
+See: https://timur.mobi/webcall/more/#federated
 
-WebCall News (!) will now be shown inside the app, without an external
-browser being used.
+WebCall links + NFC connect are not anymore tight to timur.mobi
+domain. Both will work with any domain you may run across. You
+can click on links like: https://(domain)/user/(id) and WebCall 
+for Android will let you call this party right away. 
 
-Issues fixed:
+WebCall for Android now brings up the Android soft keyboard when 
+needed, without you having to explicity tap the form field.
 
-Reconnecter is more reliable, im particular when WebCall service 
-was started by the boot process.
+WebCall for Android comes with a refreshed base page, offering
+many small improvements.
 
-On complete network loss you will now see 'No network. Reconnect paused.' 
-(instead of 'No network. Giving up.') The service will reconnect as soon 
-as a network becomes available again, but will not attempt to reconnect
-while there is no network.
+WebCall Update is now being shown inside the app. No need to start
+an external browser for this.
 
-When you click [Go Offline] the service reconnecter will stop 
-immediately and will stay completely inactive until you hit [Go Online].
 
-Fixed an edge-case issue with the proximity sensor on smartphone devices.
+Issues resolved:
 
-Screen for wifi could not be disabled on some devices. This has been fixed.
+Reconnecter is now more resiliant, for instance when WebCall service
+was started during boot.
+
+On network loss you will now see 'No network. Reconnect paused.'
+(instead of 'No network. Giving up.'). Client will try to reconnect
+as soon as a network becomes available again, but will not attempt
+to reconnect while there is no network.
+
+An issue related to sending files was solved (on Android 9+ devices).
+
+When you click [Go Offline], the reconnecter service will stop right
+away and stay fully inactive until you [Go Online] again.
+
+Fixed an issue with the proximity sensor on some smartphone devices.
+
+Fixed an issue where 'Screen for wifi' could not be disabled on some
+older devices.
 

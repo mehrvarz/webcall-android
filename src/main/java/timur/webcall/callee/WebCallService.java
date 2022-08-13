@@ -2628,7 +2628,7 @@ public class WebCallService extends Service {
 	// section 5: private methods
 
 	private void calleeIsConnected() {
-		Log.d(TAG,"calleeIsConnected");
+		Log.d(TAG,"calleeIsConnected()");
 
 		updateNotification("",awaitingCalls,false);
 
@@ -2993,9 +2993,16 @@ public class WebCallService extends Service {
 				}
 
 				if(!connectToSignalingServerIsWanted) {
+					Log.d(TAG,"reconnecter not wanted, aborted");
 					return;
 				}
 
+				if(loginUrl==null) {
+					// if this service was NOT started by system boot
+					// and there was NO prev reconnect caused by 1006
+					// then we will need to construct loginUrl before we call reconnecter
+					setLoginUrl();
+				}
 				Log.d(TAG,"reconnecter login "+loginUrl);
 				statusMessage("Login...",-1,true);
 				try {
