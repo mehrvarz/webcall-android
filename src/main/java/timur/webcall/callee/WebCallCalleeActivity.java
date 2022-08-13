@@ -352,8 +352,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 				String state = intent.getStringExtra("state");
 				if(state!=null && state!="") {
-					Log.d(TAG, "broadcastReceiver state="+state);
 					if(state.equals("mainpage")) {
+						Log.d(TAG, "broadcastReceiver state="+state);
 
 					} else if(state.equals("connected")) {
 						// if there is a dialIdIntent...
@@ -361,17 +361,21 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							long lastSetDialIdAge = System.currentTimeMillis() - lastSetDialId;
 							if(lastSetDialIdAge <= 30000) {
 								// execute dialIdIntent only if set within the last 30s
-								Log.d(TAG, "broadcastReceiver state="+state+" dialIdIntent is set");
+								Log.d(TAG, "broadcastReceiver wsCon state="+state+" dialIdIntent is set");
 								onNewIntent(dialIdIntent);
 							} else {
 								// too old, do not execute
-								Log.d(TAG, "broadcastReceiver state="+state+" dialIdIntent is set"+
+								Log.d(TAG, "broadcastReceiver wsCon state="+state+" dialIdIntent is set"+
 									" too old"+lastSetDialIdAge);
 							}
 							dialIdIntent = null;
+						} else {
+							Log.d(TAG, "broadcastReceiver wsCon state="+state);
 						}
 					} else if(state.equals("disconnected")) {
-
+						Log.d(TAG, "broadcastReceiver wsCon state="+state);
+					} else {
+						Log.d(TAG, "# broadcastReceiver unexpected state="+state);
 					}
 					return;
 				}
