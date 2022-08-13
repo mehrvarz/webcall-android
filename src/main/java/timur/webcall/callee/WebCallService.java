@@ -400,6 +400,7 @@ public class WebCallService extends Service {
 						runJS("pickup()",null);
 					} else {
 						// autoPickup when we get connected as callee
+						// if the next connect fails, we must reset this flag
 						autoPickup = true;
 					}
 					return;
@@ -1977,9 +1978,10 @@ public class WebCallService extends Service {
 		public void peerDisConnect() {
 			// called by endWebRtcSession()
 			Log.d(TAG,"JS peerDisConnect()");
-			peerConnectFlag=false;
-			callPickedUpFlag=false;
-			peerDisconnnectFlag=true;
+			peerConnectFlag = false;
+			callPickedUpFlag = false;
+			peerDisconnnectFlag = true;
+			autoPickup = false;
 
 			if(audioManager!=null) {
 				if(audioManager.isWiredHeadsetOn()) {
@@ -2189,6 +2191,7 @@ public class WebCallService extends Service {
 			Intent brintent = new Intent("webcall");
 			brintent.putExtra("state", "disconnected");
 			sendBroadcast(brintent);
+			autoPickup = false;
 
 			if(reconnectBusy) {
 				Log.d(TAG,"onClose skip busy (code="+code+" "+reason+")");
@@ -2870,6 +2873,8 @@ Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 			});
 		} else {
 			Log.d(TAG,"processWebRtcMessages end");
+			// if autoPickup was not yet used we reset it
+			autoPickup = false;
 		}
 	}
 
