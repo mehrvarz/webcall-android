@@ -257,21 +257,28 @@ function connectServer() {
 				divspinnerframe.style.display = "none";
 				document.activeElement.blur();
 			},8000);
-			// switch to callee page
+			// switch to main page
 			let url = "https://"+valueDomain+"/callee/"+valueUsername+"?auto=1";
-			console.log('load main '+url);
+			console.log('no such callee is logged in: load main to enter pw '+url);
 			window.location.replace(url);
 			return;
-		} else if(xhr.responseText.startsWith("clear")) {
-			formDomain.value = "";
-			Android.storePreference("webcalldomain", " ");
 		} else if(xhr.responseText.startsWith("wss://") || xhr.responseText.startsWith("ws://")) {
 			// a callee is already logged in
+			if(Android.isConnected()>0) {
+				// if that is us, switch to main page
+				let url = "https://"+valueDomain+"/callee/"+valueUsername+"?auto=1";
+				console.log('callee is logged in: just load main '+url);
+				window.location.replace(url);
+				return;
+			}
 			abort = true;
 			divspinnerframe.style.display = "none";
 			document.activeElement.blur();
 			Android.toast("Busy. Already logged in from another device?");
 			return;
+		} else if(xhr.responseText.startsWith("clear")) {
+			formDomain.value = "";
+			Android.storePreference("webcalldomain", " ");
 		}
 		abort = true;
 		divspinnerframe.style.display = "none";

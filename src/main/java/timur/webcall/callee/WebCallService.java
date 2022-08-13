@@ -2433,7 +2433,7 @@ public class WebCallService extends Service {
 
 					if(wsClient!=null) {
 						wsClient.send("init|");
-						calleeIsConnected(); // fake it
+						//calleeIsConnected(); // fake it
 					} else {
 						updateNotification("","",false);
 					}
@@ -2453,6 +2453,12 @@ public class WebCallService extends Service {
 				// we can not send messages (for instance callerCandidate's) into the JS 
 				// if the page is not fully loaded (webviewMainPageLoaded==true)
 				// in such cases we queue the WebRTC messages
+				if(message.startsWith("sessionId|")) {
+					Log.d(TAG,"onMessage sessionId -> calleeIsConnected()");
+					calleeIsConnected();
+					return;
+				}
+
 				String shortMessage = message;
 				if(message.length()>24) {
 					shortMessage = message.substring(0,24);
@@ -2866,7 +2872,7 @@ public class WebCallService extends Service {
 		if(myWebView!=null && webviewMainPageLoaded && !stringMessageQueue.isEmpty()) {
 			String message = (String)(stringMessageQueue.poll());
 			String argStr = "wsOnMessage2('"+message+"');";
-			//Log.d(TAG,"processWebRtcMessages runJS "+argStr);
+Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 
 			// wir müssen warten bis runJS abgearbeitet wurde
 	        runJS(argStr, new ValueCallback<String>() {
@@ -3362,7 +3368,7 @@ public class WebCallService extends Service {
 						Log.d(TAG,"reconnecter send init "+(myWebView!=null)+" "+webviewMainPageLoaded);
 						try {
 							wsClient.send("init|");
-							calleeIsConnected(); // fake it
+							//calleeIsConnected(); // fake it
 							if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 								long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
 								Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
