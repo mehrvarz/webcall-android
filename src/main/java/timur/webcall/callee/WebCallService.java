@@ -355,23 +355,34 @@ public class WebCallService extends Service {
 					// user responded to the call-notification dialog by denying the call
 					Log.d(TAG, "serviceCmdReceiver denyCall "+message);
 
+					// close the notification by sending a new not-high-priority notification
+					updateNotification("",awaitingCalls,false);
+
 					// prevent secondary wakeIntent from rtcConnect()
 					peerDisconnnectFlag = true;
 
-					// tell signaling server to disconnect the caller
-					if(wsClient==null) {
-						Log.w(TAG,"serviceCmdReceiver denyCall wsClient==null");
+					// disconnect caller / stop ringing
+					if(myWebView!=null && webviewMainPageLoaded) {
+						Log.w(TAG,"serviceCmdReceiver denyCall runJS('hangup()')");
+						runJS("hangup(true,true,'userReject')",null);
 					} else {
-						try {
-							Log.w(TAG,"serviceCmdReceiver denyCall send cancel|disconnect");
-							wsClient.send("cancel|disconnect");
-						} catch(Exception ex) {
-							Log.w(TAG,"serviceCmdReceiver denyCall ex="+ex);
+						if(wsClient==null) {
+							Log.w(TAG,"# serviceCmdReceiver denyCall wsClient==null");
+						} else {
+							try {
+								Log.w(TAG,"serviceCmdReceiver denyCall send cancel|disconnect");
+								wsClient.send("cancel|disconnect");
+							} catch(Exception ex) {
+								Log.w(TAG,"# serviceCmdReceiver denyCall ex="+ex);
+							}
 						}
+						//peerDisconnect()	// ???
 					}
 
-					// tell callee.js to stop ringing
-					runJS("hangup(true,true,'userReject')",null);
+					// clear queueWebRtcMessage / stringMessageQueue
+					while(!stringMessageQueue.isEmpty()) {
+						stringMessageQueue.poll();
+					}
 					return;
 				}
 
@@ -2407,6 +2418,29 @@ public class WebCallService extends Service {
 				}
 			}
 
+			if(message.startsWith("cancel|")) {
+				// server or caller signalling end of call
+				if(myWebView!=null && webviewMainPageLoaded) {
+					Log.e(TAG,"onMessage cancel got myWebView + webviewMainPageLoaded");
+					//updateNotification("",awaitingCalls,false);
+				} else {
+					Log.e(TAG,"onMessage cancel got !myWebView or !webviewMainPageLoaded");
+
+					// clear queueWebRtcMessage / stringMessageQueue
+					while(!stringMessageQueue.isEmpty()) {
+						stringMessageQueue.poll();
+					}
+
+					if(wsClient!=null) {
+						wsClient.send("init|");
+						calleeIsConnected(); // fake it
+					} else {
+						updateNotification("","",false);
+					}
+					return;
+				}
+			}
+
 			if(myWebView!=null && webviewMainPageLoaded) {
 				// webviewMainPageLoaded is set by onPageFinished() when a /callee/ url has been loaded
 				// NOTE: message MUST NOT contain apostroph (') characters
@@ -2825,23 +2859,6 @@ public class WebCallService extends Service {
 	private void queueWebRtcMessage(String message) {
 		stringMessageQueue.add(message);
 	}
-
-/*
-	// will be started from wsSend()
-	private void processWebRtcMessages() {
-		if(myWebView!=null && webviewMainPageLoaded) {
-			// send all queued rtcMessages
-			while(!stringMessageQueue.isEmpty() ) {
-				String message = (String)stringMessageQueue.poll();
-				String argStr = "wsOnMessage2('"+message+"');";
-				//Log.d(TAG,"processWebRtcMessages runJS "+argStr);
-				runJS(argStr,null);
-			}
-		} else {
-			Log.d(TAG,"processWebRtcMessages myWebView==null || !webviewMainPageLoaded");
-		}
-	}
-*/
 
 	// push all queued rtcMessages into callee.js signalingCommand()
 	// will be started from wsSend()
