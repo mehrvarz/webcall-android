@@ -336,7 +336,7 @@ public class WebCallService extends Service {
 		serviceCmdReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
-				Log.d(TAG, "serviceCmdReceiver "+intent.toString());
+				//Log.d(TAG, "serviceCmdReceiver "+intent.toString());
 
 				String message = intent.getStringExtra("activityVisible");
 				if(message!=null && message!="") {

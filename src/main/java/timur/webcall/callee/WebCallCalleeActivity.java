@@ -356,13 +356,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						Log.d(TAG, "broadcastReceiver state="+state);
 
 					} else if(state.equals("connected")) {
+						// user is now connected as callee to webcall server
 						// if there is a dialIdIntent...
 						if(dialIdIntent!=null) {
+							// execute dialIdIntent only if set within the last 30s
 							long lastSetDialIdAge = System.currentTimeMillis() - lastSetDialId;
 							if(lastSetDialIdAge <= 30000) {
-								// execute dialIdIntent only if set within the last 30s
 								Log.d(TAG, "broadcastReceiver wsCon state="+state+" dialIdIntent is set");
-								onNewIntent(dialIdIntent);
+								newIntent(dialIdIntent,"broadcastReceiver-connected");
 							} else {
 								// too old, do not execute
 								Log.d(TAG, "broadcastReceiver wsCon state="+state+" dialIdIntent is set"+
@@ -461,21 +462,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 		}
 
-		// check getIntent() for VIEW URL
-		Intent intent = getIntent();
-		Uri data = intent.getData();
-		dialIdIntent = null;
-		if(data!=null) {
-			Log.d(TAG, "onCreate getIntent data="+data);
-			String path = data.getPath();
-			int idxUser = path.indexOf("/user/");
-			if(idxUser>=0) {
-				dialIdIntent = intent;
-				lastSetDialId = System.currentTimeMillis();
-				Log.d(TAG, "onCreate dialIdIntent is set");
-				// dialIdIntent will be executed in onServiceConnected
-			}
-		}
+		// we do this in onStart
+		//newIntent(getIntent(),"onCreate");
 
 		if(extendedLogsFlag) {
 			Log.d(TAG, "onCreate done");
@@ -519,7 +507,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Log.d(TAG, "onServiceConnected dialId is set");
 					// only execute if we are on the main page
 					if(webCallServiceBinder.getCurrentUrl().indexOf("/callee/")>=0) {
-						onNewIntent(dialIdIntent);
+						// NOTE: we may not be logged in as callee yet
+						newIntent(dialIdIntent,"onServiceConnected");
 					} else {
 						// not on the mainpage yet
 						// will process dialIdIntent in broadcastReceiver state = "connected"
@@ -1004,25 +993,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 
 		checkPermissions();
+
+		// this is needed if activity started by the service (on incoming call)
+		// or by Android intentFilter (as a dial request)
+		newIntent(getIntent(),"onStart");
 	}
 
 	@Override
 	public void onNewIntent(Intent intent) {
-		Log.d(TAG, "onNewIntent toString="+intent.toString());
-
-		String wakeup = intent.getStringExtra("wakeup");
-		if(wakeup!=null) {
-			Log.d(TAG, "onNewIntent wakeup="+wakeup);
-			activityWake(wakeup);
-			return;
-		}
-
-		Uri url = intent.getData();
-		if(url!=null) {
-			Log.d(TAG, "onNewIntent dialId url="+url);
-			dialId(url);
-			return;
-		}
+		// this is needed if the activity is running already when the request comes in (most usual scenario)
+		newIntent(intent,"onNewIntent");
 	}
 
 	@Override
@@ -1256,6 +1236,42 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 
 	////////// private functions //////////////////////////////////////
+
+	private void newIntent(Intent intent, String comment) {
+		if(intent==null) {
+			Log.d(TAG, "newIntent ("+comment+") no intent");
+			return;
+		}
+		String wakeup = intent.getStringExtra("wakeup");
+		if(wakeup!=null) {
+			Log.d(TAG, "newIntent ("+comment+") wakeup="+wakeup);
+			activityWake(wakeup);
+			return;
+		}
+
+		Uri url = intent.getData();
+		dialIdIntent = null;
+		if(url!=null) {
+			String path = url.getPath();
+			int idxUser = path.indexOf("/user/");
+			if(idxUser>=0) {
+				if(webCallServiceBinder==null) {
+					Log.d(TAG, "newIntent ("+comment+") !webCallServiceBinder set dialIdIntent url="+url);
+					dialIdIntent = intent;
+					lastSetDialId = System.currentTimeMillis();
+					// dialIdIntent will be executed in onServiceConnected
+				} else {
+					Log.d(TAG, "newIntent ("+comment+") webCallServiceBinder dialId url="+url);
+					dialId(url);
+				}
+			} else {
+				Log.d(TAG, "# newIntent ("+comment+") no /user/ url="+url);
+			}
+			return;
+		}
+
+		Log.d(TAG, "# newIntent unprocessed ("+comment+") "+intent.toString());
+	}
 
 	private void storeByteArrayToFile(byte[] blobAsBytes, String filename) {
 		String androidFolder = Environment.DIRECTORY_DOWNLOADS;
