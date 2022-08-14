@@ -352,11 +352,11 @@ public class WebCallService extends Service {
 					// user responded to the call-notification dialog by denying the call
 					Log.d(TAG, "serviceCmdReceiver denyCall "+message);
 
+					// stop secondary wakeIntents from rtcConnect()
+					peerDisconnnectFlag = true;
+
 					// close the notification by sending a new not-high-priority notification
 					updateNotification("",awaitingCalls,false);
-
-					// prevent secondary wakeIntent from rtcConnect()
-					peerDisconnnectFlag = true;
 
 					// disconnect caller / stop ringing
 					if(myWebView!=null && webviewMainPageLoaded) {
@@ -369,14 +369,23 @@ public class WebCallService extends Service {
 							try {
 								Log.w(TAG,"serviceCmdReceiver denyCall send cancel|disconnect");
 								wsClient.send("cancel|disconnect");
+
+								final Runnable runnable2 = new Runnable() {
+									public void run() {
+										Log.w(TAG,"serviceCmdReceiver denyCall send init|");
+										wsClient.send("init|");
+									}
+								};
+								scheduler.schedule(runnable2, 500l, TimeUnit.MILLISECONDS);
+
 							} catch(Exception ex) {
 								Log.w(TAG,"# serviceCmdReceiver denyCall ex="+ex);
 							}
 						}
-						//peerDisconnect()	// ???
 					}
 
 					// clear queueWebRtcMessage / stringMessageQueue
+					Log.w(TAG,"serviceCmdReceiver denyCall clear stringMessageQueue");
 					while(!stringMessageQueue.isEmpty()) {
 						stringMessageQueue.poll();
 					}
@@ -1290,11 +1299,6 @@ public class WebCallService extends Service {
 						storePrefsString("cookies", webviewCookies);
 					}
 
-					// if page sends "init|" when sendRtcMessagesAfterInit is set true
-					// we call processWebRtcMessages()
-					// we only want to do this for the main page
-//					sendRtcMessagesAfterInit=false;
-
 					if(url.indexOf("/callee/")>=0 && url.indexOf("/callee/register")<0) {
 						// webview has just finished loading the callee main page
 						webviewMainPageLoaded = true;
@@ -1707,14 +1711,6 @@ public class WebCallService extends Service {
 					// TODO
 					return;
 				}
-/*
-				if(sendRtcMessagesAfterInit && str.startsWith("init|")) {
-					// after callee has registered as callee, we can process queued WebRtc messages
-					sendRtcMessagesAfterInit=false;
-					Log.d(TAG,"JS processWebRtcMessages start");
-					processWebRtcMessages();
-				}
-*/
 			}
 		}
 
@@ -2207,7 +2203,7 @@ public class WebCallService extends Service {
 					// problem can ne, that we are right now in doze mode (deep sleep)
 					// in deep sleep we cannot create new network connections
 					// in order to establish a new network connection, we need to bring device out of doze
-
+/*
 // TODO what does screenForWifiMode do here?
 					if(haveNetworkInt==0 && screenForWifiMode>0) {
 						if(wifiLock!=null && wifiLock.isHeld()) {
@@ -2215,24 +2211,54 @@ public class WebCallService extends Service {
 							wifiLock.release();
 						}
 					}
-
+*/
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"onClose keepAwakeWakeLock.acquire");
-						keepAwakeWakeLock.acquire(3 * 60 * 1000);
+						keepAwakeWakeLock.acquire(3 * 60 * 1000); // 3 minutes max
 						keepAwakeWakeLockStartTime = (new Date()).getTime();
 					}
 
 					wakeUpOnLoopCount(context);
-
+/*
+					// TODO maybe it would be worth to test the old connection before we kill it
+					if(wsClient!=null) {
+						Log.d(TAG,"onClose send dummy");
+						try {
+							wsClient.send("dummy|err1006");
+						} catch(Exception ex) {
+							Log.d(TAG,"onClose wsClient.send ex="+ex);
+							// this is expected ex: WebsocketNotConnectedException
+						}
+					}
+*/
 					// close prev connection
 					if(wsClient!=null) {
-						Log.d(TAG,"onClose wsClient.close()");
 						WebSocketClient tmpWsClient = wsClient;
 						wsClient = null;
+						/*
 						// closeBlocking() makes no sense here bc we received a 1006
+						// it would also hang
+						Log.d(TAG,"onClose wsClient.closeBlocking()...");
+						try {
+							tmpWsClient.closeBlocking();
+						} catch(Exception ex) {
+							Log.d(TAG,"onClose wsClient.closeBlocking ex="+ex);
+						}
+						*/
+
+						// tmtmtm but maybe we should send websocket.CloseMessage ???
+						Log.d(TAG,"onClose wsClient.close()...");
 						tmpWsClient.close();
-						runJS("wsOnClose2()",null); // set wsConn=null; will abort blinkButtonFunc()
+
+						if(myWebView!=null && webviewMainPageLoaded) {
+							Log.d(TAG,"onClose runJS('wsOnClose2()'");
+							runJS("wsOnClose2()",null); // set wsConn=null; abort blinkButtonFunc()
+						}
 						Log.d(TAG,"onClose wsClient.close() done");
+
+						// TODO problem is that the server may STILL think it is connected to this client
+						// and that re-login below may fail with "already/still logged in" because of this
+
 					} else {
 						statusMessage("disconnected from WebCall server",-1,true);
 					}
@@ -2240,7 +2266,7 @@ public class WebCallService extends Service {
 					if(reconnectSchedFuture==null && !reconnectBusy) {
 						// if no reconnecter is scheduled at this time (say, by checkLastPing())
 						// then schedule a new reconnecter
-						// schedule in 8s to give server some time to detect the discon
+						// schedule in 5s to give server some time to detect the discon
 						String webcalldomain =
 							prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
 						String username = prefs.getString("username", "");
@@ -2422,7 +2448,6 @@ public class WebCallService extends Service {
 
 					if(wsClient!=null) {
 						wsClient.send("init|");
-						//calleeIsConnected(); // fake it
 					} else {
 						updateNotification("","",false);
 					}
@@ -3105,9 +3130,9 @@ Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 							return;
 						}
 						if(status!=200) {
-							Log.d(TAG,"reconnecter status="+status+" fail");
+							Log.d(TAG,"reconnecter http login statusCode="+status+" fail");
 						} else {
-							Log.d(TAG,"reconnecter status="+status+" OK");
+							Log.d(TAG,"reconnecter http login statusCode="+status+" OK");
 							try {
 								reader = new BufferedReader(
 									new InputStreamReader(con.getInputStream()));
@@ -3141,6 +3166,7 @@ Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 							// keep reconnecter running
 						}
 					}
+
 					if(!connectToSignalingServerIsWanted) {
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							reconnectSchedFuture.cancel(false);
@@ -3150,6 +3176,7 @@ Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 						reconnectBusy = false;
 						return;
 					}
+
 					if(status!=200) {
 						// network error: retry login
 						if(wsClient!=null) {
@@ -3193,6 +3220,7 @@ Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 						return;
 					}
 
+					// status==200
 					if(!connectToSignalingServerIsWanted || !reconnectBusy) {
 						// abort forced
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
@@ -3217,7 +3245,7 @@ Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 						reconnectCounter = 0;
 						connectToSignalingServerIsWanted = false;
 						storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
-						Log.d(TAG,"reconnecter login fail "+wsAddr+" give up "+reader.readLine()+
+						Log.d(TAG,"reconnecter login fail '"+wsAddr+"' give up "+reader.readLine()+
 							" "+reader.readLine()+" "+reader.readLine()+" "+reader.readLine());
 						statusMessage("Reconnect failed. Giving up. "+response,-1,true);
 						if(myWebView!=null && webviewMainPageLoaded) {
