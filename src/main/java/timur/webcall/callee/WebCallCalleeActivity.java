@@ -462,9 +462,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 		}
 
-		// we do this in onStart
-		//newIntent(getIntent(),"onCreate");
-
 		if(extendedLogsFlag) {
 			Log.d(TAG, "onCreate done");
 		}
@@ -972,9 +969,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	public void onRestart() {
 		Log.d(TAG, "onRestart");
 		activityVisible = true;
-		Intent intent = new Intent("serviceCmdReceiver");
-		intent.putExtra("activityVisible", "true");
-		sendBroadcast(intent);
+//		Intent intent = new Intent("serviceCmdReceiver");
+//		intent.putExtra("activityVisible", "true");
+//		sendBroadcast(intent);
+		sendBroadcast(new Intent("serviceCmdReceiver").putExtra("activityVisible", "true"));
 		super.onRestart();
 	}
 
@@ -986,6 +984,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
+		Log.d(TAG, "onStart");
 		// set screenBrightness only if LowBrightness (0.01f) occured more than 2s ago
 		if(System.currentTimeMillis() - lastSetLowBrightness >= 2000) {
 			mParams.screenBrightness = -1f;
@@ -994,7 +993,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 		checkPermissions();
 
-		// this is needed if activity started by the service (on incoming call)
+		// this is needed for activity being started by the service (on incoming call)
 		// or by Android intentFilter (as a dial request)
 		newIntent(getIntent(),"onStart");
 	}
@@ -1244,6 +1243,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 		String wakeup = intent.getStringExtra("wakeup");
 		if(wakeup!=null) {
+// TODO we should be able to deny this intent based on age
+// service 'onMessage incoming call' is the only source of this intent
 			Log.d(TAG, "newIntent ("+comment+") wakeup="+wakeup);
 			activityWake(wakeup);
 			return;
@@ -1271,13 +1272,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 
 		Log.d(TAG, "# newIntent unprocessed ("+comment+") "+intent.toString());
+// TODO what to do with act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER]
 	}
 
 	private void storeByteArrayToFile(byte[] blobAsBytes, String filename) {
 		String androidFolder = Environment.DIRECTORY_DOWNLOADS;
 		String mimeType = URLConnection.guessContentTypeFromName(filename);
 		String filenameLowerCase = filename.toLowerCase(Locale.getDefault());
-/*
+		/*
 		if(filenameLowerCase.endsWith(".jpg") || filenameLowerCase.endsWith(".jpeg")) {
 			androidFolder = Environment.DIRECTORY_DCIM;
 			mimeType = "image/jpg";
@@ -1285,7 +1287,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			androidFolder = Environment.DIRECTORY_DCIM;
 			mimeType = "image/png";
 		}
-*/
+		*/
 		Log.d(TAG,"storeByteArrayToFile filename="+filename+" folder="+androidFolder+" mime="+mimeType);
 
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) { // <10 <api29

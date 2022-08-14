@@ -398,12 +398,7 @@ public class WebCallService extends Service {
 					// this intent is coming from the started activity
 					Log.d(TAG, "serviceCmdReceiver acceptCall "+message);
 
-					// first: hide the notification (this is done separately now)
-					// (replace the IMPORTANT notification with a NOT-IMPORTANT notification)
-					//Log.d(TAG, "serviceCmdReceiver -> updateNotification");
-					//updateNotification("","Incoming WebCall",false);
-
-					// next: autoPickup the call
+// TODO how is it possible this turns LED red if there is no actual call?
 					if(webviewMainPageLoaded) {             // TODO: eigentlich if !rtcConnect
 						// autoPickup now
 						runJS("pickup()",null);
