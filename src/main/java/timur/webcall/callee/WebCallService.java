@@ -2378,14 +2378,19 @@ public class WebCallService extends Service {
 				} else if(activityVisible) {
 					Log.d(TAG,"onMessage incoming call, but activityVisible (do nothing)");
 				} else {
+					Date wakeDate = new Date();
 					Log.d(TAG,"onMessage incoming call "+
-						new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date()));
+						new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(wakeDate));
+
+					long eventMS = wakeDate.getTime();
 
 					Intent acceptIntent = new Intent(context, WebCallCalleeActivity.class);
 					acceptIntent.putExtra("wakeup", "pickup");
+					acceptIntent.putExtra("date", eventMS);
 
 					Intent switchToIntent =	new Intent(context, WebCallCalleeActivity.class);
 					switchToIntent.putExtra("wakeup", "call");
+					switchToIntent.putExtra("date", eventMS);
 
 					Intent denyIntent = new Intent("serviceCmdReceiver");
 					denyIntent.putExtra("denyCall", "true");

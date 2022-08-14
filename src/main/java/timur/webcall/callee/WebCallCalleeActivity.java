@@ -495,11 +495,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				webSettings.setAppCacheEnabled(true);
 				webCallServiceBinder.startWebView(myWebView);
 
-				// send current state of activityVisible
-				Intent intent = new Intent("serviceCmdReceiver");
-				intent.putExtra("activityVisible", "true");
-				sendBroadcast(intent);
-
 				if(dialIdIntent!=null) {
 					Log.d(TAG, "onServiceConnected dialId is set");
 					// only execute if we are on the main page
@@ -968,11 +963,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public void onRestart() {
 		Log.d(TAG, "onRestart");
-		activityVisible = true;
-//		Intent intent = new Intent("serviceCmdReceiver");
-//		intent.putExtra("activityVisible", "true");
-//		sendBroadcast(intent);
-		sendBroadcast(new Intent("serviceCmdReceiver").putExtra("activityVisible", "true"));
 		super.onRestart();
 	}
 
@@ -985,6 +975,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 
 		Log.d(TAG, "onStart");
+		activityVisible = true;
+		sendBroadcast(new Intent("serviceCmdReceiver").putExtra("activityVisible", "true"));
+		super.onStart();
+
 		// set screenBrightness only if LowBrightness (0.01f) occured more than 2s ago
 		if(System.currentTimeMillis() - lastSetLowBrightness >= 2000) {
 			mParams.screenBrightness = -1f;
@@ -993,8 +987,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 		checkPermissions();
 
-		// this is needed for activity being started by the service (on incoming call)
-		// or by Android intentFilter (as a dial request)
+		// check for special intent
+		// this is needed for activity started by the service (on incoming call)
+		// or by Android OS intentFilter (as a dial request)
 		newIntent(getIntent(),"onStart");
 	}
 
@@ -1050,9 +1045,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onPause");
 		}
 		activityVisible = false;
-		Intent intent = new Intent("serviceCmdReceiver");
-		intent.putExtra("activityVisible", "false");
-		sendBroadcast(intent);
+		sendBroadcast(new Intent("serviceCmdReceiver").putExtra("activityVisible", "false"));
 		super.onPause();
 
 		if(proximitySensorMode>0) {
@@ -1241,12 +1234,23 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "newIntent ("+comment+") no intent");
 			return;
 		}
+
 		String wakeup = intent.getStringExtra("wakeup");
 		if(wakeup!=null) {
-// TODO we should be able to deny this intent based on age
-// service 'onMessage incoming call' is the only source of this intent
-			Log.d(TAG, "newIntent ("+comment+") wakeup="+wakeup);
-			activityWake(wakeup);
+			Date currentDate = new Date();
+			long currentMS = currentDate.getTime();
+			long eventMS = intent.getLongExtra("date",0);
+			long ageMS = currentMS - eventMS;
+			int ageSecs = (int)((ageMS+500)/1000);
+			if(ageSecs > 60) {
+				// wakeup intent denied based on age
+				Log.d(TAG, "newIntent wakeup="+wakeup+" eventMS="+eventMS+" curMS="+currentMS+
+					" ageMS="+ageMS+" ageSecs="+ageSecs+" TOO OLD ("+comment+")");
+			} else {
+				// wakeup intent accepted
+				Log.d(TAG, "newIntent wakeup="+wakeup+" ageMS="+ageMS+" ageSecs="+ageSecs+" ("+comment+")");
+				activityWake(wakeup);
+			}
 			return;
 		}
 
@@ -1257,22 +1261,21 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			int idxUser = path.indexOf("/user/");
 			if(idxUser>=0) {
 				if(webCallServiceBinder==null) {
-					Log.d(TAG, "newIntent ("+comment+") !webCallServiceBinder set dialIdIntent url="+url);
+					Log.d(TAG, "newIntent dialId url="+url+" !webCallServiceBinder ("+comment+")");
 					dialIdIntent = intent;
 					lastSetDialId = System.currentTimeMillis();
 					// dialIdIntent will be executed in onServiceConnected
 				} else {
-					Log.d(TAG, "newIntent ("+comment+") webCallServiceBinder dialId url="+url);
+					Log.d(TAG, "newIntent dialId url="+url+" webCallServiceBinder ("+comment+")");
 					dialId(url);
 				}
 			} else {
-				Log.d(TAG, "# newIntent ("+comment+") no /user/ url="+url);
+				Log.d(TAG, "# newIntent dialId url="+url+" no /user/ ("+comment+")");
 			}
 			return;
 		}
 
-		Log.d(TAG, "# newIntent unprocessed ("+comment+") "+intent.toString());
-// TODO what to do with act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER]
+//		Log.d(TAG, "# newIntent unprocessed ("+comment+") "+intent.toString());
 	}
 
 	private void storeByteArrayToFile(byte[] blobAsBytes, String filename) {
