@@ -1892,8 +1892,11 @@ public class WebCallService extends Service {
 							Log.d(TAG,"JS rtcConnect() bringActivityToFront loop");
 							// wake activity for incoming call
 							// this is our secondary wakeIntent with ACTIVITY_REORDER_TO_FRONT
+							long eventMS = (new Date()).getTime();
 							Intent wakeIntent =
-								new Intent(context, WebCallCalleeActivity.class).putExtra("wakeup", "call");
+								new Intent(context, WebCallCalleeActivity.class)
+									.putExtra("wakeup", "call")
+									.putExtra("date", eventMS);
 							wakeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
 								Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
 								Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
@@ -2339,8 +2342,11 @@ public class WebCallService extends Service {
 				} else {
 					Log.d(TAG,"onMessage incoming call "+
 						new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date()));
+					long eventMS = (new Date()).getTime();
 					Intent wakeIntent =
-						new Intent(context, WebCallCalleeActivity.class).putExtra("wakeup", "call");
+						new Intent(context, WebCallCalleeActivity.class)
+							.putExtra("wakeup", "call")
+							.putExtra("date", eventMS);
 					wakeIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
 						Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY |
 						Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
