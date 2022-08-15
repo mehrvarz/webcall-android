@@ -93,6 +93,7 @@ import android.media.RingtoneManager;
 import android.media.Ringtone;
 import android.media.ToneGenerator;
 import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.annotation.SuppressLint;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.FileProvider;
@@ -295,7 +296,7 @@ public class WebCallService extends Service {
 	private static BroadcastReceiver serviceCmdReceiver = null;
 	private static volatile boolean activityVisible = false;
 	private static volatile boolean autoPickup = false;
-
+	private static volatile MediaPlayer mediaPlayer = null;
 
 	// section 1: android service methods
 	@Override
@@ -329,7 +330,7 @@ public class WebCallService extends Service {
 			getSystemService(NotificationManager.class).createNotificationChannel(notificationChannel2);
 		}
 
-		// to receive msgs from our service
+		// receive broadcast msgs from service and activity
 		serviceCmdReceiver = new BroadcastReceiver() {
 			@Override
 			public void onReceive(Context context, Intent intent) {
@@ -341,6 +342,17 @@ public class WebCallService extends Service {
 					Log.d(TAG, "serviceCmdReceiver activityVisible "+message);
 					if(message.equals("true")) {
 						activityVisible = true;
+
+						if(mediaPlayer!=null) {
+							// if the service is ringing, we make sure to stop it in max 3s
+							// but service ringing may be stopped before that in rtcConnect()
+							final Runnable runnable2 = new Runnable() {
+								public void run() {
+									stopMediaPlayer("activityVisible delayed");
+								}
+							};
+							scheduler.schedule(runnable2, 4000l, TimeUnit.MILLISECONDS);
+						}
 					} else {
 						activityVisible = false;
 					}
@@ -367,11 +379,15 @@ public class WebCallService extends Service {
 							Log.w(TAG,"# serviceCmdReceiver denyCall wsClient==null");
 						} else {
 							try {
+								// stop the caller
 								Log.w(TAG,"serviceCmdReceiver denyCall send cancel|disconnect");
 								wsClient.send("cancel|disconnect");
 
+								stopMediaPlayer("denyCall");
+
 								final Runnable runnable2 = new Runnable() {
 									public void run() {
+										// become callee for next caller
 										Log.w(TAG,"serviceCmdReceiver denyCall send init|");
 										wsClient.send("init|");
 									}
@@ -396,15 +412,14 @@ public class WebCallService extends Service {
 				if(message!=null && message!="") {
 					// user responded to the call-notification dialog by accepting the call
 					// this intent is coming from the started activity
-					Log.d(TAG, "serviceCmdReceiver acceptCall "+message);
-
-// TODO how is it possible this turns LED red if there is no actual call?
 					if(webviewMainPageLoaded) {             // TODO: eigentlich if !rtcConnect
 						// autoPickup now
+						Log.d(TAG, "serviceCmdReceiver autoPickup now "+message);
 						runJS("pickup()",null);
 					} else {
 						// autoPickup when we get connected as callee
 						// if the next connect fails, we must reset this flag
+						Log.d(TAG, "serviceCmdReceiver autoPickup delayed "+message);
 						autoPickup = true;
 					}
 					return;
@@ -1865,6 +1880,7 @@ public class WebCallService extends Service {
 		@android.webkit.JavascriptInterface
 		public void rtcConnect() {
 			Log.d(TAG,"JS rtcConnect()");
+			stopMediaPlayer("rtcConnect");
 			// making sure this is activated (if it is enabled)
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
 			peerDisconnnectFlag = false;
@@ -1916,6 +1932,8 @@ public class WebCallService extends Service {
 				autoPickup = false;
 				Log.d(TAG,"JS rtcConnect() autoPickup...");
 				runJS("pickup()",null);
+			} else {
+				Log.d(TAG,"JS rtcConnect() no autoPickup");
 			}
 		}
 
@@ -1992,7 +2010,6 @@ public class WebCallService extends Service {
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
 
 			statusMessage("Peer disconnect",500,false);
-//			updateNotification("",awaitingCalls,false);	// ??? are we definitely connected to server?
 
 			// after ringing is done:
 			if(origvol>=0) {
@@ -2424,7 +2441,7 @@ public class WebCallService extends Service {
 							//.setAutoCancel(true) // any click will close the notification
 							// if we don't activate this, any click will answer the call
 
-							.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+//							.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
 
 							.setFullScreenIntent(
 								PendingIntent.getActivity(context, 1, acceptIntent,
@@ -2436,21 +2453,30 @@ public class WebCallService extends Service {
 					NotificationManager notificationManager =
 						(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
 					notificationManager.notify(NOTIF_ID, notification);
+
+					// start playing ringtone
+					audioToSpeakerSet(audioToSpeakerMode>0,false);
+					mediaPlayer = MediaPlayer.create(context, R.raw.ringing);
+					mediaPlayer.setLooping(true);
+					mediaPlayer.start();
+					// we stop ringing in multiple places, see: stopMediaPlayer()
 				}
 			}
 
 			if(message.startsWith("cancel|")) {
 				// server or caller signalling end of call
 				if(myWebView!=null && webviewMainPageLoaded) {
-					Log.e(TAG,"onMessage cancel got myWebView + webviewMainPageLoaded");
+					Log.d(TAG,"onMessage cancel got myWebView + webviewMainPageLoaded");
 					//updateNotification("",awaitingCalls,false);
 				} else {
-					Log.e(TAG,"onMessage cancel got !myWebView or !webviewMainPageLoaded");
+					Log.d(TAG,"onMessage cancel got !myWebView or !webviewMainPageLoaded");
 
 					// clear queueWebRtcMessage / stringMessageQueue
 					while(!stringMessageQueue.isEmpty()) {
 						stringMessageQueue.poll();
 					}
+
+					stopMediaPlayer("cancel|");
 
 					if(wsClient!=null) {
 						wsClient.send("init|");
@@ -2687,6 +2713,16 @@ public class WebCallService extends Service {
 
 	// section 5: private methods
 
+	private void stopMediaPlayer(String comment) {
+		if(mediaPlayer!=null) {
+			Log.d(TAG,"stopMediaPlayer from "+comment);
+			mediaPlayer.stop();
+			mediaPlayer = null;
+		} else {
+			Log.d(TAG,"stopMediaPlayer was not active, from "+comment);
+		}
+	}
+
 	private void calleeIsConnected() {
 		Log.d(TAG,"calleeIsConnected()");
 
@@ -2892,9 +2928,9 @@ public class WebCallService extends Service {
 		if(myWebView!=null && webviewMainPageLoaded && !stringMessageQueue.isEmpty()) {
 			String message = (String)(stringMessageQueue.poll());
 			String argStr = "wsOnMessage2('"+message+"');";
+			//Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 
-Log.d(TAG,"processWebRtcMessages runJS "+argStr);
-			// wir müssen warten bis runJS abgearbeitet wurde
+			// we wait till runJS has been processed before we runJS the next
 	        runJS(argStr, new ValueCallback<String>() {
 			    @Override
 			    public void onReceiveValue(String s) {
@@ -2904,8 +2940,18 @@ Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 			});
 		} else {
 			Log.d(TAG,"processWebRtcMessages end");
-			// if autoPickup was not yet used we reset it
-			autoPickup = false;
+
+			if(autoPickup) {
+				// reset autoPickup in 5s, so that it can be used in rtcConnect
+				// and for it to definitely get cleared, even if rtcConnect does not occur
+				final Runnable runnable2 = new Runnable() {
+					public void run() {
+						Log.d(TAG,"processWebRtcMessages delayed autoPickup=false");
+						autoPickup = false;
+					}
+				};
+				scheduler.schedule(runnable2, 5000l, TimeUnit.MILLISECONDS);
+			}
 		}
 	}
 
@@ -3204,7 +3250,7 @@ Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 								scheduler.schedule(reconnecter,delaySecs,TimeUnit.SECONDS);
 							return;
 						}
-						Log.e(TAG,"reconnecter con.connect() fail. give up.");
+						Log.d(TAG,"reconnecter con.connect() fail. give up.");
 						if(reconnectBusy) {
 							if(beepOnLostNetworkMode>0) {
 								playSoundAlarm();
