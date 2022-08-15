@@ -130,7 +130,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private WakeLock wakeLockScreen = null;
 	private	Context context;
 	private NfcAdapter nfcAdapter;
-//	private String blobFilename = null;
 	private boolean startupFail = false;
 	private volatile int touchX, touchY;
 	private volatile boolean extendedLogsFlag = false;
@@ -178,50 +177,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					webviewPackageInfo.packageName+" "+webviewPackageInfo.versionName);
 			}
 		}
-
-/*
-		try {
-			Signature[] sigs = context.getPackageManager().getPackageInfo(
-				context.getPackageName(), PackageManager.GET_SIGNATURES).signatures;
-			for(Signature sig : sigs) {
-				Log.d(TAG, "onCreate Signature hashcode : " + sig.hashCode());
-				//Log.d(TAG, "onCreate Signature : " + sig.toString());
-			}
-
-			if(sigs.length>0) {
-				byte[] raw = sigs[0].toByteArray();
-				CertificateFactory certFactory = null;
-				try {
-					certFactory = CertificateFactory.getInstance("X509");
-				}
-				catch (CertificateException e) {
-					Log.d(TAG, "Exception getting CertificateFactory", e);
-				}
-				if(certFactory!=null) {
-					X509Certificate cert = null;
-					ByteArrayInputStream bin = new ByteArrayInputStream(raw);
-					try {
-						cert = (X509Certificate)certFactory.generateCertificate(bin);
-					}
-					catch (CertificateException e) {
-						Log.d(TAG,"Exception getting X509Certificate", e);
-					}
-					if(cert!=null) {
-						Log.d(TAG, "onCreate cert : " + cert);
-						Log.d(TAG, "Certificate for: " + cert.getSubjectDN());
-						Log.d(TAG, "Certificate issued by: " + cert.getIssuerDN());
-						Log.d(TAG, "The certificate is valid from " +
-							cert.getNotBefore()+" to "+cert.getNotAfter());
-						Log.d(TAG, "Certificate SN# " + cert.getSerialNumber());
-						Log.d(TAG, "Generated with " + cert.getSigAlgName());
-					}
-				}
-			}
-		} catch(Exception ex) {
-			// for instance: NameNotFoundException
-			Log.d(TAG, "onCreate PackageManager.GET_SIGNATURES ex=" + ex);
-		}
-*/
 
 		if(powerManager==null) {
 			powerManager = (PowerManager)getSystemService(POWER_SERVICE);
@@ -547,13 +502,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG,"onCreateContextMenu abort: no webCallServiceBinder");
 			return;
 		}
-/*
+
+		/* TODO?
 		// prevent the context menu while in-call
 		if(webCallServiceBinder.callInProgress()>0) {
 			Log.d(TAG,"onCreateContextMenu abort on callInProgress");
 			return;
 		}
-*/
+		*/
 
 	    HitTestResult result = myWebView.getHitTestResult();
 		// result.getType(); 5=IMAGE_TYPE, 7=SRC_ANCHOR_TYPE
@@ -1025,7 +981,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 
 		if(proximitySensorMode==0) {
-//			Log.d(TAG,"onResume proximitySensorEventListener not registered: proximitySensorMode==0");
+			//Log.d(TAG,"onResume proximitySensorEventListener not registered: proximitySensorMode==0");
 		} else if(proximitySensor==null) {
 			Log.d(TAG,"onResume proximitySensorEventListener not registered: proximitySensor==null");
 		} else if(sensorManager==null) {
@@ -1275,7 +1231,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
-//		Log.d(TAG, "# newIntent unprocessed ("+comment+") "+intent.toString());
+		//Log.d(TAG, "# newIntent unprocessed ("+comment+") "+intent.toString());
 	}
 
 	private void storeByteArrayToFile(byte[] blobAsBytes, String filename) {
@@ -1836,10 +1792,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
                 public void onDownloadStart(String url, String userAgent,
 						String contentDisposition, String mimetype, long contentLength) {
 					Log.d(TAG,"DownloadListener url="+url+" mime="+mimetype);
-//					blobFilename=null;
 					if(url.startsWith("blob:")) {
 						// this is for "downloading" files to disk, that were previously received from peer
-//						blobFilename = ""; // need the download= of the clicked a href
 						String fetchBlobJS =
 							"javascript: var xhr=new XMLHttpRequest();" +
 							"xhr.open('GET', '"+url+"', true);" +

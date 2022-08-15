@@ -412,7 +412,7 @@ public class WebCallService extends Service {
 				if(message!=null && message!="") {
 					// user responded to the call-notification dialog by accepting the call
 					// this intent is coming from the started activity
-					if(webviewMainPageLoaded) {             // TODO: eigentlich if !rtcConnect
+					if(webviewMainPageLoaded) {  // TODO: eigentlich if !rtcConnect
 						// autoPickup now
 						Log.d(TAG, "serviceCmdReceiver autoPickup now "+message);
 						runJS("pickup()",null);
@@ -435,6 +435,8 @@ public class WebCallService extends Service {
 					updateNotification("","Incoming WebCall",false);
 					return;
 				}
+
+				Log.d(TAG, "serviceCmdReceiver no match");
 			}
 		};
 		registerReceiver(serviceCmdReceiver, new IntentFilter("serviceCmdReceiver"));
@@ -858,8 +860,8 @@ public class WebCallService extends Service {
 							wakeUpOnLoopCount(context);
 
 							if(wsClient!=null) {
+								// close a prev connection
 								Log.d(TAG,"dozeState awake wsClient.closeBlocking()...");
-// TODO why are we doing this??? I think we try to close a prev connection?
 								WebSocketClient tmpWsClient = wsClient;
 								wsClient = null;
 								try {
@@ -1886,17 +1888,7 @@ public class WebCallService extends Service {
 			peerDisconnnectFlag = false;
 
 			// make sure ringtone volume is not too low
-			int maxvol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
-			int vol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-			if(vol<maxvol/3) {
-				origvol = vol;
-				int setvol = maxvol/3;
-				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, setvol, 0);
-				Log.d(TAG,"JS rtcConnect() setStreamVolume "+setvol+" from "+vol);
-			} else {
-				// no need to change vol back after ringing is done
-				origvol = -1;
-			}
+			setMinVol();
 
 			if(activityVisible) {
 				Log.d(TAG,"JS rtcConnect() with activityVisible: not bringActivityToFront");
@@ -1948,7 +1940,7 @@ public class WebCallService extends Service {
 
 		@android.webkit.JavascriptInterface
 		public void prepareDial() {
-/*
+			/*
 			// turn speakerphone off - the idea is to always switch audio playback to the earpiece
 			// on devices without an earpiece (tablets) this is expected to do nothing
 			// we do it now here instead of at setProximity(true), because it is more reliable this way
@@ -1959,7 +1951,7 @@ public class WebCallService extends Service {
 			Log.d(TAG, "JS prepareDial(), speakerphone=false");
 			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
 			audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
-*/
+			*/
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1968,7 +1960,7 @@ public class WebCallService extends Service {
 			Log.d(TAG,"JS peerConnect() - mediaConnect");
 			peerConnectFlag=true;
 			callPickedUpFlag=false;
-/*
+			/*
 			// turn speakerphone off - the idea is to always switch audio playback to the earpiece
 			// on devices without an earpiece (tablets) this is expected to do nothing
 			// we do it now here instead of at setProximity(true), because it is more reliable this way
@@ -1976,7 +1968,7 @@ public class WebCallService extends Service {
 			Log.d(TAG, "JS peerConnect(), speakerphone=false");
 			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
 			audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
-*/
+			*/
 
 			// after ringing is done:
 			if(origvol>=0) {
@@ -2163,7 +2155,7 @@ public class WebCallService extends Service {
 				runJS("wsOnOpen()",null);
 			} else {
 				Log.d(TAG,"WsClient onOpen, but not webviewMainPageLoaded");
-//				updateNotification("",awaitingCalls,false);	// ??? too early? has init been sent?
+				//updateNotification("",awaitingCalls,false);	// ??? too early? has init been sent?
 			}
 		}
 
@@ -2218,15 +2210,17 @@ public class WebCallService extends Service {
 					// problem can ne, that we are right now in doze mode (deep sleep)
 					// in deep sleep we cannot create new network connections
 					// in order to establish a new network connection, we need to bring device out of doze
-/*
-// TODO what does screenForWifiMode do here?
+
+					/*
+					// what is screenForWifiMode doing here?
 					if(haveNetworkInt==0 && screenForWifiMode>0) {
 						if(wifiLock!=null && wifiLock.isHeld()) {
 							Log.d(TAG,"onClose wifiLock release");
 							wifiLock.release();
 						}
 					}
-*/
+					*/
+
 					if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 						Log.d(TAG,"onClose keepAwakeWakeLock.acquire");
 						keepAwakeWakeLock.acquire(3 * 60 * 1000); // 3 minutes max
@@ -2234,18 +2228,7 @@ public class WebCallService extends Service {
 					}
 
 					wakeUpOnLoopCount(context);
-/*
-					// TODO maybe it would be worth to test the old connection before we kill it
-					if(wsClient!=null) {
-						Log.d(TAG,"onClose send dummy");
-						try {
-							wsClient.send("dummy|err1006");
-						} catch(Exception ex) {
-							Log.d(TAG,"onClose wsClient.send ex="+ex);
-							// this is expected ex: WebsocketNotConnectedException
-						}
-					}
-*/
+
 					// close prev connection
 					if(wsClient!=null) {
 						WebSocketClient tmpWsClient = wsClient;
@@ -2261,7 +2244,7 @@ public class WebCallService extends Service {
 						}
 						*/
 
-						// tmtmtm but maybe we should send websocket.CloseMessage ???
+						// TODO maybe we should send websocket.CloseMessage ???
 						Log.d(TAG,"onClose wsClient.close()...");
 						tmpWsClient.close();
 
@@ -2354,8 +2337,6 @@ public class WebCallService extends Service {
 				// secondary wakeIntent will be sent in rtcConnect()
 				if(context==null) {
 					Log.e(TAG,"onMessage incoming call, but no context to wake activity");
-//				} else if(activityVisible) {
-//					Log.d(TAG,"onMessage incoming call, but activityVisible (do nothing)");
 				} else {
 					Log.d(TAG,"onMessage incoming call "+
 						new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date()));
@@ -2422,9 +2403,10 @@ public class WebCallService extends Service {
 						new NotificationCompat.Builder(context, NOTIF_CHANNEL_ID_HIGH)
 							.setSmallIcon(R.mipmap.notification_icon)
 							.setContentTitle("Incoming WebCall")
-							.setContentText(callerName+" "+callerID)
-							.setPriority(NotificationCompat.PRIORITY_HIGH)
 							.setCategory(NotificationCompat.CATEGORY_CALL)
+
+							// on O+ setPriority is ignored in favor of NOTIF_CHANNEL_ID_HIGH
+							.setPriority(NotificationCompat.PRIORITY_HIGH)
 
 							.addAction(R.mipmap.notification_icon,"Accept",
 								PendingIntent.getActivity(context, 2, acceptIntent,
@@ -2439,14 +2421,17 @@ public class WebCallService extends Service {
 									PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE))
 
 							//.setAutoCancel(true) // any click will close the notification
-							// if we don't activate this, any click will answer the call
+							// if this is false, any click will switchTo activity
 
-//							.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+							// we are using our own ringtone (see mediaPlayer below)
+							//.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
 
+							// clicking on the area behind the action buttons will (also) switchTo activty
 							.setFullScreenIntent(
-								PendingIntent.getActivity(context, 1, acceptIntent,
-									PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE),
-								true);
+								PendingIntent.getActivity(context, 1, switchToIntent,
+									PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE), true)
+
+							.setContentText(callerName+" "+callerID);
 
 					Notification notification = notificationBuilder.build();
 
@@ -2456,6 +2441,8 @@ public class WebCallService extends Service {
 
 					// start playing ringtone
 					audioToSpeakerSet(audioToSpeakerMode>0,false);
+					// make sure ringtone volume is not too low
+					setMinVol();
 					mediaPlayer = MediaPlayer.create(context, R.raw.ringing);
 					mediaPlayer.setLooping(true);
 					mediaPlayer.start();
@@ -2713,6 +2700,25 @@ public class WebCallService extends Service {
 
 	// section 5: private methods
 
+	private void setMinVol() {
+		// make sure ringtone volume is not too low
+		if(origvol>=0) {
+			// but only once
+		} else {
+			int maxvol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+			int vol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+			if(vol<maxvol/3) {
+				origvol = vol;
+				int setvol = maxvol/3;
+				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, setvol, 0);
+				Log.d(TAG,"JS rtcConnect() setStreamVolume "+setvol+" from "+vol);
+			} else {
+				// no need to change vol back after ringing is done
+				origvol = -1;
+			}
+		}
+	}
+
 	private void stopMediaPlayer(String comment) {
 		if(mediaPlayer!=null) {
 			Log.d(TAG,"stopMediaPlayer from "+comment);
@@ -2732,8 +2738,8 @@ public class WebCallService extends Service {
 		brintent.putExtra("state", "connected");
 		sendBroadcast(brintent);
 
-// TODO if wsClient!=null but calleeIsConnected() is NOT called, what does this mean?
-// especially for webcallConnectType() ?
+		// TODO if wsClient!=null but calleeIsConnected() is NOT called, what does this mean?
+		// especially for webcallConnectType() ?
 	}
 
 	private void setLoginUrl() {
@@ -2833,7 +2839,7 @@ public class WebCallService extends Service {
 		String androidFolder = Environment.DIRECTORY_DOWNLOADS;
 		String mimeType = URLConnection.guessContentTypeFromName(filename);
 		String filenameLowerCase = filename.toLowerCase(Locale.getDefault());
-/*
+		/* right now we do NOT treat jpg/png's different from other files
 		if(filenameLowerCase.endsWith(".jpg") || filenameLowerCase.endsWith(".jpeg")) {
 			androidFolder = Environment.DIRECTORY_DCIM;
 			mimeType = "image/jpg";
@@ -2841,7 +2847,7 @@ public class WebCallService extends Service {
 			androidFolder = Environment.DIRECTORY_DCIM;
 			mimeType = "image/png";
 		}
-*/
+		*/
 		Log.d(TAG,"storeByteArrayToFile filename="+filename+" folder="+androidFolder+" mime="+mimeType);
 
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) { // <10 <api29
@@ -3942,7 +3948,6 @@ public class WebCallService extends Service {
 			Log.d(TAG, "runJS("+logstr+") but no webview");
 		} else if(!webviewMainPageLoaded && !str.equals("history.back()")) {
 			Log.d(TAG, "runJS("+logstr+") but no webviewMainPageLoaded");
-// TODO if str is "pickup()", we may need to call it later
 		} else {
 			if(extendedLogsFlag && !logstr.startsWith("wsOnError") && !logstr.startsWith("showStatus")) {
 				Log.d(TAG, "runJS("+logstr+")");
@@ -3981,7 +3986,7 @@ public class WebCallService extends Service {
 		if(probablyInDoze) {
 			if(reconnectCounter==ReconnectCounterBeep) {
 				if(beepOnLostNetworkMode>0) {
-					playSoundNotification();
+					// playSoundNotification(); // currently deactivated
 				}
 			} else if(reconnectCounter==ReconnectCounterScreen) {
 				Log.d(TAG,"wakeUpOnLoopCount (no net + reconnectCounter==ReconnectCounterScreen)");
@@ -4143,14 +4148,14 @@ public class WebCallService extends Service {
 	}
 
 	private void playSoundNotification() {
-		Log.d(TAG,"playSoundNotification - skip");
-//		ToneGenerator toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC, 90); // volume
+		Log.d(TAG,"playSoundNotification");
+		ToneGenerator toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC, 90); // volume
 		//toneGen1.startTone(ToneGenerator.TONE_CDMA_PIP,120); // duration
-//		toneGen1.startTone(ToneGenerator.TONE_SUP_INTERCEPT_ABBREV,200); // duration
+		toneGen1.startTone(ToneGenerator.TONE_SUP_INTERCEPT_ABBREV,200); // duration
 		soundNotificationPlayed = true;
 	}
 
-/*
+	/* currently not being used
 	private void playSoundConfirm() {
 		// very simple short beep to indicate a network problem (maybe just temporary)
 		if(soundNotificationPlayed) {
@@ -4160,7 +4165,7 @@ public class WebCallService extends Service {
 			soundNotificationPlayed = false;
 		}
 	}
-*/
+	*/
 
 	private void playSoundAlarm() {
 		// typical TYPE_NOTIFICATION sound to indicate we given up on reconnect (severe)
