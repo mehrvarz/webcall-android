@@ -1,0 +1,65 @@
+1.1.1
+
+service disconnectHost() will now generate updateNotification() and
+statusMessage() 'Offline', independed of whether wsClient was set
+
+disconnectHost() will broadcast 'state' 'disconnected' to activity
+
+wsExit() will call wsExit() with sendNotification=true
+
+1.1.0
+
+ID Manager lets you register multiple user-ID's and operate them all
+in parallel. #BurnerPhone #BurnerIDs
+See: https://timur.mobi/webcall/more/#id-manager
+
+Accept or Deny incoming calls directly from a popup notification on 
+Android 10+.
+
+You can now capture and view WebCall logs on Android 10+.
+
+New [Clear cache] option lets you update the WebCall core client,
+without having to exit the app.
+
+Federated WebCall allows many WebCall servers to work together,
+without data synchronization and without operator consultation.
+Call-widgets from remote servers are run inside isolated webview 
+instances. Incoming calls, missed calls and contacts now show
+remote user as: id@domain.
+See: https://timur.mobi/webcall/more/#federated
+
+WebCall links + NFC connect are not anymore tight to timur.mobi
+domain. Both will work with any domain you may run across. You
+can click on links like: https://(domain)/user/(id) and WebCall 
+for Android will let you call this party right away. 
+
+WebCall for Android now brings up the Android soft keyboard when 
+needed, without you having to explicity tap the form field.
+
+WebCall for Android comes with a refreshed base page, offering
+many small improvements.
+
+WebCall Update is now being shown inside the app. No need to start
+an external browser for this.
+
+
+Issues resolved:
+
+Reconnecter is now more resiliant, for instance when WebCall service
+was started during boot.
+
+On network loss you will now see 'No network. Reconnect paused.'
+(instead of 'No network. Giving up.'). Client will try to reconnect
+as soon as a network becomes available again, but will not attempt
+to reconnect while there is no network.
+
+An issue related to sending files was solved (on Android 9+ devices).
+
+When you click [Go Offline], the reconnecter service will stop right
+away and stay fully inactive until you [Go Online] again.
+
+Fixed an issue with the proximity sensor on some smartphone devices.
+
+Fixed an issue where 'Screen for wifi' could not be disabled on some
+older devices.
+
