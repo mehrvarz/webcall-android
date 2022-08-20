@@ -1251,13 +1251,14 @@ public class WebCallService extends Service {
 						Log.d(TAG, "handleUri username=("+username+")");
 					}
 					if(username==null || username.equals("")) {
-						// the username is not yet stored in the prefs
-						Log.d(TAG, "handleUri empty username=("+username+")");
+						// the username is not stored in the prefs (or it is empty string)
+						Log.d(TAG, "handleUri empty prefs username=("+username+")");
+						// get username from callee-URL
 						int idxCallee = path.indexOf("/callee/");
 						if(idxCallee>=0) {
-							// store username from callee-URL into the prefs
 							username = path.substring(idxCallee+8);
 							if(!username.startsWith("register")) {
+								// store username from callee-URL into the prefs
 								Log.d(TAG, "handleUri store username=("+username+")");
 								storePrefsString("username",username);
 							}
@@ -2048,7 +2049,7 @@ public class WebCallService extends Service {
 
 			// disconnect from webcall server
 			Log.d(TAG,"JS wsExit disconnectHost()");
-			disconnectHost(false);
+			disconnectHost(true);
 
 			// tell activity to force close
 			Log.d(TAG,"JS wsExit shutdown activity");
@@ -3883,9 +3884,6 @@ public class WebCallService extends Service {
 			} catch(InterruptedException ex) {
 				Log.e(TAG,"disconnectHost InterruptedException",ex);
 			}
-			if(sendNotification) {
-				updateNotification("","Offline",false); // activity has LED
-			}
 			if(!reconnectBusy) {
 				if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 					long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
@@ -3902,6 +3900,12 @@ public class WebCallService extends Service {
 			}
 			reconnectBusy = false;
 		}
+		statusMessage("Offline", 0, sendNotification);
+
+		Intent brintent = new Intent("webcall");
+		brintent.putExtra("state", "disconnected");
+		sendBroadcast(brintent);
+
 		Log.d(TAG,"disconnectHost done");
 	}
 

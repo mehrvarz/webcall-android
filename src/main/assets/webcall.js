@@ -141,27 +141,36 @@ function insecureTlsAction() {
 
 function requestNewId() {
 	if(formUsername.value!="") {
-		Android.toast("To register a new User-ID, clear the current User-ID first.");
+		Android.toast("To register a new User-ID, clear the User-ID form.");
 		setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
 		return;
 	}
 
 	Android.storePreference("username", "");
+
+	var valueDomain = formDomain.value.toLowerCase();
+	if(valueDomain=="") {
+		valueDomain = "timur.mobi";
+		formDomain.value = valueDomain;
+	}
+
+	// TODO it would be good to check host at valueDomain exists (ping?), before we set window.location.href
+	Android.storePreference("webcalldomain", valueDomain);
 	Android.wsClearCookies();
 	// using randId for better ssl-err detection
 	let randId = ""+Math.floor(Math.random()*1000000);
-	let url = "https://"+formDomain.value+"/callee/register/?i="+randId;
+	let url = "https://"+valueDomain+"/callee/register/?i="+randId;
 	console.log('load register page='+url);
 	setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
-	// TODO when url fails, due to an ssl-err, we do NOT get an error in JS (only in Java: # onReceivedSslError)
+	// TODO when url fails, we get an error in Java (for instance # onReceivedSslError)
+	// but not in JS (we only get a browser page error)
 	window.location.href = url;
 }
 
 function connectServer() {
 	var valueDomain = formDomain.value.toLowerCase();
-	console.log('valueDomain',valueDomain);
 	var valueUsername = formUsername.value.toLowerCase();
-	console.log('valueUsername',valueUsername);
+	console.log('connectServer user='+valueUsername+' host='+valueDomain);
 
 	if(valueDomain!="") {
 		Android.storePreference("webcalldomain", valueDomain);
