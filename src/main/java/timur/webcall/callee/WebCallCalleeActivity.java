@@ -77,6 +77,8 @@ import android.nfc.NfcAdapter.CreateNdefMessageCallback;
 import android.nfc.NfcEvent;
 import android.nfc.NdefRecord;
 import android.nfc.NdefMessage;
+import android.database.Cursor;
+
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -119,6 +121,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private WebView myWebView = null;
 	private WebView myNewWebView = null;
 	private BroadcastReceiver broadcastReceiver = null;
+	private BroadcastReceiver onDownloadComplete = null;
 
 	private PowerManager powerManager = null;
 	private PowerManager.WakeLock wakeLockProximity = null;
@@ -128,7 +131,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private KeyguardManager keyguardManager = null;
 	private SharedPreferences prefs = null;
 	private WakeLock wakeLockScreen = null;
-	private	Context context;
+	private	Activity activity;
 	private NfcAdapter nfcAdapter;
 	private boolean startupFail = false;
 	private volatile int touchX, touchY;
@@ -150,7 +153,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		Log.d(TAG, "onCreate "+BuildConfig.VERSION_NAME);
-		context = this;
+		activity = this;
 
 		// call getCurrentWebViewPackageInfo() to get webview versionName, may fail on old Android / old webview
 		PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
@@ -164,7 +167,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		} catch(Exception ex) {
 			Log.d(TAG, "# onCreate setContentView ex="+ex);
 			startupFail = true;
-			Toast.makeText(context, "WebCall cannot start. No System WebView installed?",
+			Toast.makeText(activity, "WebCall cannot start. No System WebView installed?",
 				Toast.LENGTH_LONG).show();
 			return;
 		}
@@ -345,6 +348,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					startActivity(i);
 					return;
 				}
+
 				String clipText = intent.getStringExtra("clip");
 				if(clipText!=null && clipText!="") {
 					Log.d(TAG, "broadcastReceiver clipText "+clipText);
@@ -381,9 +385,162 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					simClickString(simClick);
 					return;
 				}
+
+				String filedownload = intent.getStringExtra("filedownload");
+				if(filedownload!=null && filedownload!="") {
+					Log.d(TAG, "broadcastReceiver cmd filedownload="+filedownload);
+
+					if(ActivityCompat.checkSelfPermission(activity,
+						  Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
+					   ActivityCompat.checkSelfPermission(activity,
+						  Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+					    // request for permission when user has not yet granted permission for app
+						ActivityCompat.requestPermissions(activity,
+							new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,
+								Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+					} else {
+						DownloadManager.Request request = new DownloadManager.Request(Uri.parse(filedownload));
+						request.setDescription("Downloading file....");
+						request.setTitle(filedownload);
+
+						String filename = filedownload;
+						int idx = filename.lastIndexOf("/");
+						if(idx>0) {
+							filename = filename.substring(idx+1);
+						}
+						Log.d(TAG,"filename="+filename);
+						//request.setTitle(filename);
+
+						String mimetype = URLConnection.guessContentTypeFromName(filename);
+						Log.d(TAG,"mimetype="+mimetype);
+						request.setMimeType(mimetype);
+
+						//String userAgent = intent.getStringExtra("useragent");
+						String userAgent = "WebCall for Android";
+						Log.d(TAG,"userAgent="+userAgent);
+						request.addRequestHeader("User-Agent",userAgent);
+
+						request.allowScanningByMediaScanner();
+						request.setAllowedNetworkTypes(
+							DownloadManager.Request.NETWORK_WIFI | DownloadManager.Request.NETWORK_MOBILE);
+						request.setAllowedOverRoaming(true);
+
+						request.setVisibleInDownloadsUi(true);
+						if(filedownload.indexOf("//timur.mobi/")>0 && filedownload.indexOf("/WebCall")>0 &&
+								filedownload.endsWith(".apk")) {
+							// download and offer to install
+						} else {
+							// download only + notification
+							request.setNotificationVisibility(
+								DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+						}
+
+						request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+
+						// ask user: download?
+						String filenameFinal = filename;
+						AlertDialog.Builder alertbox = new AlertDialog.Builder(activity);
+						alertbox.setTitle("Download file");
+						alertbox.setMessage("Do you want to download "+filename+"?");
+						alertbox.setNegativeButton("Dismiss", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+							}
+						});
+						alertbox.setPositiveButton("Download", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								DownloadManager downloadManager =
+									(DownloadManager)getSystemService(DOWNLOAD_SERVICE);
+								long downloadReference = downloadManager.enqueue(request);
+								if(downloadReference!=0) {
+									Log.d(TAG,"download start ref="+downloadReference);
+									Toast.makeText(activity,"Starting download "+filenameFinal,
+										Toast.LENGTH_LONG).show();
+									// file will be received in -> onDownloadComplete
+								} else {
+									Log.d(TAG,"download failed for ref="+downloadReference);
+									Toast.makeText(activity,"Download failed "+filenameFinal,
+										Toast.LENGTH_LONG).show();
+								}
+							}
+						});
+						alertbox.show();
+					}
+					return;
+				}
+
+				Log.d(TAG, "# broadcastReceiver unknown cmd");
 			}
 		};
 		registerReceiver(broadcastReceiver, new IntentFilter("webcall"));
+
+		onDownloadComplete = new BroadcastReceiver() {
+			public void onReceive(Context context, Intent intent) {
+				Log.d(TAG, "onDownloadComplete "+intent.toString());
+
+				long referenceId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0);
+				Log.d(TAG, "onDownloadComplete referenceId="+referenceId);
+
+				DownloadManager downloadManager = (DownloadManager)getSystemService(DOWNLOAD_SERVICE);
+				Uri fileUri = downloadManager.getUriForDownloadedFile(referenceId);
+				Log.d(TAG,"onDownloadComplete fileUri="+fileUri);
+
+				DownloadManager.Query downloadQuery = new DownloadManager.Query();
+				downloadQuery.setFilterById(referenceId);
+				Cursor cursor = downloadManager.query(downloadQuery);
+				if(!cursor.moveToFirst()) {
+					Log.d(TAG, "# onDownloadComplete cursor empty row");
+					return;
+				}
+				/*
+				String fileLocalUri = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI));
+				if(fileLocalUri==null) {
+					Log.d(TAG, "# onDownloadComplete fileLocalUri==null");
+					return;
+				}
+				Log.d(TAG, "onDownloadComplete fileLocalUri="+fileLocalUri);
+				*/
+				String title = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_TITLE));
+				if(title==null) {
+					Log.d(TAG, "# onDownloadComplete title==null");
+					return;
+				}
+				Log.d(TAG, "onDownloadComplete title="+title);
+
+				int columnIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+				Log.d(TAG, "onDownloadComplete columnIndex="+columnIndex);
+				if(columnIndex<0) {
+					Log.d(TAG, "# onDownloadComplete columnIndex<0 "+columnIndex);
+					return;
+				}
+
+				int status = -123;
+				try {
+					status = cursor.getInt(columnIndex);
+					//column for reason code if the download failed or paused
+					//int columnReason = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
+					//int reason = cursor.getInt(columnReason);
+					Log.d(TAG, "onDownloadComplete success="+(status==DownloadManager.STATUS_SUCCESSFUL));
+				} catch(Exception ex) {
+					Log.d(TAG, "# onDownloadComplete ex="+ex);
+				}
+
+				if(status==DownloadManager.STATUS_SUCCESSFUL) {
+					if(title.indexOf("//timur.mobi/")>=0 && title.endsWith(".apk")) {
+						// offer user to install downloaded apk
+						Intent installIntent = new Intent(Intent.ACTION_VIEW);
+						installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+						installIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+						installIntent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+						installIntent.setData(fileUri);
+						Log.d(TAG, "onDownloadComplete startActivity(installIntent)");
+						startActivity(installIntent);
+					}
+				}
+			}
+		};
+		registerReceiver(onDownloadComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
 
 		Intent serviceIntent = new Intent(this, WebCallService.class);
 		serviceIntent.putExtra("onstart", "donothing");
@@ -405,7 +562,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		registerForContextMenu(mainView);
 
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
-			String packageName = context.getPackageName();
+			String packageName = activity.getPackageName();
 			boolean ignoreOpti = powerManager.isIgnoringBatteryOptimizations(packageName);
 			Log.d(TAG, "onCreate isIgnoreBattOpti="+ignoreOpti);
 			if(!ignoreOpti) {
@@ -688,7 +845,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Log.d(TAG, "onContextItemSelected setNdefPushMessageCallback");
 					nfcAdapter.setNdefPushMessageCallback(this, this);
 					// createNdefMessage() will be called when nfc device toucg
-					Toast.makeText(context, "NFC WebCall link is ready...", Toast.LENGTH_LONG).show();
+					Toast.makeText(activity, "NFC WebCall link is ready...", Toast.LENGTH_LONG).show();
 					nearbyMode = true;
 					// TODO should we deactivate NFC automatically after, say, 10 min?
 				}
@@ -702,7 +859,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			if(Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
 				// deactivate createNdefMessage()
 				nfcAdapter.setNdefPushMessageCallback(null, this);
-				//Toast.makeText(context, "NFC WebCall has been deactivated", Toast.LENGTH_LONG).show();
+				//Toast.makeText(activity, "NFC WebCall has been deactivated", Toast.LENGTH_LONG).show();
 				nearbyMode = false;
 				// TODO also turn off NFC adapter?
 			} else {
@@ -730,7 +887,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onContextItemSelected turn beepOnLostNetwork On");
 			if(webCallServiceBinder!=null) {
 				webCallServiceBinder.beepOnLostNetwork(1);
-				Toast.makeText(context, "Beep-on-no-network has been activated", Toast.LENGTH_LONG).show();
+				Toast.makeText(activity, "Beep-on-no-network has been activated", Toast.LENGTH_LONG).show();
 			}
 			return true;
 		}
@@ -738,7 +895,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onContextItemSelected turn beepOnLostNetwork Off");
 			if(webCallServiceBinder!=null) {
 				webCallServiceBinder.beepOnLostNetwork(0);
-				Toast.makeText(context, "Beep-on-no-network has been deactivated", Toast.LENGTH_LONG).show();
+				Toast.makeText(activity, "Beep-on-no-network has been deactivated", Toast.LENGTH_LONG).show();
 			}
 			return true;
 		}
@@ -747,7 +904,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onContextItemSelected turn startOnBoot On");
 			if(webCallServiceBinder!=null) {
 				webCallServiceBinder.startOnBoot(1);
-				Toast.makeText(context, "Start-on-boot has been activated", Toast.LENGTH_LONG).show();
+				Toast.makeText(activity, "Start-on-boot has been activated", Toast.LENGTH_LONG).show();
 			}
 			return true;
 		}
@@ -755,7 +912,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onContextItemSelected turn startOnBoot Off");
 			if(webCallServiceBinder!=null) {
 				webCallServiceBinder.startOnBoot(0);
-				Toast.makeText(context, "Start-on-boot has been deactivated", Toast.LENGTH_LONG).show();
+				Toast.makeText(activity, "Start-on-boot has been deactivated", Toast.LENGTH_LONG).show();
 			}
 			return true;
 		}
@@ -764,7 +921,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onContextItemSelected turn WifiLock On");
 			if(webCallServiceBinder!=null) {
 				webCallServiceBinder.setWifiLock(1);
-				Toast.makeText(context, "WifiLock has been activated", Toast.LENGTH_LONG).show();
+				Toast.makeText(activity, "WifiLock has been activated", Toast.LENGTH_LONG).show();
 			}
 			return true;
 		}
@@ -772,7 +929,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onContextItemSelected turn WifiLock Off");
 			if(webCallServiceBinder!=null) {
 				webCallServiceBinder.setWifiLock(0);
-				Toast.makeText(context, "WifiLock has been deactivated", Toast.LENGTH_LONG).show();
+				Toast.makeText(activity, "WifiLock has been deactivated", Toast.LENGTH_LONG).show();
 			}
 			return true;
 		}
@@ -781,7 +938,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onContextItemSelected screenForWifiOn");
 			if(webCallServiceBinder!=null) {
 				webCallServiceBinder.screenForWifi(1);
-				Toast.makeText(context, "Screen-for-WIFI has been activated", Toast.LENGTH_LONG).show();
+				Toast.makeText(activity, "Screen-for-WIFI has been activated", Toast.LENGTH_LONG).show();
 			}
 			return true;
 		}
@@ -789,7 +946,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onContextItemSelected screenForWifiOff");
 			if(webCallServiceBinder!=null) {
 				webCallServiceBinder.screenForWifi(0);
-				Toast.makeText(context, "Screen-for-WIFI has been deactivated", Toast.LENGTH_LONG).show();
+				Toast.makeText(activity, "Screen-for-WIFI has been deactivated", Toast.LENGTH_LONG).show();
 			}
 			return true;
 		}
@@ -804,7 +961,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					SharedPreferences.Editor prefed = prefs.edit();
 					prefed.putInt("proximitySensor", proximitySensorMode);
 					prefed.commit();
-					Toast.makeText(context, "ProximitySensor has been activated", Toast.LENGTH_LONG).show();
+					Toast.makeText(activity, "ProximitySensor has been activated", Toast.LENGTH_LONG).show();
 				}
 			}
 			return true;
@@ -820,7 +977,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				SharedPreferences.Editor prefed = prefs.edit();
 				prefed.putInt("proximitySensor", proximitySensorMode);
 				prefed.commit();
-				Toast.makeText(context, "ProximitySensor has been deactivated", Toast.LENGTH_LONG).show();
+				Toast.makeText(activity, "ProximitySensor has been deactivated", Toast.LENGTH_LONG).show();
 			}
 			return true;
 		}
@@ -832,7 +989,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				SharedPreferences.Editor prefed = prefs.edit();
 				prefed.putInt("proximitySensorAction", proximitySensorAction);
 				prefed.commit();
-				Toast.makeText(context, "ProximitySensorAction screen dim", Toast.LENGTH_LONG).show();
+				Toast.makeText(activity, "ProximitySensorAction screen dim", Toast.LENGTH_LONG).show();
 			}
 			return true;
 		}
@@ -843,7 +1000,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				SharedPreferences.Editor prefed = prefs.edit();
 				prefed.putInt("proximitySensorAction", proximitySensorAction);
 				prefed.commit();
-				Toast.makeText(context, "ProximitySensorAction screen off", Toast.LENGTH_LONG).show();
+				Toast.makeText(activity, "ProximitySensorAction screen off", Toast.LENGTH_LONG).show();
 			}
 			return true;
 		}
@@ -856,7 +1013,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onContextItemSelected captureLogs");
 			lastLogfileName = webCallServiceBinder.captureLogs();
 			Log.d(TAG, "onContextItemSelected captureLogs ("+lastLogfileName+")");
-			//Toast.makeText(context, "Logs were captured", Toast.LENGTH_LONG).show();
+			//Toast.makeText(activity, "Logs were captured", Toast.LENGTH_LONG).show();
 			return true;
 		}
 		if(selectedItem==menuOpenLogs) {
@@ -864,8 +1021,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			if(lastLogfileName!=null) {
 				File file = new File(Environment.getExternalStorageDirectory() + "/" +
 					Environment.DIRECTORY_DOWNLOADS + "/"+ lastLogfileName);
-				Uri fileUri = FileProvider.getUriForFile(context,
-					context.getApplicationContext().getPackageName() + ".provider", file);
+				Uri fileUri = FileProvider.getUriForFile(activity,
+					activity.getApplicationContext().getPackageName() + ".provider", file);
 				Log.d(TAG, "onContextItemSelected menuOpenLogs "+fileUri);
 				Intent intent = new Intent(Intent.ACTION_VIEW);
 				//intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -883,7 +1040,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onContextItemSelected extended logs On");
 			if(webCallServiceBinder.extendedLogs(1)) {
 				extendedLogsFlag = true;
-				Toast.makeText(context, "Extended logs are on", Toast.LENGTH_LONG).show();
+				Toast.makeText(activity, "Extended logs are on", Toast.LENGTH_LONG).show();
 			}
 			return true;
 		}
@@ -895,7 +1052,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onContextItemSelected extended logs Off");
 			if(!webCallServiceBinder.extendedLogs(0)) {
 				extendedLogsFlag = false;
-				Toast.makeText(context, "Extended logs are off", Toast.LENGTH_LONG).show();
+				Toast.makeText(activity, "Extended logs are off", Toast.LENGTH_LONG).show();
 			}
 			return true;
 		}
@@ -929,9 +1086,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onStart abort on startupFail");
 			return;
 		}
-
 		Log.d(TAG, "onStart");
+
 		activityVisible = true;
+		// tell service that we are visible
 		sendBroadcast(new Intent("serviceCmdReceiver").putExtra("activityVisible", "true"));
 		super.onStart();
 
@@ -956,9 +1114,24 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	}
 
 	@Override
-	public void onStop() {
-		Log.d(TAG, "onStop");
-		super.onStop();
+	public void onPause() {
+		if(extendedLogsFlag) {
+			Log.d(TAG, "onPause");
+		}
+		activityVisible = false;
+		// tell service that we are not visible
+		sendBroadcast(new Intent("serviceCmdReceiver").putExtra("activityVisible", "false"));
+		super.onPause();
+
+		if(proximitySensorMode>0) {
+			if(sensorManager!=null && proximitySensorEventListener!=null) {
+				Log.d(TAG, "onPause sensorManager.unregisterListener");
+				proximityAway("onPause");
+				sensorManager.unregisterListener(proximitySensorEventListener);
+			} else {
+				Log.d(TAG, "onPause no unregisterListener");
+			}
+		}
 	}
 
 	@Override
@@ -967,6 +1140,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onResume");
 		}
 		super.onResume();
+
+		activityVisible = true;
+		// tell service that we are visible
+		sendBroadcast(new Intent("serviceCmdReceiver").putExtra("activityVisible", "true"));
 
 		if(powerManager==null) {
 			Log.d(TAG, "onResume powerManager==null");
@@ -996,31 +1173,31 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	}
 
 	@Override
-	public void onPause() {
-		if(extendedLogsFlag) {
-			Log.d(TAG, "onPause");
-		}
-		activityVisible = false;
-		sendBroadcast(new Intent("serviceCmdReceiver").putExtra("activityVisible", "false"));
-		super.onPause();
+	public void onStop() {
+		Log.d(TAG, "onStop");
 
-		if(proximitySensorMode>0) {
-			if(sensorManager!=null && proximitySensorEventListener!=null) {
-				Log.d(TAG, "onPause sensorManager.unregisterListener");
-				proximityAway("onPause");
-				sensorManager.unregisterListener(proximitySensorEventListener);
-			} else {
-				Log.d(TAG, "onPause no unregisterListener");
-			}
-		}
+		activityVisible = false;
+		// tell service that we are not visible
+		sendBroadcast(new Intent("serviceCmdReceiver").putExtra("activityVisible", "false"));
+
+		super.onStop();
 	}
 
 	@Override
 	protected void onDestroy() {
 		Log.d(TAG,"onDestroy");
+
+		activityVisible = false;
+		// tell service that we are not visible
+		sendBroadcast(new Intent("serviceCmdReceiver").putExtra("activityVisible", "false"));
+
+		if(onDownloadComplete!=null) {
+			Log.d(TAG, "onDestroy unregisterReceiver onDownloadComplete");
+			if(onDownloadComplete!=null) unregisterReceiver(onDownloadComplete);
+		}
 		if(broadcastReceiver!=null) {
-			Log.d(TAG, "onDestroy unregisterReceiver");
-			unregisterReceiver(broadcastReceiver);
+			Log.d(TAG, "onDestroy unregisterReceiver broadcastReceiver");
+			if(broadcastReceiver!=null) unregisterReceiver(broadcastReceiver);
 		}
 		if(webCallServiceBinder!=null) {
 			// tell our service that the activity is being destroyed
@@ -1278,7 +1455,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
 			values.put(MediaStore.MediaColumns.RELATIVE_PATH, androidFolder);
 
-			final ContentResolver resolver = context.getContentResolver();
+			final ContentResolver resolver = activity.getContentResolver();
 			Uri uri = null;
 
 			try {
@@ -1553,7 +1730,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private void disableBattOptimizations() {
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
 			// deactivate battery optimizations
-			AlertDialog.Builder alertbox = new AlertDialog.Builder(context);
+			AlertDialog.Builder alertbox = new AlertDialog.Builder(activity);
 
 			// method 1: we show a dialog that says:
 			// Select 'All apps' from context menu, scroll down to 'WebCall' and change to 'Don't optimize'
@@ -1577,10 +1754,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					// method 2: appears to do the same and is more comfortable to setup,
 					// but the only way this can be undone, is by uninstalling the app
 					Intent myIntent = new Intent();
-					String packageName = context.getPackageName();
+					String packageName = activity.getPackageName();
 					myIntent.setAction(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
 					myIntent.setData(Uri.parse("package:" + packageName));
-					context.startActivity(myIntent);
+					activity.startActivity(myIntent);
 				}
 			});
 			alertbox.show();
@@ -1835,8 +2012,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
 						request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS,
 							URLUtil.guessFileName(url,contentDisposition,mimetype));
-						DownloadManager downloadManager =
-							(DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+						DownloadManager downloadManager = (DownloadManager)getSystemService(DOWNLOAD_SERVICE);
 						downloadManager.enqueue(request);
 						Log.d(TAG,"Downloading File...");
 					}
@@ -1937,7 +2113,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					}
 
 					// or if 2) user confirms SSL-error dialog
-					final AlertDialog.Builder builder = new AlertDialog.Builder(context);
+					final AlertDialog.Builder builder = new AlertDialog.Builder(activity);
 					builder.setTitle("SSL Certificate Error");
 					String message = "SSL Certificate error on "+finalHostport;
 					switch(error.getPrimaryError()) {

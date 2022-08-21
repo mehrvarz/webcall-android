@@ -2,6 +2,10 @@ For the latest WebCall for Android updates go to:
 
  https://timur.mobi/webcall/update
 
+v1.1.3:
+
+Support for application upgrade from within the app.
+
 v1.1.2:
 
 webcall.js requestNewId(): store valueDomain to prefs before invoking

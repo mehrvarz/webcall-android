@@ -94,8 +94,13 @@ import android.media.Ringtone;
 import android.media.ToneGenerator;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.Manifest;
 import android.annotation.SuppressLint;
+
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.FileProvider;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import java.util.concurrent.TimeUnit;
@@ -1142,22 +1147,12 @@ public class WebCallService extends Service {
 						myWebView.loadUrl(fetchBlobJS);
 						// file will be stored in getBase64FromBlobData()
 					} else {
-						DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-						// TODO userAgent???
-						String cookies = CookieManager.getInstance().getCookie(userAgent);
-						request.addRequestHeader("cookie",cookies);
-						request.addRequestHeader("User-Agent",userAgent);
-						request.setDescription("Downloading File....");
-						request.setTitle(URLUtil.guessFileName(url,contentDisposition,mimetype));
-						request.allowScanningByMediaScanner();
-						request.setNotificationVisibility(
-							DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-						request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS,
-							URLUtil.guessFileName(url,contentDisposition,mimetype));
-						DownloadManager downloadManager =
-							(DownloadManager) getSystemService(DOWNLOAD_SERVICE);
-						downloadManager.enqueue(request);
-						Log.d(TAG,"Downloading File...");
+						Intent intent = new Intent("webcall");
+						intent.putExtra("filedownload", url);
+						intent.putExtra("mimetype", mimetype);
+						intent.putExtra("useragent", userAgent);
+						//intent.putExtra("contentDisposition", contentDisposition);
+						sendBroadcast(intent);
 					}
 				}
 			});
@@ -1230,20 +1225,29 @@ public class WebCallService extends Service {
 					//final String scheme = uri.getScheme();
 					final String path = uri.getPath();
 					if(extendedLogsFlag) {
-						Log.i(TAG, "handleUri path="+path+" scheme="+uri.getScheme());
+						Log.d(TAG, "handleUri path="+path+" scheme="+uri.getScheme());
 					}
 
-					// file: and /callee/ urls are processed in webview
-					if(uri.getScheme().startsWith("file") ||
+					if(path.startsWith("/webcall/update") && webviewMainPageLoaded) {
+						// load update page in iframe
+						Log.d(TAG, "open url ("+uri.toString()+") in iframe");
+						String jsString = "openNews(\""+uri.toString()+"\")";
+						Log.d(TAG, "runJS("+jsString+")");
+						runJS(jsString,null);
+						return true; // do not load this url into webview
+
+					} else if(uri.getScheme().startsWith("file") ||
+						// file: and /callee/ urls are processed in webview
 						(uri.getScheme().startsWith("http") && path.indexOf("/callee/")>=0)) {
 						// uri is valid for webview; continue below
+
 					} else {
-						// uri is NOT for webview, forward to ext browser
+						// uri NOT for webview, forward to ext browser
 						Log.i(TAG, "handleUri uri not for webview1; forward to ext browser ("+uri+")");
 						Intent intent = new Intent("webcall");
 						intent.putExtra("browse", uri.toString());
 						sendBroadcast(intent);
-						return true; // do not load this url
+						return true; // do not load this url into webview
 					}
 
 					String username = prefs.getString("username", "");
@@ -1524,6 +1528,7 @@ public class WebCallService extends Service {
 		public void activityDestroyed() {
 			// activity is telling us that it is being destroyed
 			// TODO this should set webviewPageLoaded=false, needed for next incoming call ???
+			activityVisible = false;
 			if(connectToSignalingServerIsWanted) {
 				Log.d(TAG, "activityDestroyed got connectToSignalingServerIsWanted - do nothing");
 				// do nothing
