@@ -386,9 +386,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					return;
 				}
 
-				String filedownload = intent.getStringExtra("filedownload");
-				if(filedownload!=null && filedownload!="") {
-					Log.d(TAG, "broadcastReceiver cmd filedownload="+filedownload);
+				String filedownloadUrl = intent.getStringExtra("filedownload");
+				if(filedownloadUrl!=null && filedownloadUrl!="") {
+					Log.d(TAG, "broadcastReceiver cmd filedownloadUrl="+filedownloadUrl);
 
 					if(ActivityCompat.checkSelfPermission(activity,
 						  Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
@@ -399,11 +399,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,
 								Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
 					} else {
-						DownloadManager.Request request = new DownloadManager.Request(Uri.parse(filedownload));
+						DownloadManager.Request request = new DownloadManager.Request(Uri.parse(filedownloadUrl));
 						request.setDescription("Downloading file....");
-						request.setTitle(filedownload);
+						request.setTitle(filedownloadUrl);
 
-						String filename = filedownload;
+						String filename = filedownloadUrl;
 						int idx = filename.lastIndexOf("/");
 						if(idx>0) {
 							filename = filename.substring(idx+1);
@@ -426,11 +426,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						request.setAllowedOverRoaming(true);
 
 						request.setVisibleInDownloadsUi(true);
-						if(filedownload.indexOf("//timur.mobi/")>0 && filedownload.indexOf("/WebCall")>0 &&
-								filedownload.endsWith(".apk")) {
-							// download and offer to install
+						if(filedownloadUrl.indexOf("//timur.mobi/")>0 && filedownloadUrl.indexOf("/WebCall")>0 &&
+								filedownloadUrl.endsWith(".apk")) {
+							// download + offer to install
 						} else {
-							// download only + notification
+							// download file + create notification
 							request.setNotificationVisibility(
 								DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
 						}
@@ -477,6 +477,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 		onDownloadComplete = new BroadcastReceiver() {
 			public void onReceive(Context context, Intent intent) {
+				// find out if this is an apk (from timur.mobi) and if so, start install
 				Log.d(TAG, "onDownloadComplete "+intent.toString());
 
 				long referenceId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0);
@@ -501,21 +502,22 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 				Log.d(TAG, "onDownloadComplete fileLocalUri="+fileLocalUri);
 				*/
+				// title is filedownloadUrl
 				String title = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_TITLE));
 				if(title==null) {
 					Log.d(TAG, "# onDownloadComplete title==null");
 					return;
 				}
 				Log.d(TAG, "onDownloadComplete title="+title);
-
-				int columnIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
-				Log.d(TAG, "onDownloadComplete columnIndex="+columnIndex);
-				if(columnIndex<0) {
-					Log.d(TAG, "# onDownloadComplete columnIndex<0 "+columnIndex);
+				if(title.indexOf("//timur.mobi/")<0 || !title.endsWith(".apk")) {
+					Log.d(TAG, "not an apk from timur.mobi. do not install.");
 					return;
 				}
 
+				// find out if download status==success
 				int status = -123;
+				int columnIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+				Log.d(TAG, "onDownloadComplete columnIndex="+columnIndex);
 				try {
 					status = cursor.getInt(columnIndex);
 					//column for reason code if the download failed or paused
@@ -524,19 +526,28 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Log.d(TAG, "onDownloadComplete success="+(status==DownloadManager.STATUS_SUCCESSFUL));
 				} catch(Exception ex) {
 					Log.d(TAG, "# onDownloadComplete ex="+ex);
+					Toast.makeText(activity,"Starting download "+title, Toast.LENGTH_LONG).show();
+				}
+				if(status!=DownloadManager.STATUS_SUCCESSFUL) {
+					Log.d(TAG, "# onDownloadComplete status="+status+" not success");
+					Toast.makeText(activity,"APK downloaded. Cannot offer to install. status="+status,
+						Toast.LENGTH_LONG).show();
+					return;
 				}
 
-				if(status==DownloadManager.STATUS_SUCCESSFUL) {
-					if(title.indexOf("//timur.mobi/")>=0 && title.endsWith(".apk")) {
-						// offer user to install downloaded apk
-						Intent installIntent = new Intent(Intent.ACTION_VIEW);
-						installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-						installIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-						installIntent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
-						installIntent.setData(fileUri);
-						Log.d(TAG, "onDownloadComplete startActivity(installIntent)");
-						startActivity(installIntent);
-					}
+				// start install of downloaded apk
+				Intent installIntent = new Intent(Intent.ACTION_VIEW);
+				installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+				installIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+				installIntent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+//				installIntent.setData(fileUri);
+				installIntent.setDataAndType(fileUri, downloadManager.getMimeTypeForDownloadedFile(referenceId));
+				try {
+					Log.d(TAG, "onDownloadComplete startActivity(installIntent)");
+					startActivity(installIntent);
+				} catch(Exception ex) {
+					Log.d(TAG, "# onDownloadComplete startActivity(installIntent) ex="+ex);
+					Toast.makeText(activity,"APK downloaded. Cannot offer to install.", Toast.LENGTH_LONG).show();
 				}
 			}
 		};
