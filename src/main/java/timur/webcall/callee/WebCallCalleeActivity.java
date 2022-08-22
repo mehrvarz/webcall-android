@@ -283,14 +283,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			public void onReceive(Context context, Intent intent) {
 
 				String message = intent.getStringExtra("toast");
-				if(message!=null && message!="") {
+				if(message!=null && !message.equals("")) {
 					Log.d(TAG, "broadcastReceiver toast "+message);
 					Toast.makeText(context, message, Toast.LENGTH_LONG).show();
 					return;
 				}
 
 				String command = intent.getStringExtra("cmd");
-				if(command!=null && command!="") {
+				if(command!=null && !command.equals("")) {
 					Log.d(TAG, "broadcastReceiver command "+command);
 					if(command.equals("shutdown")) {
 						finish();
@@ -309,7 +309,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 
 				String state = intent.getStringExtra("state");
-				if(state!=null && state!="") {
+				if(state!=null && !state.equals("")) {
 					if(state.equals("mainpage")) {
 						Log.d(TAG, "broadcastReceiver state="+state);
 
@@ -340,9 +340,22 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 
 				String url = intent.getStringExtra("browse");
-				if(url!=null && url!=null) {
+				if(url!=null && !url.equals("")) {
 					Log.d(TAG, "broadcastReceiver browse "+url);
-					// start external browser
+					// start external browser - or onNewIntent if it fits our VIEW intent-filter
+					// url=https://timur.mobi/user/92324424611?callerId=29041352893
+					//    &callerName=&callerHost=192.168.0.161:8068&contactName=&i=672477&ds=false
+					//
+					// if url contains "/user/" this should be catched by our manifest intent-filter
+					//   and result in onNewIntent with data=url
+					// this works well on Android 9, but on Android 12 our ACTION_VIEW intent gets
+					//   handled by an external browser
+					//
+					// this is why we take a short cut here:
+					if(url.indexOf("/user/")>0) {
+						dialId(Uri.parse(url));
+						return;
+					}
 					Intent i = new Intent(Intent.ACTION_VIEW);
 					i.setData(Uri.parse(url));
 					startActivity(i);
@@ -350,7 +363,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 
 				String clipText = intent.getStringExtra("clip");
-				if(clipText!=null && clipText!="") {
+				if(clipText!=null && !clipText.equals("")) {
 					Log.d(TAG, "broadcastReceiver clipText "+clipText);
 					ClipData clipData = ClipData.newPlainText(null,clipText);
 					ClipboardManager clipboard =
@@ -363,7 +376,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 
 				String forResults = intent.getStringExtra("forResults");
-				if(forResults!=null && forResults!="") {
+				if(forResults!=null && !forResults.equals("")) {
 					Log.d(TAG, "broadcastReceiver forResults "+forResults);
 
 					String file_type = "*/*";    // file types to be allowed for upload
@@ -380,14 +393,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 
 				String simClick = intent.getStringExtra("simulateClick");
-				if(simClick!=null && simClick!="") {
+				if(simClick!=null && !simClick.equals("")) {
 					//Log.d(TAG, "broadcastReceiver simulateClick string "+simClick);
 					simClickString(simClick);
 					return;
 				}
 
 				String filedownloadUrl = intent.getStringExtra("filedownload");
-				if(filedownloadUrl!=null && filedownloadUrl!="") {
+				if(filedownloadUrl!=null && !filedownloadUrl.equals("")) {
 					Log.d(TAG, "broadcastReceiver cmd filedownloadUrl="+filedownloadUrl);
 
 					if(ActivityCompat.checkSelfPermission(activity,
@@ -540,7 +553,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 				installIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
 				installIntent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
-//				installIntent.setData(fileUri);
 				installIntent.setDataAndType(fileUri, downloadManager.getMimeTypeForDownloadedFile(referenceId));
 				try {
 					Log.d(TAG, "onDownloadComplete startActivity(installIntent)");
@@ -685,7 +697,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(result.getType()==HitTestResult.SRC_ANCHOR_TYPE) {
 			// longpress on a link (use result.getExtra())
 			String clipText = result.getExtra();
-			if(clipText!=null && clipText!="") {
+			if(clipText!=null && !clipText.equals("")) {
 				// 1. copy link to clipboard
 				Log.d(TAG, "broadcastReceiver clipText "+clipText);
 				ClipData clipData = ClipData.newPlainText(null,clipText);
@@ -1115,6 +1127,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		// check for special intent
 		// this is needed for activity started by the service (on incoming call)
 		// or by Android OS intentFilter (as a dial request)
+// TODO why does VIEW arrive as act=android.intent.action.MAIN
 		newIntent(getIntent(),"onStart");
 	}
 
@@ -1374,6 +1387,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	////////// private functions //////////////////////////////////////
 
 	private void newIntent(Intent intent, String comment) {
+		Log.d(TAG, "newIntent ("+comment+") "+intent.toString());
+
 		if(intent==null) {
 			Log.d(TAG, "newIntent ("+comment+") no intent");
 			return;
@@ -1398,6 +1413,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
+// TODO getDataString() ???
 		Uri url = intent.getData();
 		dialIdIntent = null;
 		if(url!=null) {
@@ -1419,7 +1435,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
-		//Log.d(TAG, "# newIntent unprocessed ("+comment+") "+intent.toString());
+		Log.d(TAG, "# newIntent unprocessed ("+comment+") "+intent.toString());
 	}
 
 	private void storeByteArrayToFile(byte[] blobAsBytes, String filename) {
@@ -1920,7 +1936,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 		/////////////////////////////////////////////////////////////
 		// STEP 1: if parameter "i" is NOT set -> open dial-id-dialog with callerId=select
-		if(iParamValue==null || iParamValue=="" || iParamValue=="null") {
+		if(iParamValue==null || iParamValue.equals("") || iParamValue.equals("null")) {
 			// rebuild the Uri with callerHost = webcalldomain
 			Uri.Builder builder = new Uri.Builder();
 			builder.scheme(url.getScheme())
@@ -2038,7 +2054,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					if(msg.startsWith("showNumberForm pos")) {
 						// showNumberForm pos 95.0390625 52.1953125 155.5859375 83.7421875 L1590
 						String simClick = msg.substring(19).trim();
-						if(simClick!=null && simClick!="") {
+						if(simClick!=null && !simClick.equals("")) {
 							simClickString(simClick);
 						}
 					}

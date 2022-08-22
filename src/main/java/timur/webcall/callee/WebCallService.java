@@ -1237,13 +1237,13 @@ public class WebCallService extends Service {
 						return true; // do not load this url into webview
 
 					} else if(uri.getScheme().startsWith("file") ||
-						// file: and /callee/ urls are processed in webview
 						(uri.getScheme().startsWith("http") && path.indexOf("/callee/")>=0)) {
-						// uri is valid for webview; continue below
+						// "file:" and "http*://(anydomain)/callee/*" urls are processed in webview1
+						// continue below
 
 					} else {
-						// uri NOT for webview, forward to ext browser
-						Log.i(TAG, "handleUri uri not for webview1; forward to ext browser ("+uri+")");
+						// uri NOT for webview1: ask activity to forward to ext browser (or our intent-filter)
+						Log.i(TAG, "handleUri uri not for webview1; broadcast 'browse' to activity ("+uri+")");
 						Intent intent = new Intent("webcall");
 						intent.putExtra("browse", uri.toString());
 						sendBroadcast(intent);
@@ -1481,6 +1481,10 @@ public class WebCallService extends Service {
 				Log.d(TAG, "callInProgress ret="+ret);
 			}
 			return ret;
+		}
+
+		public int haveNetwork() {
+			return haveNetworkInt;
 		}
 
 		public void setProximity(boolean flagNear) {
@@ -4277,7 +4281,7 @@ public class WebCallService extends Service {
 	}
 
 	private String getWebviewVersion() {
-		if(webviewVersionString=="") {
+		if(webviewVersionString.equals("")) {
 			PackageInfo webviewPackageInfo = getCurrentWebViewPackageInfo();
 			if(webviewPackageInfo != null) {
 				webviewVersionString = webviewPackageInfo.versionName;
