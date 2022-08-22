@@ -666,7 +666,7 @@ public class WebCallService extends Service {
 						}
 					}
 					haveNetworkInt = 0;
-					statusMessage("No network",-1,true,false);
+					statusMessage("No network. Reconnect paused.",-1,true,false);
 				}
 
 				@Override
