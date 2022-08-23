@@ -4214,19 +4214,19 @@ public class WebCallService extends Service {
 			runJS("showStatus('"+msg+"',"+timeoutMs+");",null);
 		}
 		if(notifi) {
-			if(isScreenOn() || important) {
-				updateNotification("", msg, important);
-			}
+			updateNotification("", msg, important);
 		}
 	}
 
 	private void updateNotification(String title, String msg, boolean important) {
 		if(msg!="" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
-			Log.d(TAG,"updateNotification msg="+msg+" important="+important);
-			NotificationManager notificationManager =
-				(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
-			Notification notification = buildFgServiceNotification(title, msg, important);
-			notificationManager.notify(NOTIF_ID, notification);
+			if(important || isScreenOn()) {
+				Log.d(TAG,"updateNotification msg="+msg+" important="+important);
+				NotificationManager notificationManager =
+					(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+				Notification notification = buildFgServiceNotification(title, msg, important);
+				notificationManager.notify(NOTIF_ID, notification);
+			}
 		}
 	}
 
