@@ -1,10 +1,20 @@
-For the latest WebCall for Android updates go to:
+sThe latest WebCall news can be found here:
 
  https://timur.mobi/webcall/update
 
 v1.1.3:
 
-Support for application upgrade from within the app.
+When the screen is off, low-priority notifications are suppressed.
+
+Widgets that require connectivity (Contacts, Dial-ID, ID-Manager, 
+etc.) cannot be opened anymore when no network is available.
+
+File download and APK installation are now supported in-app.
+
+Resolved an issue on Android 12: The app now makes sure that the 
+caller widget is not unintentionally opened in an external browser,
+but is always executed in an isolated webview.
+
 
 v1.1.2:
 
