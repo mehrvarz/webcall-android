@@ -652,21 +652,25 @@ public class WebCallService extends Service {
 				@Override
 				public void onAvailable(Network network) {
 		            super.onAvailable(network);
-					//Log.d(TAG, "networkCallback gaining access to new network...");
+					Log.d(TAG, "networkCallback gaining access to network...");
 				}
 
 				@Override
 				public void onLost(Network network) {
 					Log.d(TAG,"networkCallback default network lost; conWant="+connectToSignalingServerIsWanted);
+					haveNetworkInt = 0;
 					if(!connectToSignalingServerIsWanted) {
 						if(wifiLock!=null && wifiLock.isHeld()) {
 							// release wifi lock
 							Log.d(TAG,"networkCallback wifiLock.release");
 							wifiLock.release();
 						}
+						// "Reconnect paused" would be false
+						// in fact, any statusMessage would be false, bc !connectToSignalingServerIsWanted
+						//statusMessage("No network.",-1,true,false);
+					} else {
+						statusMessage("No network. Reconnect paused.",-1,true,false);
 					}
-					haveNetworkInt = 0;
-					statusMessage("No network. Reconnect paused.",-1,true,false);
 				}
 
 				@Override
@@ -681,7 +685,7 @@ public class WebCallService extends Service {
 						newNetworkInt = 1;
 					}
 
-					if(connectToSignalingServerIsWanted && haveNetworkInt!=newNetworkInt) {
+					if(/*connectToSignalingServerIsWanted &&*/ newNetworkInt!=haveNetworkInt) {
 						Log.d(TAG,"networkCallback network capab change: " + haveNetworkInt+" "+newNetworkInt+" "+
 							" conWanted="+connectToSignalingServerIsWanted+
 							" wsCon="+(wsClient!=null)+
@@ -708,13 +712,14 @@ public class WebCallService extends Service {
 					}
 					if(newNetworkInt==2 && haveNetworkInt!=2) {
 						// gaining wifi
-						if(wsClient!=null) {
+//						if(wsClient!=null) {
 							if(setWifiLockMode<=0) {
+								// prefer wifi not enabled by user
 								Log.d(TAG,"networkCallback gainWifi WifiLockMode off");
 							} else if(wifiLock==null) {
-								Log.d(TAG,"networkCallback gainWifi wifiLock==null");
+								Log.d(TAG,"# networkCallback gainWifi wifiLock==null");
 							} else if(wifiLock.isHeld()) {
-								Log.d(TAG,"networkCallback gainWifi wifiLock isHeld");
+								Log.d(TAG,"# networkCallback gainWifi wifiLock isHeld");
 							} else {
 								// enable wifi lock
 								Log.d(TAG,"networkCallback gainWifi wifiLock.acquire");
@@ -722,8 +727,10 @@ public class WebCallService extends Service {
 							}
 							if(connectToSignalingServerIsWanted) {
 								statusMessage("Using Wifi network",-1,false,false);
+							} else {
+								Log.d(TAG,"networkCallback gainWifi but conWant==false");
 							}
-						}
+//						}
 					}
 
 					// gained network: if goOnline is activated and reconnecter is idle -> start reconnecter
@@ -3092,7 +3099,11 @@ public class WebCallService extends Service {
 						// we pause reconnecter; if network comes back, checkNetworkState() will
 						// schedule a new reconnecter if connectToSignalingServerIsWanted is set
 						Log.d(TAG,"reconnecter no network, reconnect paused...");
-						statusMessage("No network. Reconnect paused.",-1,true,false);
+						if(!connectToSignalingServerIsWanted) {
+							statusMessage("No network. Reconnect paused.",-1,true,false);
+						} else {
+							statusMessage("No network.",-1,true,false);
+						}
 						reconnectBusy = false;
 						reconnectCounter = 0;
 						//runJS("offlineAction();",null); // goOnline enabled, goOffline disabled
