@@ -1,4 +1,4 @@
-v1.1.x is a big updated. It comes with ID Manager which lets you 
+v1.1.x is a big update. It comes with ID Manager which lets you 
 listen to multiple WebCall phone numbers (aka ID's) in parallel.
 
 The latest WebCall news and updates can be found here:
