@@ -1,36 +1,37 @@
-sThe latest WebCall news can be found here:
+v1.1.x is a big updated. It comes with ID Manager which lets you 
+listen to multiple WebCall phone numbers (aka ID's) in parallel.
 
- https://timur.mobi/webcall/update
+The latest WebCall news and updates can be found here:
+
+https://timur.mobi/webcall/update
+
+Release notes
 
 v1.1.3:
 
-When the screen is off, low-priority notifications are suppressed.
+When screen is off, low-priority notifications are now suppressed.
+Only incoming calls and "Failed to connect" will be reported.
+
+File download and APK installation/upgrade now supported in-app.
 
 Widgets that require connectivity (Contacts, Dial-ID, ID-Manager, 
 etc.) cannot be opened anymore when no network is available.
 
-File download and APK installation are now supported in-app.
-
 Resolved an issue on Android 12: The app now makes sure that the 
-caller widget is not unintentionally opened in an external browser,
-but is always executed in an isolated webview.
-
+caller widget is always executed in an isolated webview (and is not 
+unintentionally opened in an external browser).
 
 v1.1.2:
 
-webcall.js requestNewId(): store valueDomain to prefs before invoking
-/register, as it might have been changed
+When switching to offline mode, the status info in the Android 
+notification tray will now show "Offline". In v1.1.0 the most recent 
+status message stayed visible.
 
-if valueDomain is empty, set timur.mobi and store in prefs
-
-v1.1.1:
-
-service disconnectHost() will now generate updateNotification() and
-statusMessage() 'Offline', independed of whether wsClient was set
-
-disconnectHost() will broadcast 'state' 'disconnected' to activity
-
-wsExit() will call wsExit() with sendNotification=true
+On the base page, when changing the "Server address" (say, from 
+timur.mobi to xyz.com) and tapping on "Get new ID", the new server 
+address is now stored persistently. This does not happen in version 
+v1.1.0, so that on next start the app will try to connect to the old 
+server address. 
 
 v1.1.0:
 

@@ -1700,7 +1700,7 @@ public class WebCallService extends Service {
 					// then we will send: updateNotification awaitingCalls
 					// then we will broadcast: "state", "connected"
 				} else {
-					connectToSignalingServerIsWanted = false; // TODO ???
+					connectToSignalingServerIsWanted = false;
 					storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 				}
 				return wsCli;
@@ -3293,7 +3293,8 @@ public class WebCallService extends Service {
 							reconnectBusy = false;
 							// turn reconnecter off
 							connectToSignalingServerIsWanted = false;
-							storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
+							// TODO: not sure about this
+							//storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 						}
 						if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
 							long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
