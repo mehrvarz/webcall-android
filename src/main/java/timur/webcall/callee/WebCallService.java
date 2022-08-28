@@ -3289,7 +3289,7 @@ public class WebCallService extends Service {
 							if(beepOnLostNetworkMode>0) {
 								playSoundAlarm();
 							}
-							statusMessage("Give up reconnecting",-1,true,true);
+							statusMessage("Gave up reconnecting",-1,true,true);
 							reconnectBusy = false;
 							// turn reconnecter off
 							connectToSignalingServerIsWanted = false;
@@ -3334,7 +3334,7 @@ public class WebCallService extends Service {
 						storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 						Log.d(TAG,"reconnecter login fail '"+wsAddr+"' give up "+reader.readLine()+
 							" "+reader.readLine()+" "+reader.readLine()+" "+reader.readLine());
-						statusMessage("Give up reconnecting. "+response,-1,true,true);
+						statusMessage("Gave up reconnecting. "+response,-1,true,true);
 						if(myWebView!=null && webviewMainPageLoaded) {
 							// offlineAction(): disable offline-button and enable online-button
 							runJS("offlineAction();", new ValueCallback<String>() {
@@ -3418,7 +3418,7 @@ public class WebCallService extends Service {
 							if(beepOnLostNetworkMode>0) {
 								playSoundAlarm();
 							}
-							statusMessage("Give up reconnecting.",-1,true,true);
+							statusMessage("Gave up reconnecting.",-1,true,true);
 						}
 						if(myWebView!=null && webviewMainPageLoaded) {
 							// offlineAction(): disable offline-button and enable online-button
@@ -3544,7 +3544,7 @@ public class WebCallService extends Service {
 						if(beepOnLostNetworkMode>0) {
 							playSoundAlarm();
 						}
-						statusMessage("Give up reconnecting.",-1,true,true);
+						statusMessage("Gave up reconnecting.",-1,true,true);
 						if(myWebView!=null && webviewMainPageLoaded) {
 							// offlineAction(): disable offline-button and enable online-button
 							runJS("offlineAction();",null);
