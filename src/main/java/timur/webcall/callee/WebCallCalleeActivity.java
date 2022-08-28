@@ -1919,20 +1919,23 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		// build params HashMap to simplify access to urlArgs
 		// this is what our url-query might look like
 		// ?callerId=19230843600&callerName=Timur4
+		String iParamValue = null;
 		Map<String, Object> params = new HashMap<String, Object>();
-		String[] pairs = url.getQuery().split("&");
-		for(String pair: pairs) {
-			String[] split = pair.split("=");
-			if(split.length >= 2) {
-				params.put(split[0], split[1]);
-			} else if(split.length == 1) {
-				params.put(split[0], "");
+		String query = url.getQuery();
+		if(query!=null) {
+			String[] pairs = query.split("&");
+			for(String pair: pairs) {
+				String[] split = pair.split("=");
+				if(split.length >= 2) {
+					params.put(split[0], split[1]);
+				} else if(split.length == 1) {
+					params.put(split[0], "");
+				}
 			}
+
+			iParamValue = (String)params.get("i");
+			Log.d(TAG, "dialId iParamValue="+iParamValue);
 		}
-
-		String iParamValue = (String)params.get("i");
-		Log.d(TAG, "dialId iParamValue="+iParamValue);
-
 
 		/////////////////////////////////////////////////////////////
 		// STEP 1: if parameter "i" is NOT set -> open dial-id-dialog with callerId=select
