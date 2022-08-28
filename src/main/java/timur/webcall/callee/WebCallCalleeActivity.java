@@ -636,11 +636,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					if(webCallServiceBinder.getCurrentUrl().indexOf("/callee/")>=0) {
 						// NOTE: we may not be logged in as callee yet
 						newIntent(dialIdIntent,"onServiceConnected");
+						dialIdIntent = null;
 					} else {
 						// not on the mainpage yet
 						// will process dialIdIntent in broadcastReceiver state = "connected"
 					}
-					dialIdIntent = null;
 				}
 			}
 		}
