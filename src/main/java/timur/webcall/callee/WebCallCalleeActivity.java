@@ -148,6 +148,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private volatile int callInProgress = 0;
 	private ValueCallback<Uri[]> filePath = null; // for file selector
 	private volatile boolean activityVisible = false;
+	private Intent onCreateIntent = null;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -600,6 +601,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(extendedLogsFlag) {
 			Log.d(TAG, "onCreate done");
 		}
+
+		onCreateIntent = getIntent();
 	}
 
 	private ServiceConnection serviceConnection = new ServiceConnection() {
@@ -1124,11 +1127,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 		checkPermissions();
 
-		// check for special intent
-		// this is needed for activity started by the service (on incoming call)
-		// or by Android OS intentFilter (as a dial request)
-// TODO why does VIEW arrive as act=android.intent.action.MAIN
-		newIntent(getIntent(),"onStart");
+		if(onCreateIntent!=null) {
+			newIntent(onCreateIntent,"onStart");
+			onCreateIntent = null;
+		}
 	}
 
 	@Override
