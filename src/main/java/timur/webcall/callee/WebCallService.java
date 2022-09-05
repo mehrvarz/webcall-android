@@ -570,7 +570,9 @@ public class WebCallService extends Service {
 			return 0;
 		}
 
-		prefs = PreferenceManager.getDefaultSharedPreferences(context);
+		if(prefs==null) {
+			prefs = PreferenceManager.getDefaultSharedPreferences(context);
+		}
 		try {
 			audioToSpeakerMode = prefs.getInt("audioToSpeaker", 0);
 			Log.d(TAG,"onStartCommand audioToSpeakerMode="+audioToSpeakerMode);
@@ -921,11 +923,10 @@ public class WebCallService extends Service {
 		}
 
 		if(wsClient!=null) {
-			Log.d(TAG,"onStartCommand got existing wsClient");
+			activityWasDiscarded = true;
+			Log.d(TAG,"onStartCommand got existing wsClient "+activityWasDiscarded);
 			// probably the activity was discarded, got restarted, and no we see that service is still connected
 //			storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
-// TODO in this case we need to call runJS("wakeGoOnlineNoInit()",null) (once webview has been loaded)
-			activityWasDiscarded = true;
 		} else if(reconnectBusy) {
 			Log.d(TAG,"onStartCommand got reconnectBusy");
 			storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
@@ -1033,7 +1034,9 @@ public class WebCallService extends Service {
 			dozeStateReceiver = null;
 		}
 		if(serviceCmdReceiver!=null) {
+// TODO java.lang.IllegalArgumentException: Receiver not registered: timur.webcall.callee.WebCallService$1@bcedcb5
 			unregisterReceiver(serviceCmdReceiver);
+			serviceCmdReceiver = null;
 		}
 	}
 
@@ -1052,9 +1055,18 @@ public class WebCallService extends Service {
 
 	@Override
 	public void onTaskRemoved(Intent rootIntent) {
-		// activity and service killed
+		// activity killed, service still alive
 		super.onTaskRemoved(rootIntent);
 		Log.d(TAG, "onTaskRemoved");
+		if(myWebView!=null) {
+			Log.d(TAG, "onTaskRemoved close webView");
+			//myWebView.loadUrl("file:///android_asset/index.html", null);
+			myWebView.destroy();
+			myWebView = null;
+		}
+		webCallJSInterface=null;
+		currentUrl=null;
+		webviewMainPageLoaded=false;
 
 		/*
 		// TODO if we want to do this, we may also need to re-login
@@ -1354,8 +1366,14 @@ public class WebCallService extends Service {
 									brintent.putExtra("state", "connected");
 									sendBroadcast(brintent);
 
-									Log.d(TAG,"onPageFinished main page: processWebRtcMessages start");
-									processWebRtcMessages();
+									// schedule delayed processWebRtcMessages()
+									final Runnable runnable2 = new Runnable() {
+										public void run() {
+											Log.d(TAG,"onPageFinished main page: processWebRtcMessages start");
+											processWebRtcMessages();
+										}
+									};
+									scheduler.schedule(runnable2, 800l, TimeUnit.MILLISECONDS);
 								}
 							});
 						}
@@ -1710,7 +1728,7 @@ public class WebCallService extends Service {
 				return wsCli;
 			}
 
-			Log.d(TAG,"JS wsOpen return existing wsClient");
+			Log.d(TAG,"JS wsOpen return existing wsClient "+activityWasDiscarded);
 			connectToSignalingServerIsWanted = true;
 			storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
 			// when callee sends init and gets a confirmation
@@ -1726,9 +1744,18 @@ public class WebCallService extends Service {
 				} else if(!webviewMainPageLoaded) {
 					Log.d(TAG,"# JS wsOpen return existing wsClient activityWasDiscarded !webviewMainPageLoaded");
 				} else {
-					Log.d(TAG,"JS wsOpen return existing wsClient: activityWasDiscarded -> wakeGoOnlineNoInit()");
-					runJS("wakeGoOnlineNoInit()",null);
+					Log.d(TAG,"JS wsOpen return existing wsClient: activityWasDiscarded -> wakeShowOnline()");
+
+					// wait for "broadcastReceiver wsCon state=connected" + "gotStream2 standby"
+					final Runnable runnable2 = new Runnable() {
+						public void run() {
+							runJS("wakeShowOnline()",null);
+						}
+					};
+					scheduler.schedule(runnable2, 500l, TimeUnit.MILLISECONDS);
 				}
+			} else {
+				Log.d(TAG,"JS wsOpen return existing wsClient: no activityWasDiscarded");
 			}
 
 			return wsClient;
@@ -2972,7 +2999,7 @@ public class WebCallService extends Service {
 			String message = (String)(stringMessageQueue.poll());
 			String argStr = "wsOnMessage2('"+message+"');";
 			//Log.d(TAG,"processWebRtcMessages runJS "+argStr);
-
+/*
 			// we wait till runJS has been processed before we runJS the next
 	        runJS(argStr, new ValueCallback<String>() {
 			    @Override
@@ -2981,6 +3008,22 @@ public class WebCallService extends Service {
 					processWebRtcMessages();
 				}
 			});
+*/
+			// schedule delayed runJS()
+			final Runnable runnable2 = new Runnable() {
+				public void run() {
+					// do runJS and wait till it has been processed before we do the next runJS
+					runJS(argStr, new ValueCallback<String>() {
+						@Override
+						public void onReceiveValue(String s) {
+							// continue with next msg
+							processWebRtcMessages();
+						}
+					});
+				}
+			};
+			scheduler.schedule(runnable2, 100l, TimeUnit.MILLISECONDS);
+
 		} else {
 			Log.d(TAG,"processWebRtcMessages end");
 

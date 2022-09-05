@@ -1231,6 +1231,17 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				unbindService(serviceConnection);
 			}
 		}
+		if(myNewWebView!=null) {
+			Log.d(TAG, "onDestroy myNewWebView.destroy()");
+			myNewWebView.destroy();
+			myNewWebView=null;
+		}
+		if(myWebView!=null) {
+			Log.d(TAG, "onDestroy myWebView.destroy()");
+			myWebView.destroy();
+			myWebView=null;
+		}
+
 		super.onDestroy();
 	}
 
