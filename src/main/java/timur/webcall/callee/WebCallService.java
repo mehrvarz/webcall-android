@@ -303,6 +303,7 @@ public class WebCallService extends Service {
 	private static volatile boolean activityVisible = false;
 	private static volatile boolean autoPickup = false;
 	private static volatile MediaPlayer mediaPlayer = null;
+	private static volatile boolean activityWasDiscarded = false;
 
 	// section 1: android service methods
 	@Override
@@ -920,8 +921,11 @@ public class WebCallService extends Service {
 		}
 
 		if(wsClient!=null) {
-			Log.d(TAG,"onStartCommand got wsClient");
-			storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
+			Log.d(TAG,"onStartCommand got existing wsClient");
+			// probably the activity was discarded, got restarted, and no we see that service is still connected
+//			storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
+// TODO in this case we need to call runJS("wakeGoOnlineNoInit()",null) (once webview has been loaded)
+			activityWasDiscarded = true;
 		} else if(reconnectBusy) {
 			Log.d(TAG,"onStartCommand got reconnectBusy");
 			storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
@@ -1395,7 +1399,7 @@ public class WebCallService extends Service {
 				public void onPermissionRequest(PermissionRequest request) {
 					String[] strArray = request.getResources();
 					for(int i=0; i<strArray.length; i++) {
-						Log.w(TAG, "onPermissionRequest "+i+" ("+strArray[i]+")");
+						Log.i(TAG, "onPermissionRequest "+i+" ("+strArray[i]+")");
 						// we only grant the permission we want to grant
 						if(strArray[i].equals("android.webkit.resource.AUDIO_CAPTURE") ||
 						   strArray[i].equals("android.webkit.resource.VIDEO_CAPTURE")) {
@@ -1713,6 +1717,20 @@ public class WebCallService extends Service {
 			// it will call calleeConnected() / calleeIsConnected()
 			// then we will send: updateNotification awaitingCalls
 			// then we will broadcast: "state", "connected"
+
+			// in case the activity was discarded, we need to call:
+			if(activityWasDiscarded) {
+				activityWasDiscarded = false;
+				if(myWebView==null) {
+					Log.d(TAG,"# JS wsOpen return existing wsClient: activityWasDiscarded but myWebView==null");
+				} else if(!webviewMainPageLoaded) {
+					Log.d(TAG,"# JS wsOpen return existing wsClient activityWasDiscarded !webviewMainPageLoaded");
+				} else {
+					Log.d(TAG,"JS wsOpen return existing wsClient: activityWasDiscarded -> wakeGoOnlineNoInit()");
+					runJS("wakeGoOnlineNoInit()",null);
+				}
+			}
+
 			return wsClient;
 		}
 
@@ -2000,6 +2018,9 @@ public class WebCallService extends Service {
 		public void peerDisConnect() {
 			// called by endWebRtcSession()
 			Log.d(TAG,"JS peerDisConnect()");
+			if(peerConnectFlag) {
+				statusMessage("Peer disconnect",500,false,false);
+			}
 			peerConnectFlag = false;
 			callPickedUpFlag = false;
 			peerDisconnnectFlag = true;
@@ -2018,8 +2039,6 @@ public class WebCallService extends Service {
 
 			// this is used for ringOnSpeakerOn
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
-
-			statusMessage("Peer disconnect",500,false,false);
 
 			// after ringing is done:
 			if(origvol>=0) {

@@ -608,9 +608,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private ServiceConnection serviceConnection = new ServiceConnection() {
 		@Override
 		public void onServiceConnected(ComponentName name, IBinder service) {
-			if(extendedLogsFlag) {
-				Log.d(TAG, "onServiceConnected");
-			}
+			// activity is connected to service (says nothing about connectivity to webcall server)
 			webCallServiceBinder = (WebCallService.WebCallServiceBinder)service;
 			if(webCallServiceBinder==null) {
 				Log.d(TAG, "onServiceConnected bind service failed");
@@ -1437,7 +1435,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
-		Log.d(TAG, "# newIntent unprocessed ("+comment+") "+intent.toString());
+		//Log.d(TAG, "# newIntent unprocessed ("+comment+") "+intent.toString());
 	}
 
 	private void storeByteArrayToFile(byte[] blobAsBytes, String filename) {
