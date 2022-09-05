@@ -304,6 +304,7 @@ public class WebCallService extends Service {
 	private static volatile boolean autoPickup = false;
 	private static volatile MediaPlayer mediaPlayer = null;
 	private static volatile boolean activityWasDiscarded = false;
+	private static volatile boolean calleeIsReady = false;
 
 	// section 1: android service methods
 	@Override
@@ -655,7 +656,7 @@ public class WebCallService extends Service {
 				@Override
 				public void onAvailable(Network network) {
 		            super.onAvailable(network);
-					Log.d(TAG, "networkCallback gaining access to network...");
+					Log.d(TAG, "networkCallback got access to network");
 				}
 
 				@Override
@@ -1067,6 +1068,8 @@ public class WebCallService extends Service {
 		webCallJSInterface=null;
 		currentUrl=null;
 		webviewMainPageLoaded=false;
+		activityVisible=false;
+		calleeIsReady=false;
 
 		/*
 		// TODO if we want to do this, we may also need to re-login
@@ -1366,14 +1369,20 @@ public class WebCallService extends Service {
 									brintent.putExtra("state", "connected");
 									sendBroadcast(brintent);
 
-									// schedule delayed processWebRtcMessages()
-									final Runnable runnable2 = new Runnable() {
-										public void run() {
-											Log.d(TAG,"onPageFinished main page: processWebRtcMessages start");
-											processWebRtcMessages();
-										}
-									};
-									scheduler.schedule(runnable2, 800l, TimeUnit.MILLISECONDS);
+									if(calleeIsReady) {
+										// schedule delayed processWebRtcMessages()
+										final Runnable runnable2 = new Runnable() {
+											public void run() {
+												if(calleeIsReady) {
+													Log.d(TAG,"onPageFinished main page processWebRtcMessages");
+													processWebRtcMessages();
+												}
+											}
+										};
+										scheduler.schedule(runnable2, 100l, TimeUnit.MILLISECONDS);
+									} else {
+										// processWebRtcMessages() will be called from calleeReady()
+									}
 								}
 							});
 						}
@@ -1744,8 +1753,9 @@ public class WebCallService extends Service {
 				} else if(!webviewMainPageLoaded) {
 					Log.d(TAG,"# JS wsOpen return existing wsClient activityWasDiscarded !webviewMainPageLoaded");
 				} else {
+					Log.d(TAG,"JS wsOpen return existing wsClient");
+/*
 					Log.d(TAG,"JS wsOpen return existing wsClient: activityWasDiscarded -> wakeShowOnline()");
-
 					// wait for "broadcastReceiver wsCon state=connected" + "gotStream2 standby"
 					final Runnable runnable2 = new Runnable() {
 						public void run() {
@@ -1753,12 +1763,31 @@ public class WebCallService extends Service {
 						}
 					};
 					scheduler.schedule(runnable2, 500l, TimeUnit.MILLISECONDS);
+*/
 				}
 			} else {
 				Log.d(TAG,"JS wsOpen return existing wsClient: no activityWasDiscarded");
 			}
 
 			return wsClient;
+		}
+
+		@android.webkit.JavascriptInterface
+		public boolean calleeReady() {
+			calleeIsReady = true;
+			if(!stringMessageQueue.isEmpty()) {
+				Log.d(TAG,"JS calleeReady() -> processWebRtcMessages()");
+				final Runnable runnable2 = new Runnable() {
+					public void run() {
+						Log.d(TAG,"onPageFinished main page: processWebRtcMessages start");
+						processWebRtcMessages();
+					}
+				};
+				scheduler.schedule(runnable2, 50l, TimeUnit.MILLISECONDS);
+				return true;
+			}
+			Log.d(TAG,"JS calleeReady() no queued WebRtcMessages()");
+			return false;
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1793,6 +1822,7 @@ public class WebCallService extends Service {
 		public void wsClose() {
 			// called by JS:goOffline()
 			Log.d(TAG,"JS wsClose");
+			calleeIsReady = false;
 			connectToSignalingServerIsWanted = false;
 			storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 			if(pendingAlarm!=null) {
@@ -3022,7 +3052,7 @@ public class WebCallService extends Service {
 					});
 				}
 			};
-			scheduler.schedule(runnable2, 100l, TimeUnit.MILLISECONDS);
+			scheduler.schedule(runnable2, 50l, TimeUnit.MILLISECONDS);
 
 		} else {
 			Log.d(TAG,"processWebRtcMessages end");

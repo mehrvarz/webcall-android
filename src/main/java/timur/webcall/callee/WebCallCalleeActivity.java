@@ -1126,7 +1126,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		checkPermissions();
 
 		if(onCreateIntent!=null) {
-			newIntent(onCreateIntent,"onStart");
+			newIntent(onCreateIntent,"onCreate");
 			onCreateIntent = null;
 		}
 	}
@@ -1412,7 +1412,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			long eventMS = intent.getLongExtra("date",0);
 			long ageMS = currentMS - eventMS;
 			int ageSecs = (int)((ageMS+500)/1000);
-			if(ageSecs > 60) {
+			if(ageSecs > 120) {
 				// wakeup intent denied based on age
 				Log.d(TAG, "newIntent wakeup="+wakeup+" eventMS="+eventMS+" curMS="+currentMS+
 					" ageMS="+ageMS+" ageSecs="+ageSecs+" TOO OLD ("+comment+")");
