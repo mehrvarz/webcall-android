@@ -261,14 +261,14 @@ function connectServer() {
 			setTimeout(function() {
 				// if we are still here after 8s, window.location.replace has failed
 				// maybe an ssl issue
-				console.log('window.location.replace has failed');
+				console.log("# window.location.replace has failed");
 				abort = true;
 				divspinnerframe.style.display = "none";
 				document.activeElement.blur();
 			},8000);
 			// switch to main page
 			let url = "https://"+valueDomain+"/callee/"+valueUsername+"?auto=1";
-			console.log('no such callee is logged in: load main to enter pw '+url);
+			console.log('callee is not logged in: switch to main page for pw '+url);
 			window.location.replace(url);
 			return;
 		} else if(xhr.responseText.startsWith("wss://") || xhr.responseText.startsWith("ws://")) {
