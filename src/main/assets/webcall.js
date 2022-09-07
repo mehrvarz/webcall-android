@@ -172,24 +172,24 @@ function connectServer() {
 	var valueUsername = formUsername.value.toLowerCase();
 	console.log('connectServer user='+valueUsername+' host='+valueDomain);
 
-	if(valueDomain!="") {
-		Android.storePreference("webcalldomain", valueDomain);
-	}
+	Android.storePreference("webcalldomain", valueDomain);
+	Android.storePreference("username", valueUsername);
 
-	if(valueUsername!="") {
-		console.log('store valueUsername',valueUsername);
-		Android.storePreference("username", valueUsername);
-		if(valueUsername!=username) {
-			// clear password cookie
-			console.log('wsClearCookies (username changed)');
-			Android.wsClearCookies();
-		}
-	}
-
-	if(clearCookies.checked) {
+	if(valueUsername!=username) {
+		// clear password cookie
+		console.log('wsClearCookies (username changed)');
+		Android.wsClearCookies();
+	} else if(valueDomain!=domain) {
+		// clear password cookie
+		console.log('wsClearCookies (domain changed)');
+		Android.wsClearCookies();
+	} else if(clearCookies.checked) {
 		console.log('wsClearCookies (checkbox)');
 		Android.wsClearCookies();
 	}
+	username = valueUsername;
+	domain = valueDomain;
+
 	if(clearCache.checked) {
 		console.log('wsClearCache');
 		Android.wsClearCache(false,false);

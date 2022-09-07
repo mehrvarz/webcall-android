@@ -588,20 +588,7 @@ public class WebCallService extends Service {
 			Log.d(TAG,"onStartCommand beepOnLostNetworkMode ex="+ex);
 		}
 
-		String webcalldomain = null;
-		String username = null;
-		try {
-			webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-			Log.d(TAG,"onStartCommand webcalldomain="+webcalldomain);
-		} catch(Exception ex) {
-			Log.d(TAG,"onStartCommand webcalldomain ex="+ex);
-		}
-		try {
-			username = prefs.getString("username", "");
-			Log.d(TAG,"onStartCommand username="+username);
-		} catch(Exception ex) {
-			Log.d(TAG,"onStartCommand username ex="+ex);
-		}
+		setLoginUrl();
 
 		try {
 			startOnBootMode = prefs.getInt("startOnBoot", 0);
@@ -836,20 +823,14 @@ public class WebCallService extends Service {
 								if(reconnectSchedFuture==null && !reconnectBusy) {
 									// if no reconnecter is scheduled at this time...
 									// schedule a new reconnecter right away
-									String webcalldomain = prefs.getString("webcalldomain", "")
-										.toLowerCase(Locale.getDefault());
-									String username = prefs.getString("username", "");
-									if(webcalldomain.equals("")) {
-										Log.d(TAG,"dozeState idle no webcalldomain");
-									} else if(username.equals("")) {
-										Log.d(TAG,"dozeState idle no username");
-									} else {
-										setLoginUrl();
+									setLoginUrl();
+									if(loginUrl!="") {
 										Log.d(TAG,"dozeState idle re-login now url="+loginUrl);
 										// hopefully network is avilable
 										reconnectSchedFuture =
 											scheduler.schedule(reconnecter,0,TimeUnit.SECONDS);
 									}
+
 								} else {
 									Log.d(TAG,"dozeState idle no reconnecter: reconnectBusy="+reconnectBusy);
 								}
@@ -894,17 +875,10 @@ public class WebCallService extends Service {
 								// if no reconnecter is scheduled at this time (by checkLastPing())
 								// then schedule a new reconnecter
 								// in 8s to give server some time to detect the discon
-								String webcalldomain = prefs.getString("webcalldomain", "")
-									.toLowerCase(Locale.getDefault());
-								String username = prefs.getString("username", "");
-								if(webcalldomain==null || webcalldomain.equals("")) {
-									Log.d(TAG,"dozeState awake cannot reconnect no webcalldomain");
-								} else if(username==null || username.equals("")) {
-									Log.d(TAG,"dozeState awake cannot reconnect no username");
-								} else {
-									setLoginUrl();
+								setLoginUrl();
+								if(loginUrl!="") {
 									Log.d(TAG,"dozeState awake re-login in 2s url="+loginUrl);
-									// hopefully network is avilable in 2s again
+									// hopefully network is avilable
 									reconnectSchedFuture =
 										scheduler.schedule(reconnecter,2,TimeUnit.SECONDS);
 								}
@@ -938,6 +912,21 @@ public class WebCallService extends Service {
 				startForeground(NOTIF_ID,buildFgServiceNotification("","",false));
 			}
 
+			String webcalldomain = null;
+			String username = null;
+			try {
+				webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+				Log.d(TAG,"onStartCommand webcalldomain="+webcalldomain);
+			} catch(Exception ex) {
+				Log.d(TAG,"onStartCommand webcalldomain ex="+ex);
+			}
+			try {
+				username = prefs.getString("username", "");
+				Log.d(TAG,"onStartCommand username="+username);
+			} catch(Exception ex) {
+				Log.d(TAG,"onStartCommand username ex="+ex);
+			}
+
 			if(webcalldomain==null || webcalldomain.equals("")) {
 				Log.d(TAG,"onStartCommand webcalldomain undefined");
 				storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
@@ -945,7 +934,8 @@ public class WebCallService extends Service {
 				Log.d(TAG,"onStartCommand username undefined");
 				storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 			} else {
-				Log.d(TAG,"onStartCommand webcalldomain and username defined");
+				setLoginUrl();
+				Log.d(TAG,"onStartCommand loginUrl="+loginUrl);
 				boolean autoCalleeConnect = false;
 				if(intent==null) {
 					Log.d(TAG,"onStartCommand intent==null");
@@ -994,8 +984,6 @@ public class WebCallService extends Service {
 					if(reconnectBusy) {
 						Log.d(TAG,"onStartCommand autoCalleeConnect but reconnectBusy");
 					} else {
-						Log.d(TAG,"onStartCommand autoCalleeConnect");
-						setLoginUrl();
 						connectToSignalingServerIsWanted = true;
 						storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
 						Log.d(TAG,"onStartCommand autoCalleeConnect loginUrl="+loginUrl);
@@ -1006,7 +994,7 @@ public class WebCallService extends Service {
 						}
 						// NOTE: if we wait less than 15secs, our connection may establish
 						// but will then be quickly disconnected - not sure why
-						//statusMessage("onStartCommand autoCalleeConnect schedule reconnecter...",false,false);
+						//statusMessage("onStartCommand autoCalleeConnect schedule reconnecter",false,false);
 						reconnectSchedFuture = scheduler.schedule(reconnecter, 16, TimeUnit.SECONDS);
 					}
 				}
@@ -1470,7 +1458,6 @@ public class WebCallService extends Service {
 
 			// render base page - or main page if we are connected already
 			currentUrl = "file:///android_asset/index.html";
-			//TODO for some reason wsClient==null despite service being logged in
 			if(wsClient!=null) {
 				username = prefs.getString("username", "");
 				String webcalldomain =
@@ -2359,17 +2346,8 @@ public class WebCallService extends Service {
 						// if no reconnecter is scheduled at this time (say, by checkLastPing())
 						// then schedule a new reconnecter
 						// schedule in 5s to give server some time to detect the discon
-						String webcalldomain =
-							prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-						String username = prefs.getString("username", "");
-						if(webcalldomain.equals("")) {
-							Log.d(TAG,"onClose cannot reconnect: webcalldomain is not set");
-						} else if(username.equals("")) {
-							Log.d(TAG,"onClose cannot reconnect: username is not set");
-						} else if(haveNetworkInt==0) {
-							Log.d(TAG,"onClose cannot reconnect: no network");
-						} else {
-							setLoginUrl();
+						setLoginUrl();
+						if(loginUrl!="") {
 							Log.d(TAG,"onClose re-login in 5s url="+loginUrl);
 							// TODO on P9 in some cases this reconnecter does NOT come
 							// these are cases where the cause of the 1006 was wifi being gone (client side)
@@ -2837,10 +2815,27 @@ public class WebCallService extends Service {
 	}
 
 	private void setLoginUrl() {
-		String webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-		String username = prefs.getString("username", "");
+		loginUrl="";
+		String webcalldomain = null;
+		String username = null;
+		try {
+			webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
+			Log.d(TAG,"setLoginUrl webcalldomain="+webcalldomain);
+		} catch(Exception ex) {
+			Log.d(TAG,"# setLoginUrl webcalldomain ex="+ex);
+			return;
+		}
+		try {
+			username = prefs.getString("username", "").toLowerCase(Locale.getDefault());
+			Log.d(TAG,"setLoginUrl username="+username);
+		} catch(Exception ex) {
+			Log.d(TAG,"# setLoginUrl username ex="+ex);
+			return;
+		}
+
 		loginUrl = "https://"+webcalldomain+"/rtcsig/login?id="+username+
 					"&ver="+ BuildConfig.VERSION_NAME+"_"+getWebviewVersion(); // +"&re=true";
+		Log.d(TAG,"setLoginUrl="+loginUrl);
 	}
 
 	private void startReconnecter(boolean wakeIfNoNet, int reconnectDelaySecs) {
@@ -2858,12 +2853,7 @@ public class WebCallService extends Service {
 			wakeUpFromDoze();
 		}
 
-		if(loginUrl==null) {
-			// if this service was NOT started by system boot
-			// and there was NO prev reconnect caused by 1006
-			// then we will need to construct loginUrl before we call reconnecter
-			setLoginUrl();
-		}
+		setLoginUrl();
 		if(!reconnectBusy) {
 			// TODO do we need to copy cookies here?
 			if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
@@ -3141,7 +3131,6 @@ public class WebCallService extends Service {
 
 	private Runnable newReconnecter() {
 		reconnecter = new Runnable() {
-			// loginUrl must be set before reconnecter is called
 			public void run() {
 				if(!connectToSignalingServerIsWanted) {
 					return;
@@ -3208,12 +3197,7 @@ public class WebCallService extends Service {
 					return;
 				}
 
-				if(loginUrl==null) {
-					// if this service was NOT started by system boot
-					// and there was NO prev reconnect caused by 1006
-					// then we will need to construct loginUrl before we call reconnecter
-					setLoginUrl();
-				}
+				setLoginUrl();
 				Log.d(TAG,"reconnecter login "+loginUrl);
 				statusMessage("Login...",-1,true,false);
 				try {
@@ -3533,10 +3517,8 @@ public class WebCallService extends Service {
 					}
 
 					if(currentUrl==null) {
-						String webcalldomain =
-							prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-						String username = prefs.getString("username", "");
-						currentUrl = "https://"+webcalldomain+"/callee/"+username;
+						setLoginUrl();
+						currentUrl = loginUrl;
 						Log.d(TAG,"reconnecter set currentUrl="+currentUrl);
 					}
 
@@ -3747,10 +3729,8 @@ public class WebCallService extends Service {
 					audioToSpeakerSet(audioToSpeakerMode>0,false);
 
 					if(currentUrl==null) {
-						String webcalldomain = 
-							prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-						String username = prefs.getString("username", "");
-						currentUrl = "https://"+webcalldomain+"/callee/"+username;
+						setLoginUrl();
+						currentUrl = loginUrl;
 						Log.d(TAG,"connectHost set currentUrl="+currentUrl);
 					}
 
