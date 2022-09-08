@@ -643,7 +643,9 @@ public class WebCallService extends Service {
 				@Override
 				public void onAvailable(Network network) {
 		            super.onAvailable(network);
-					Log.d(TAG, "networkCallback got access to network");
+					if(haveNetworkInt==0) {
+						Log.d(TAG, "networkCallback got access to network");
+					}
 				}
 
 				@Override
