@@ -1,5 +1,5 @@
-v1.1.x is a big update. It comes with ID Manager which lets you 
-listen to multiple WebCall phone numbers (aka ID's) in parallel.
+v1.1.x comes with ID Manager which lets you listen to multiple 
+WebCall phone numbers (aka ID's) in parallel.
 
 The latest WebCall news and updates can be found here:
 
@@ -9,8 +9,7 @@ Release notes
 
 v1.1.5:
 
-WebCall activity can now be swipe-killed. It will be automatically
-restarted on incoming calls.
+WebCall activity can now be swipe-killed.
 
 v1.1.4:
 
