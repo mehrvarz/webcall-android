@@ -279,7 +279,7 @@ public class WebCallService extends Service {
 	private static volatile String webviewCookies = null;
 	private static volatile boolean soundNotificationPlayed = false;
 	private static volatile boolean extendedLogsFlag = false;
-	private static volatile boolean connectToSignalingServerIsWanted = false;
+	private static volatile boolean connectToServerIsWanted = false;
 	private static volatile long wakeUpFromDozeSecs = 0; // last wakeUpFromDoze() time
 	private static volatile long keepAwakeWakeLockStartTime = 0;
 	private static volatile int lastMinuteOfDay = 0;
@@ -648,16 +648,18 @@ public class WebCallService extends Service {
 
 				@Override
 				public void onLost(Network network) {
-					Log.d(TAG,"networkCallback default network lost; conWant="+connectToSignalingServerIsWanted);
-					haveNetworkInt = 0;
-					if(!connectToSignalingServerIsWanted) {
+					if(haveNetworkInt>0) {
+						Log.d(TAG,"networkCallback default network lost; conWant="+connectToServerIsWanted);
+						haveNetworkInt = 0;
+					}
+					if(!connectToServerIsWanted) {
 						if(wifiLock!=null && wifiLock.isHeld()) {
 							// release wifi lock
 							Log.d(TAG,"networkCallback wifiLock.release");
 							wifiLock.release();
 						}
 						// "Reconnect paused" would be false
-						// in fact, any statusMessage would be false, bc !connectToSignalingServerIsWanted
+						// in fact, any statusMessage would be false, bc !connectToServerIsWanted
 						//statusMessage("No network.",-1,true,false);
 					} else {
 						statusMessage("No network. Reconnect paused.",-1,true,false);
@@ -676,9 +678,9 @@ public class WebCallService extends Service {
 						newNetworkInt = 1;
 					}
 
-					if(/*connectToSignalingServerIsWanted &&*/ newNetworkInt!=haveNetworkInt) {
+					if(/*connectToServerIsWanted &&*/ newNetworkInt!=haveNetworkInt) {
 						Log.d(TAG,"networkCallback network capab change: " + haveNetworkInt+" "+newNetworkInt+" "+
-							" conWanted="+connectToSignalingServerIsWanted+
+							" conWanted="+connectToServerIsWanted+
 							" wsCon="+(wsClient!=null)+
 							" wifi="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)+
 							" cell="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)+
@@ -696,7 +698,7 @@ public class WebCallService extends Service {
 							Log.d(TAG,"networkCallback wifi->other wifiLock.release");
 						}
 						if(wsClient!=null) {
-							if(connectToSignalingServerIsWanted) {
+							if(connectToServerIsWanted) {
 								statusMessage("Using other network (not Wifi)",-1,false,false);
 							}
 						}
@@ -716,7 +718,7 @@ public class WebCallService extends Service {
 								Log.d(TAG,"networkCallback gainWifi wifiLock.acquire");
 								wifiLock.acquire();
 							}
-							if(connectToSignalingServerIsWanted) {
+							if(connectToServerIsWanted) {
 								statusMessage("Using Wifi network",-1,false,false);
 							} else {
 								Log.d(TAG,"networkCallback gainWifi but conWant==false");
@@ -726,7 +728,7 @@ public class WebCallService extends Service {
 
 					// gained network: if goOnline is activated and reconnecter is idle -> start reconnecter
 					if(newNetworkInt>0 && haveNetworkInt<=0 &&
-							connectToSignalingServerIsWanted && !reconnectBusy) {
+							connectToServerIsWanted && !reconnectBusy) {
 						// call scheduler.schedule()
 						if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
 							Log.d(TAG,"networkState noNet->Net keepAwakeWakeLock.acquire");
@@ -816,7 +818,7 @@ public class WebCallService extends Service {
 									wsClient = null;
 								}
 							}
-							if(wsClient==null && connectToSignalingServerIsWanted) {
+							if(wsClient==null && connectToServerIsWanted) {
 								// let's go straight to reconnecter
 								statusMessage("Disconnected from WebCall server...",-1,true,false);
 
@@ -984,7 +986,7 @@ public class WebCallService extends Service {
 					if(reconnectBusy) {
 						Log.d(TAG,"onStartCommand autoCalleeConnect but reconnectBusy");
 					} else {
-						connectToSignalingServerIsWanted = true;
+						connectToServerIsWanted = true;
 						storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
 						Log.d(TAG,"onStartCommand autoCalleeConnect loginUrl="+loginUrl);
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
@@ -1559,8 +1561,8 @@ public class WebCallService extends Service {
 			// activity is telling us that it is being destroyed
 			// TODO this should set webviewPageLoaded=false, needed for next incoming call ???
 			activityVisible = false;
-			if(connectToSignalingServerIsWanted) {
-				Log.d(TAG, "activityDestroyed got connectToSignalingServerIsWanted - do nothing");
+			if(connectToServerIsWanted) {
+				Log.d(TAG, "activityDestroyed got connectToServerIsWanted - do nothing");
 				// do nothing
 			} else if(reconnectBusy) {
 				Log.d(TAG, "activityDestroyed got reconnectBusy - do nothing");
@@ -1696,7 +1698,7 @@ public class WebCallService extends Service {
 			// wsOpen() does NOT call runJS("wakeGoOnline()") (does not send "init|") <-- JS takes care of this
 			if(reconnectBusy && wsClient!=null) {
 				Log.d(TAG,"JS wsOpen reconnectBusy return existing wsClient");
-				connectToSignalingServerIsWanted = true;
+				connectToServerIsWanted = true;
 				storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
 
 				// when callee sends init and gets a confirmation
@@ -1711,21 +1713,21 @@ public class WebCallService extends Service {
 				WebSocketClient wsCli = connectHost(setWsAddr,false);
 				Log.d(TAG,"JS wsOpen wsClient="+(wsCli!=null));
 				if(wsCli!=null) {
-					connectToSignalingServerIsWanted = true;
+					connectToServerIsWanted = true;
 					storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
 					// when callee sends init and gets a confirmation
 					// it will call calleeConnected() / calleeIsConnected()
 					// then we will send: updateNotification awaitingCalls
 					// then we will broadcast: "state", "connected"
 				} else {
-					connectToSignalingServerIsWanted = false;
+					connectToServerIsWanted = false;
 					storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 				}
 				return wsCli;
 			}
 
 			Log.d(TAG,"JS wsOpen return existing wsClient "+activityWasDiscarded);
-			connectToSignalingServerIsWanted = true;
+			connectToServerIsWanted = true;
 			storePrefsBoolean("connectWanted",true); // used in case of service crash + restart
 			// when callee sends init and gets a confirmation
 			// it will call calleeConnected() / calleeIsConnected()
@@ -1810,7 +1812,7 @@ public class WebCallService extends Service {
 			// called by JS:goOffline()
 			Log.d(TAG,"JS wsClose");
 			calleeIsReady = false;
-			connectToSignalingServerIsWanted = false;
+			connectToServerIsWanted = false;
 			storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 			if(pendingAlarm!=null) {
 				alarmManager.cancel(pendingAlarm);
@@ -2672,8 +2674,8 @@ public class WebCallService extends Service {
 				Log.d(TAG, "power event wsClient is set: checkLastPing");
 				checkLastPing(true,0);
 			} else {
-				if(!connectToSignalingServerIsWanted) {
-					Log.d(TAG,"power event wsClient not set, no connectToSignalingServerIsWanted");
+				if(!connectToServerIsWanted) {
+					Log.d(TAG,"power event wsClient not set, no connectToServerIsWanted");
 				} else if(reconnectBusy) {
 					Log.d(TAG,"power event wsClient not set, reconnectBusy");
 				} else {
@@ -2696,8 +2698,8 @@ public class WebCallService extends Service {
 			pendingAlarm = null;
 			alarmPendingDate = null;
 
-			if(!connectToSignalingServerIsWanted) {
-				Log.w(TAG,"abort on !connectToSignalingServerIsWanted");
+			if(!connectToServerIsWanted) {
+				Log.w(TAG,"abort on !connectToServerIsWanted");
 				return;
 			}
 
@@ -2738,8 +2740,8 @@ public class WebCallService extends Service {
 				//Log.d(TAG,"alarm checkLastPing()");
 				checkLastPing(true,0);
 			} else {
-				if(!connectToSignalingServerIsWanted) {
-					Log.d(TAG,"alarm no connectToSignalingServerIsWanted");
+				if(!connectToServerIsWanted) {
+					Log.d(TAG,"alarm no connectToServerIsWanted");
 				} else if(reconnectBusy) {
 					Log.d(TAG,"alarm reconnectBusy");
 				} else {
@@ -2867,8 +2869,8 @@ public class WebCallService extends Service {
 	}
 
 	private void checkLastPing(boolean wakeIfNoNet, int reconnectDelaySecs) {
-		if(!connectToSignalingServerIsWanted) {
-			Log.d(TAG,"checkLastPing !connectToSignalingServerIsWanted abort");
+		if(!connectToServerIsWanted) {
+			Log.d(TAG,"checkLastPing !connectToServerIsWanted abort");
 			return;
 		}
 		if(extendedLogsFlag) {
@@ -2913,7 +2915,7 @@ public class WebCallService extends Service {
 				Log.d(TAG,"checkLastPing cannot keepAwakeWakeLock.acquire");
 			}
 		}
-		if(connectToSignalingServerIsWanted && needReconnecter) {
+		if(connectToServerIsWanted && needReconnecter) {
 			Log.d(TAG,"checkLastPing startReconnecter");
 			startReconnecter(wakeIfNoNet,reconnectDelaySecs);
 		}
@@ -3132,7 +3134,7 @@ public class WebCallService extends Service {
 	private Runnable newReconnecter() {
 		reconnecter = new Runnable() {
 			public void run() {
-				if(!connectToSignalingServerIsWanted) {
+				if(!connectToServerIsWanted) {
 					return;
 				}
 
@@ -3178,9 +3180,9 @@ public class WebCallService extends Service {
 					// we check haveNetworkInt again, bc it may have come in during playSoundAlarm()
 					if(haveNetworkInt<=0) {
 						// we pause reconnecter; if network comes back, checkNetworkState() will
-						// schedule a new reconnecter if connectToSignalingServerIsWanted is set
+						// schedule a new reconnecter if connectToServerIsWanted is set
 						Log.d(TAG,"reconnecter no network, reconnect paused...");
-						if(!connectToSignalingServerIsWanted) {
+						if(!connectToServerIsWanted) {
 							statusMessage("No network. Reconnect paused.",-1,true,false);
 						} else {
 							statusMessage("No network.",-1,true,false);
@@ -3192,7 +3194,7 @@ public class WebCallService extends Service {
 					}
 				}
 
-				if(!connectToSignalingServerIsWanted) {
+				if(!connectToServerIsWanted) {
 					Log.d(TAG,"reconnecter not wanted, aborted");
 					return;
 				}
@@ -3262,7 +3264,7 @@ public class WebCallService extends Service {
 						return;
 					}
 
-					if(!connectToSignalingServerIsWanted) {
+					if(!connectToServerIsWanted) {
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							reconnectSchedFuture.cancel(false);
 						}
@@ -3276,7 +3278,7 @@ public class WebCallService extends Service {
 						Log.d(TAG,"reconnecter con.connect()");
 						con.connect();
 						status = con.getResponseCode();
-						if(!connectToSignalingServerIsWanted) {
+						if(!connectToServerIsWanted) {
 							if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 								reconnectSchedFuture.cancel(false);
 							}
@@ -3316,14 +3318,14 @@ public class WebCallService extends Service {
 						String exString = ex.toString();
 						if(exString.indexOf("SSLHandshakeException")>=0) {
 							// turn reconnecter off
-							connectToSignalingServerIsWanted = false;
+							connectToServerIsWanted = false;
 							storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 						} else {
 							// keep reconnecter running
 						}
 					}
 
-					if(!connectToSignalingServerIsWanted) {
+					if(!connectToServerIsWanted) {
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							reconnectSchedFuture.cancel(false);
 						}
@@ -3368,7 +3370,7 @@ public class WebCallService extends Service {
 							statusMessage("Gave up reconnecting",-1,true,true);
 							reconnectBusy = false;
 							// turn reconnecter off
-							connectToSignalingServerIsWanted = false;
+							connectToServerIsWanted = false;
 							// TODO: not sure about this
 							//storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 						}
@@ -3384,7 +3386,7 @@ public class WebCallService extends Service {
 					}
 
 					// status==200
-					if(!connectToSignalingServerIsWanted || !reconnectBusy) {
+					if(!connectToServerIsWanted || !reconnectBusy) {
 						// abort forced
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							reconnectSchedFuture.cancel(false);
@@ -3406,7 +3408,7 @@ public class WebCallService extends Service {
 						boolean wasReconnectBusy = reconnectBusy;
 						reconnectBusy = false;
 						reconnectCounter = 0;
-						connectToSignalingServerIsWanted = false;
+						connectToServerIsWanted = false;
 						storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 						Log.d(TAG,"reconnecter login fail '"+wsAddr+"' give up "+reader.readLine()+
 							" "+reader.readLine()+" "+reader.readLine()+" "+reader.readLine());
@@ -3449,7 +3451,7 @@ public class WebCallService extends Service {
 						return;
 					}
 
-					if(!connectToSignalingServerIsWanted || !reconnectBusy) {
+					if(!connectToServerIsWanted || !reconnectBusy) {
 						// abort forced
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							reconnectSchedFuture.cancel(false);
@@ -3575,7 +3577,7 @@ public class WebCallService extends Service {
 					brintent.putExtra("state", "disconnected");
 					sendBroadcast(brintent);
 
-					if(!connectToSignalingServerIsWanted) {
+					if(!connectToServerIsWanted) {
 						// abort forced
 						if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 							reconnectSchedFuture.cancel(false);
@@ -3852,10 +3854,10 @@ public class WebCallService extends Service {
 				(mobileInfo==null || !mobileInfo.isConnected())) {
 			// no network is connected
 			Log.d(TAG,"networkState netActiveInfo/wifiInfo/mobileInfo==null "+wsClient+" "+reconnectBusy);
-			if(connectToSignalingServerIsWanted) {
+			if(connectToServerIsWanted) {
 				statusMessage("No network",-1,true,false);
 			}
-			if(wifiLock!=null && wifiLock.isHeld() && !connectToSignalingServerIsWanted) {
+			if(wifiLock!=null && wifiLock.isHeld() && !connectToServerIsWanted) {
 				// release wifi lock
 				Log.d(TAG,"networkState wifiLock.release");
 				wifiLock.release();
@@ -3891,7 +3893,7 @@ public class WebCallService extends Service {
 				Log.d(TAG,"networkState wifiLock.acquire");
 				wifiLock.acquire();
 			}
-			if(connectToSignalingServerIsWanted && !reconnectBusy) {
+			if(connectToServerIsWanted && !reconnectBusy) {
 				// if we are supposed to be connected and A) reconnecter is NOT in progress 
 				// or B) reconnecter IS in progress, but is waiting idly for network to come back
 				if(restartReconnectOnNetwork) {
@@ -3921,8 +3923,8 @@ public class WebCallService extends Service {
 			} else {
 				// if we are NOT supposed to be connected 
 				// or we are, but reconnecter is in progress and is NOT waiting for network to come back
-				Log.d(TAG,"networkState wifi !connectToSignalingServerIsWanted "+
-					connectToSignalingServerIsWanted);
+				Log.d(TAG,"networkState wifi !connectToServerIsWanted "+
+					connectToServerIsWanted);
 			}
 
 		} else if((netActiveInfo!=null && netActiveInfo.isConnected()) ||
@@ -3938,7 +3940,7 @@ public class WebCallService extends Service {
 				wifiLock.release();
 			}
 			haveNetworkInt=1;
-			if(connectToSignalingServerIsWanted && !reconnectBusy) {
+			if(connectToServerIsWanted && !reconnectBusy) {
 				// we don't like to wait for the scheduled reconnecter job
 				// let's cancel it and start it right away
 				if(restartReconnectOnNetwork) {
@@ -3966,7 +3968,7 @@ public class WebCallService extends Service {
 					}
 				}
 			} else {
-				Log.d(TAG,"networkState mobile !connectToSignalingServerIsWanted or");
+				Log.d(TAG,"networkState mobile !connectToServerIsWanted or reconnectBusy");
 			}
 
 		} else {
