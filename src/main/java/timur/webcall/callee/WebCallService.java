@@ -650,6 +650,9 @@ public class WebCallService extends Service {
 				public void onLost(Network network) {
 					if(haveNetworkInt>0) {
 						Log.d(TAG,"networkCallback default network lost; conWant="+connectToServerIsWanted);
+						if(connectToServerIsWanted) {
+							statusMessage("No network. Reconnect paused.",-1,true,false);
+						}
 						haveNetworkInt = 0;
 					}
 					if(!connectToServerIsWanted) {
@@ -658,11 +661,6 @@ public class WebCallService extends Service {
 							Log.d(TAG,"networkCallback wifiLock.release");
 							wifiLock.release();
 						}
-						// "Reconnect paused" would be false
-						// in fact, any statusMessage would be false, bc !connectToServerIsWanted
-						//statusMessage("No network.",-1,true,false);
-					} else {
-						statusMessage("No network. Reconnect paused.",-1,true,false);
 					}
 				}
 
