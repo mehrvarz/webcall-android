@@ -638,7 +638,7 @@ public class WebCallService extends Service {
 		}
 
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) { // >=api24
-			// this code (networkCallback) fully replaces checkNetworkState()
+			// networkCallback code fully replaces checkNetworkState()
 			connectivityManager.registerDefaultNetworkCallback(new ConnectivityManager.NetworkCallback() {
 				@Override
 				public void onAvailable(Network network) {
@@ -678,7 +678,7 @@ public class WebCallService extends Service {
 						newNetworkInt = 1;
 					}
 
-					if(/*connectToServerIsWanted &&*/ newNetworkInt!=haveNetworkInt) {
+					if(newNetworkInt!=haveNetworkInt) {
 						Log.d(TAG,"networkCallback network capab change: " + haveNetworkInt+" "+newNetworkInt+" "+
 							" conWanted="+connectToServerIsWanted+
 							" wsCon="+(wsClient!=null)+
@@ -705,25 +705,23 @@ public class WebCallService extends Service {
 					}
 					if(newNetworkInt==2 && haveNetworkInt!=2) {
 						// gaining wifi
-//						if(wsClient!=null) {
-							if(setWifiLockMode<=0) {
-								// prefer wifi not enabled by user
-								Log.d(TAG,"networkCallback gainWifi WifiLockMode off");
-							} else if(wifiLock==null) {
-								Log.d(TAG,"# networkCallback gainWifi wifiLock==null");
-							} else if(wifiLock.isHeld()) {
-								Log.d(TAG,"# networkCallback gainWifi wifiLock isHeld");
-							} else {
-								// enable wifi lock
-								Log.d(TAG,"networkCallback gainWifi wifiLock.acquire");
-								wifiLock.acquire();
-							}
-							if(connectToServerIsWanted) {
-								statusMessage("Using Wifi network",-1,false,false);
-							} else {
-								Log.d(TAG,"networkCallback gainWifi but conWant==false");
-							}
-//						}
+						if(setWifiLockMode<=0) {
+							// prefer wifi not enabled by user
+							Log.d(TAG,"networkCallback gainWifi WifiLockMode off");
+						} else if(wifiLock==null) {
+							Log.d(TAG,"# networkCallback gainWifi wifiLock==null");
+						} else if(wifiLock.isHeld()) {
+							Log.d(TAG,"networkCallback gainWifi wifiLock isHeld already");
+						} else {
+							// enable wifi lock
+							Log.d(TAG,"networkCallback gainWifi wifiLock.acquire");
+							wifiLock.acquire();
+						}
+						if(connectToServerIsWanted) {
+							statusMessage("Using Wifi network",-1,false,false);
+						} else {
+							Log.d(TAG,"networkCallback gainWifi but conWant==false");
+						}
 					}
 
 					// gained network: if goOnline is activated and reconnecter is idle -> start reconnecter
