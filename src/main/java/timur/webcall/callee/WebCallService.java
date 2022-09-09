@@ -2447,20 +2447,27 @@ public class WebCallService extends Service {
 				// we use "callerInfo|" instead of "callerOffer|"
 				// bc for Android10+ we can display callerID and callerName in the notification
 
+				String payload = message.substring(11);
+
 				String callerID = "";
 				String callerName = "";
-				String payload = message.substring(11);
-				int idxSeparator = payload.indexOf("\t");
-				if(idxSeparator<0) {
-					// for backward compatibility only
-					idxSeparator = payload.indexOf(":");
+				String txtMsg = "";
+				String[] toks = payload.split("\t");
+				if(toks.length>=1) {
+					callerID = toks[0];
+					if(toks.length>=2) {
+						callerName = toks[1];
+						if(toks.length>=3) {
+							txtMsg = toks[2];
+						}
+					}
 				}
-				if(idxSeparator>=0) {
-					callerID = payload.substring(0,idxSeparator);
-					// callerID may have host attached: callerID@host
-					callerName = payload.substring(idxSeparator+1);
+				Log.d(TAG,"onMessage incoming call name="+callerName+" ID="+callerID+" txtMsg="+txtMsg);
+
+				String contentText = callerName+" "+callerID;
+				if(txtMsg!="") {
+					contentText += " \""+txtMsg+"\"";
 				}
-				Log.d(TAG,"onMessage incoming call name="+callerName+" ID="+callerID);
 
 				if(context==null) {
 					Log.e(TAG,"onMessage incoming call, but no context to wake activity");
@@ -2516,7 +2523,7 @@ public class WebCallService extends Service {
 								PendingIntent.getActivity(context, 1, switchToIntent,
 									PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE), true)
 
-							.setContentText(callerName+" "+callerID);
+							.setContentText(contentText);
 
 					Notification notification = notificationBuilder.build();
 
@@ -2564,8 +2571,9 @@ public class WebCallService extends Service {
 
 			if(myWebView!=null && webviewMainPageLoaded) {
 				// webviewMainPageLoaded is set by onPageFinished() when a /callee/ url has been loaded
-				// NOTE: message MUST NOT contain apostroph (') characters
-				String argStr = "wsOnMessage2('"+message+"');";
+				// NOTE: message MUST NOT contain apostrophe (') characters
+				String encodedMessage = message.replace("'", "&#39;");
+				String argStr = "wsOnMessage2('"+encodedMessage+"');";
 				//Log.d(TAG,"onMessage runJS "+argStr);
 				// this message goes straight to callee.js signalingCommand()
 				runJS(argStr,null);
