@@ -283,7 +283,7 @@ public class WebCallService extends Service {
 	private static volatile long wakeUpFromDozeSecs = 0; // last wakeUpFromDoze() time
 	private static volatile long keepAwakeWakeLockStartTime = 0;
 	private static volatile int lastMinuteOfDay = 0;
-	private static volatile int origvol = -1;
+	private static volatile int origvol = -1; // if>0 we need to set ring vol back to orig value
 	private static volatile int proximityNear = -1;
 	private static volatile boolean insecureTlsFlag = false;
 
@@ -352,7 +352,7 @@ public class WebCallService extends Service {
 						activityVisible = true;
 
 						if(mediaPlayer!=null) {
-							// if the service is ringing, we make sure to stop it in max 3s
+							// if the service is ringing, we make sure to stop it in max 4s
 							// but service ringing may be stopped before that in rtcConnect()
 							final Runnable runnable2 = new Runnable() {
 								public void run() {
@@ -1761,6 +1761,13 @@ public class WebCallService extends Service {
 
 		@android.webkit.JavascriptInterface
 		public boolean calleeReady() {
+			if(calleeIsReady) {
+				// this is NOT the 1st calleeReady()
+				// we only start processWebRtcMessages() on the 1st call
+				Log.d(TAG,"JS calleeReady() -> calleeIsReady was already set");
+				return false;
+			}
+
 			calleeIsReady = true;
 			if(!stringMessageQueue.isEmpty()) {
 				Log.d(TAG,"JS calleeReady() -> processWebRtcMessages()");
@@ -1960,9 +1967,12 @@ public class WebCallService extends Service {
 		}
 
 		@android.webkit.JavascriptInterface
-		public void rtcConnect() {
+		public boolean rtcConnect() {
 			Log.d(TAG,"JS rtcConnect()");
-			stopMediaPlayer("rtcConnect");
+
+			// TODO stop ringtone ???
+			//stopMediaPlayer("rtcConnect");
+
 			// making sure this is activated (if it is enabled)
 			audioToSpeakerSet(audioToSpeakerMode>0,false);
 			peerDisconnnectFlag = false;
@@ -2004,9 +2014,10 @@ public class WebCallService extends Service {
 				autoPickup = false;
 				Log.d(TAG,"JS rtcConnect() autoPickup...");
 				runJS("pickup()",null);
-			} else {
-				Log.d(TAG,"JS rtcConnect() no autoPickup");
+				return true;
 			}
+			Log.d(TAG,"JS rtcConnect() no autoPickup");
+			return false;
 		}
 
 		@android.webkit.JavascriptInterface
@@ -2069,6 +2080,8 @@ public class WebCallService extends Service {
 			callPickedUpFlag = false;
 			peerDisconnnectFlag = true;
 			autoPickup = false;
+
+			stopMediaPlayer("peerDisConnect");
 
 			if(audioManager!=null) {
 				if(audioManager.isWiredHeadsetOn()) {
@@ -2511,14 +2524,17 @@ public class WebCallService extends Service {
 						(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
 					notificationManager.notify(NOTIF_ID, notification);
 
-					// start playing ringtone
-					audioToSpeakerSet(audioToSpeakerMode>0,false);
-					// make sure ringtone volume is not too low
-					setMinVol();
-					mediaPlayer = MediaPlayer.create(context, R.raw.ringing);
-					mediaPlayer.setLooping(true);
-					mediaPlayer.start();
-					// we stop ringing in multiple places, see: stopMediaPlayer()
+					// start playing ringtone (if activity is NOT active)
+					if(!webviewMainPageLoaded) {
+						Log.d(TAG,"onMessage incoming call, start ringing");
+						audioToSpeakerSet(audioToSpeakerMode>0,false);
+						// make sure ringtone volume is not too low
+						setMinVol();
+						mediaPlayer = MediaPlayer.create(context, R.raw.ringing);
+						mediaPlayer.setLooping(true);
+						mediaPlayer.start();
+						// we stop ringing in multiple places, see: stopMediaPlayer()
+					}
 				}
 			}
 
@@ -2774,30 +2790,33 @@ public class WebCallService extends Service {
 
 	private void setMinVol() {
 		// make sure ringtone volume is not too low
+		int maxvol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
 		if(origvol>=0) {
 			// but only once
+			Log.d(TAG,"setMinVol() was already set to "+origvol+" maxvol="+maxvol);
 		} else {
-			int maxvol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
 			int vol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
 			if(vol<maxvol/3) {
 				origvol = vol;
 				int setvol = maxvol/3;
 				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, setvol, 0);
-				Log.d(TAG,"JS rtcConnect() setStreamVolume "+setvol+" from "+vol);
+				Log.d(TAG,"setMinVol() setStreamVolume "+setvol+" from "+vol+" maxvol="+maxvol);
 			} else {
 				// no need to change vol back after ringing is done
+				Log.d(TAG,"setMinVol() leave StreamVolume at "+vol+" maxvol="+maxvol);
 				origvol = -1;
 			}
 		}
 	}
 
 	private void stopMediaPlayer(String comment) {
+		// stop playing the ringtone
 		if(mediaPlayer!=null) {
-			Log.d(TAG,"stopMediaPlayer from "+comment);
+			Log.d(TAG,"stop ringtone, from "+comment);
 			mediaPlayer.stop();
 			mediaPlayer = null;
 		} else {
-			Log.d(TAG,"stopMediaPlayer was not active, from "+comment);
+			Log.d(TAG,"stop ringtone (was not active), from "+comment);
 		}
 	}
 
