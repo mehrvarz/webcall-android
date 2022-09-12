@@ -615,6 +615,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			} else {
 				boundService = true;
 
+				// tell service that we are visible
+				activityVisible = true;
+				sendBroadcast(new Intent("serviceCmdReceiver").putExtra("activityVisible", "true"));
+
 				// immediately start our webview
 				Log.d(TAG, "onServiceConnected startWebView");
 				myWebView = findViewById(R.id.webview);
@@ -1873,6 +1877,13 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				Log.d(TAG, "activityWake acceptCall");
 				Intent intent = new Intent("serviceCmdReceiver");
 				intent.putExtra("acceptCall", "true");
+				sendBroadcast(intent);
+			} else { // type "call"
+				// switch to activity but do NOT pickup
+				// on Android10+ this will kick-start processWebRtcMessages()
+				Log.d(TAG, "activityWake showCall");
+				Intent intent = new Intent("serviceCmdReceiver");
+				intent.putExtra("showCall", "true");
 				sendBroadcast(intent);
 			}
 

@@ -353,10 +353,13 @@ public class WebCallService extends Service {
 
 						if(mediaPlayer!=null) {
 							// if the service is ringing, we make sure to stop it in max 4s
+// TODO: this is false if user only switches to activity
 							// but service ringing may be stopped before that in rtcConnect()
 							final Runnable runnable2 = new Runnable() {
 								public void run() {
-									stopMediaPlayer("activityVisible delayed");
+									if(mediaPlayer!=null) {
+										stopMediaPlayer("activityVisible delayed");
+									}
 								}
 							};
 							scheduler.schedule(runnable2, 4000l, TimeUnit.MILLISECONDS);
@@ -416,18 +419,44 @@ public class WebCallService extends Service {
 					return;
 				}
 
+				message = intent.getStringExtra("showCall");
+				if(message!=null && message!="") {
+					// user responded to the call-notification dialog by switching to activity
+					// this intent is coming from the started activity
+					if(webviewMainPageLoaded) {  // TODO: eigentlich if !rtcConnect
+						if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+							// kickstart processWebRtcMessages()
+							Log.d(TAG, "serviceCmdReceiver showCall "+message);
+							processWebRtcMessages();
+							if(mediaPlayer!=null) {
+								stopMediaPlayer("activityVisible delayed");
+							}
+						}
+					}
+					return;
+				}
+
 				message = intent.getStringExtra("acceptCall");
 				if(message!=null && message!="") {
 					// user responded to the call-notification dialog by accepting the call
 					// this intent is coming from the started activity
-					if(webviewMainPageLoaded) {  // TODO: eigentlich if !rtcConnect
+					if(webviewMainPageLoaded) {
 						// autoPickup now
-						Log.d(TAG, "serviceCmdReceiver autoPickup now "+message);
-						runJS("pickup()",null);
+						if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+							Log.d(TAG, "serviceCmdReceiver processWebRtcMessages() + autoPickup on rtcConnect");
+							processWebRtcMessages();
+							if(mediaPlayer!=null) {
+								stopMediaPlayer("activityVisible delayed");
+							}
+							autoPickup = true;
+						} else {
+							Log.d(TAG, "serviceCmdReceiver auto-pickup() now");
+							runJS("pickup()",null);
+						}
 					} else {
 						// autoPickup when we get connected as callee
 						// if the next connect fails, we must reset this flag
-						Log.d(TAG, "serviceCmdReceiver autoPickup delayed "+message);
+						Log.d(TAG, "serviceCmdReceiver autoPickup delayed");
 						autoPickup = true;
 					}
 					return;
@@ -1357,7 +1386,7 @@ public class WebCallService extends Service {
 									brintent.putExtra("state", "connected");
 									sendBroadcast(brintent);
 
-									if(calleeIsReady) {
+									if(calleeIsReady) { // gotStream2() -> calleeReady() did already happen
 										// schedule delayed processWebRtcMessages()
 										final Runnable runnable2 = new Runnable() {
 											public void run() {
@@ -1386,7 +1415,7 @@ public class WebCallService extends Service {
 					String msg = cm.message();
 					if(!msg.startsWith("showStatus")) {
 						// TODO msg can be very long
-						Log.d(TAG,"console: "+msg + " L"+cm.lineNumber());
+						Log.d(TAG,"con: "+msg + " L"+cm.lineNumber());
 					}
 					if(msg.equals("Uncaught ReferenceError: goOnline is not defined")) {
 						if(wsClient==null) {
@@ -1761,6 +1790,7 @@ public class WebCallService extends Service {
 
 		@android.webkit.JavascriptInterface
 		public boolean calleeReady() {
+			// called from gotStream2()
 			if(calleeIsReady) {
 				// this is NOT the 1st calleeReady()
 				// we only start processWebRtcMessages() on the 1st call
@@ -1771,13 +1801,16 @@ public class WebCallService extends Service {
 			calleeIsReady = true;
 			if(!stringMessageQueue.isEmpty()) {
 				Log.d(TAG,"JS calleeReady() -> processWebRtcMessages()");
+				// we delay calling processWebRtcMessages() bc otherwise JS code will receive:
+				// "cmd callerCandidate !peerCon.remoteDescription"
+				// "callerOffer setRemoteDescription" needs some time to complete
 				final Runnable runnable2 = new Runnable() {
 					public void run() {
 						Log.d(TAG,"onPageFinished main page: processWebRtcMessages start");
 						processWebRtcMessages();
 					}
 				};
-				scheduler.schedule(runnable2, 50l, TimeUnit.MILLISECONDS);
+				scheduler.schedule(runnable2, 100l, TimeUnit.MILLISECONDS);
 				return true;
 			}
 			Log.d(TAG,"JS calleeReady() no queued WebRtcMessages()");
@@ -2073,10 +2106,24 @@ public class WebCallService extends Service {
 		public void peerDisConnect() {
 			// called by endWebRtcSession()
 			Log.d(TAG,"JS peerDisConnect()");
-			if(peerConnectFlag) {
+			if(peerConnectFlag) { // aka mediaConnect
+				// we want to show "Peer disconnect" ONLY if we had a media connect
 				statusMessage("Peer disconnect",500,false,false);
+			} else {
+				// if we did not have a media connect, we may need to dismiss the notification bubble
+				// it may still be visible
+				// we can close the notification by sending a new not-high-priority notification
+				// we want to send one updateNotification() in any case
+				if(wsClient!=null) {
+					// display awaitingCalls ONLY if we are still ws-connected
+					updateNotification("",awaitingCalls,false);
+				} else {
+					// otherwise display "Offline"
+					updateNotification("","Offline",false);
+				}
 			}
 			peerConnectFlag = false;
+
 			callPickedUpFlag = false;
 			peerDisconnnectFlag = true;
 			autoPickup = false;
@@ -2474,9 +2521,11 @@ public class WebCallService extends Service {
 				} else if(activityVisible) {
 					Log.d(TAG,"onMessage incoming call, but activityVisible (do nothing)");
 				} else {
+					// activity is NOT visible
 					Date wakeDate = new Date();
-					Log.d(TAG,"onMessage incoming call "+
-						new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(wakeDate));
+					//Log.d(TAG,"onMessage incoming call "+
+					//	new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(wakeDate));
+					Log.d(TAG,"onMessage incoming call Android10+ notification");
 
 					long eventMS = wakeDate.getTime();
 
@@ -2531,26 +2580,22 @@ public class WebCallService extends Service {
 						(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
 					notificationManager.notify(NOTIF_ID, notification);
 
-					// start playing ringtone (if activity is NOT active)
-					if(!webviewMainPageLoaded) {
-						Log.d(TAG,"onMessage incoming call, start ringing");
-						audioToSpeakerSet(audioToSpeakerMode>0,false);
-						// make sure ringtone volume is not too low
-						setMinVol();
-						mediaPlayer = MediaPlayer.create(context, R.raw.ringing);
-						mediaPlayer.setLooping(true);
-						mediaPlayer.start();
-						// we stop ringing in multiple places, see: stopMediaPlayer()
-					}
+					// start playing ringtone
+					//Log.d(TAG,"onMessage incoming call, start ringing");
+					audioToSpeakerSet(audioToSpeakerMode>0,false);
+					// make sure ringtone volume is not too low
+					setMinVol();
+					mediaPlayer = MediaPlayer.create(context, R.raw.ringing);
+					mediaPlayer.setLooping(true);
+					mediaPlayer.start();
+					// we stop ringing in multiple places, see: stopMediaPlayer()
 				}
 			}
 
 			if(message.startsWith("cancel|")) {
 				// server or caller signalling end of call
-				if(myWebView!=null && webviewMainPageLoaded) {
-					Log.d(TAG,"onMessage cancel got myWebView + webviewMainPageLoaded");
-					//updateNotification("",awaitingCalls,false);
-				} else {
+				if(myWebView==null || !webviewMainPageLoaded ||
+					  (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && (!isScreenOn() || !activityVisible)) ) {
 					Log.d(TAG,"onMessage cancel got !myWebView or !webviewMainPageLoaded");
 
 					// clear queueWebRtcMessage / stringMessageQueue
@@ -2567,21 +2612,16 @@ public class WebCallService extends Service {
 					}
 					return;
 				}
+
+				Log.d(TAG,"onMessage cancel got myWebView + webviewMainPageLoaded");
+				//updateNotification("",awaitingCalls,false);
 			}
 
-			if(myWebView!=null && webviewMainPageLoaded) {
-				// webviewMainPageLoaded is set by onPageFinished() when a /callee/ url has been loaded
-				// NOTE: message MUST NOT contain apostrophe (') characters
-				String encodedMessage = message.replace("'", "&#39;");
-				String argStr = "wsOnMessage2('"+encodedMessage+"');";
-				//Log.d(TAG,"onMessage runJS "+argStr);
-				// this message goes straight to callee.js signalingCommand()
-				runJS(argStr,null);
-
-			} else {
+			if(myWebView==null || !webviewMainPageLoaded ||
+					(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && (!isScreenOn() || !activityVisible)) ) {
 				// we can not send messages (for instance callerCandidate's) into the JS 
 				// if the page is not fully loaded (webviewMainPageLoaded==true)
-				// in such cases we queue the WebRTC messages
+				// in such cases we queue the WebRTC messages - until we see "sessionId|"
 				if(message.startsWith("sessionId|")) {
 					Log.d(TAG,"onMessage sessionId -> calleeIsConnected()");
 					calleeIsConnected();
@@ -2596,6 +2636,14 @@ public class WebCallService extends Service {
 					webviewMainPageLoaded+" "+myWebView);
 				queueWebRtcMessage(message);
 				// same as stringMessageQueue.add(message);
+			} else {
+				// webviewMainPageLoaded is set by onPageFinished() when a /callee/ url has been loaded
+				// NOTE: message MUST NOT contain apostrophe (') characters
+				String encodedMessage = message.replace("'", "&#39;");
+				String argStr = "wsOnMessage2('"+encodedMessage+"','serv-direct');";
+				//Log.d(TAG,"onMessage runJS "+argStr);
+				// this message goes straight to callee.js signalingCommand()
+				runJS(argStr,null);
 			}
 		}
 
@@ -2820,7 +2868,7 @@ public class WebCallService extends Service {
 	private void stopMediaPlayer(String comment) {
 		// stop playing the ringtone
 		if(mediaPlayer!=null) {
-			Log.d(TAG,"stop ringtone, from "+comment);
+			Log.d(TAG,"stop ringtone, from: "+comment);
 			mediaPlayer.stop();
 			mediaPlayer = null;
 		} else {
@@ -3044,8 +3092,8 @@ public class WebCallService extends Service {
 	private void processWebRtcMessages() {
 		if(myWebView!=null && webviewMainPageLoaded && !stringMessageQueue.isEmpty()) {
 			String message = (String)(stringMessageQueue.poll());
-			String argStr = "wsOnMessage2('"+message+"');";
-			//Log.d(TAG,"processWebRtcMessages runJS "+argStr);
+			String argStr = "wsOnMessage2('"+message+"','serv-process');";
+			Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 /*
 			// we wait till runJS has been processed before we runJS the next
 	        runJS(argStr, new ValueCallback<String>() {
@@ -4141,7 +4189,7 @@ public class WebCallService extends Service {
 	}
 
 	private boolean isScreenOn() {
-		for (Display display : displayManager.getDisplays()) {
+		for(Display display : displayManager.getDisplays()) {
 			//Log.d(TAG,"isScreenOff state="+display.getState());
 			// STATE_UNKNOWN = 0
 			// STATE_OFF = 1
@@ -4150,7 +4198,7 @@ public class WebCallService extends Service {
 			// STATE_DOZE_SUSPEND = 4
 			// STATE_VR = 5 (api 26)
 			// STATE_ON_SUSPEND = 6 (api 28)
-			if (display.getState() == Display.STATE_ON) { // == 1
+			if(display.getState() == Display.STATE_ON) { // == 2
 				return true;
 			}
 		}
