@@ -7,6 +7,12 @@ https://timur.mobi/webcall/update
 
 Release notes
 
+v1.1.6:
+
+Now making sure the ring volume is the same in Android service 
+and in Javascript. This is relevant when a call is received via 
+Android (10+) notification and is then switched to the activity.
+
 v1.1.5:
 
 You can now swipe-kill the WebCall activity and continue to receive 
