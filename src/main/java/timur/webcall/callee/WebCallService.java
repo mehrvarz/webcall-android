@@ -284,6 +284,7 @@ public class WebCallService extends Service {
 	private static volatile long keepAwakeWakeLockStartTime = 0;
 	private static volatile int lastMinuteOfDay = 0;
 	private static volatile int origvol = -1; // if>0 we need to set ring vol back to orig value
+	private static volatile int ringtoneSetvol = 0;
 	private static volatile int proximityNear = -1;
 	private static volatile boolean insecureTlsFlag = false;
 
@@ -2271,6 +2272,23 @@ public class WebCallService extends Service {
 			//Log.d(TAG,"JS getBase64FromBlobData data="+base64Data);
 			storeByteArrayToFile(blobAsBytes,filename);
 		}
+
+		@android.webkit.JavascriptInterface
+		public float ringtoneVol() {
+			float vol = 0.5f;
+			if(ringtoneSetvol>0) {
+				int maxvol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+				// example: (14 / 25) = 0,56
+				vol = (float)ringtoneSetvol / (float)maxvol;
+				Log.d(TAG,"ringtoneVol "+vol+" ("+ringtoneSetvol+"/"+maxvol+")");
+				// TODO: not sure why we need to do this:
+				vol = vol + 0.35f; if(vol>1.0f) vol = 1.0f;
+				Log.d(TAG,"ringtoneVol "+vol+" (adjusted)");
+			} else {
+				Log.d(TAG,"ringtoneVol "+vol);
+			}
+			return vol;
+		}
 	}
 
 	// section 4: class WsClient with methods called by the Java WebSocket engine: onOpen(), onError(), 
@@ -2852,13 +2870,15 @@ public class WebCallService extends Service {
 			Log.d(TAG,"setMinVol() was already set to "+origvol+" maxvol="+maxvol);
 		} else {
 			int vol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-			if(vol<maxvol/3) {
+			if(vol < (int)((float)(maxvol/3)+0.5f)) {
 				origvol = vol;
-				int setvol = maxvol/3;
-				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, setvol, 0);
-				Log.d(TAG,"setMinVol() setStreamVolume "+setvol+" from "+vol+" maxvol="+maxvol);
+				ringtoneSetvol = (int)((float)(maxvol/3)+0.5f);
+				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, ringtoneSetvol, 0);
+				Log.d(TAG,"setMinVol() setStreamVolume "+ringtoneSetvol+" (was "+vol+") maxvol="+maxvol);
 			} else {
 				// no need to change vol back after ringing is done
+				ringtoneSetvol = vol;
+				audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, ringtoneSetvol, 0);	// ???
 				Log.d(TAG,"setMinVol() leave StreamVolume at "+vol+" maxvol="+maxvol);
 				origvol = -1;
 			}
