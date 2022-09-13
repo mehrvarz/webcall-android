@@ -2632,8 +2632,8 @@ public class WebCallService extends Service {
 				if(message.length()>24) {
 					shortMessage = message.substring(0,24);
 				}
-				Log.d(TAG,"onMessage queueWebRtcMessage("+shortMessage+") "+
-					webviewMainPageLoaded+" "+myWebView);
+				//Log.d(TAG,"onMessage queueWebRtcMessage("+shortMessage+") "+
+				//	webviewMainPageLoaded+" "+myWebView);
 				queueWebRtcMessage(message);
 				// same as stringMessageQueue.add(message);
 			} else {
