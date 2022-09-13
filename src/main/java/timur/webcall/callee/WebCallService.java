@@ -2282,7 +2282,8 @@ public class WebCallService extends Service {
 				vol = (float)ringtoneSetvol / (float)maxvol;
 				Log.d(TAG,"ringtoneVol "+vol+" ("+ringtoneSetvol+"/"+maxvol+")");
 				// TODO: not sure why we need to do this:
-				vol = vol + 0.35f; if(vol>1.0f) vol = 1.0f;
+//				vol = vol + 0.35f; if(vol>1.0f) vol = 1.0f;
+				vol = vol + (1.0f-vol)/2f; if(vol>1.0f) vol = 1.0f;
 				Log.d(TAG,"ringtoneVol "+vol+" (adjusted)");
 			} else {
 				Log.d(TAG,"ringtoneVol "+vol);
