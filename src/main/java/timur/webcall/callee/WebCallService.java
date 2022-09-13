@@ -3093,7 +3093,7 @@ public class WebCallService extends Service {
 		if(myWebView!=null && webviewMainPageLoaded && !stringMessageQueue.isEmpty()) {
 			String message = (String)(stringMessageQueue.poll());
 			String argStr = "wsOnMessage2('"+message+"','serv-process');";
-			Log.d(TAG,"processWebRtcMessages runJS "+argStr);
+			//Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 /*
 			// we wait till runJS has been processed before we runJS the next
 	        runJS(argStr, new ValueCallback<String>() {
