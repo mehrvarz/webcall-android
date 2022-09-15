@@ -9,13 +9,12 @@ Release notes
 
 v1.1.6:
 
-Now making sure the ring volume is the same in Android service 
-and in Javascript. This is relevant when a call is received via 
-Android (10+) notification and is then switched to the activity.
+WebCall service and WebCall core are now using the same ringtone
+volume level.
 
 v1.1.5:
 
-You can now swipe-kill the WebCall activity and continue to receive 
+You can now swipe-kill WebCall activity and continue to receive 
 calls. With the activity unloaded, memory consumption will be cut 
 in half.
 
