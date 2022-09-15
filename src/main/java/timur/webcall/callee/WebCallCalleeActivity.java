@@ -343,15 +343,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				String url = intent.getStringExtra("browse");
 				if(url!=null && !url.equals("")) {
 					Log.d(TAG, "broadcastReceiver browse "+url);
-					// start external browser - or onNewIntent if it fits our VIEW intent-filter
-					// url=https://timur.mobi/user/92324424611?callerId=29041352893
-					//    &callerName=&callerHost=192.168.0.161:8068&contactName=&i=672477&ds=false
-					//
 					// if url contains "/user/" this should be catched by our manifest intent-filter
 					//   and result in onNewIntent with data=url
 					// this works well on Android 9, but on Android 12 our ACTION_VIEW intent gets
 					//   handled by an external browser
-					//
 					// this is why we take a short cut here:
 					if(url.indexOf("/user/")>0) {
 						dialId(Uri.parse(url));
@@ -508,14 +503,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Log.d(TAG, "# onDownloadComplete cursor empty row");
 					return;
 				}
-				/*
-				String fileLocalUri = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI));
-				if(fileLocalUri==null) {
-					Log.d(TAG, "# onDownloadComplete fileLocalUri==null");
-					return;
-				}
-				Log.d(TAG, "onDownloadComplete fileLocalUri="+fileLocalUri);
-				*/
 				// title is filedownloadUrl
 				String title = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_TITLE));
 				if(title==null) {
@@ -1428,7 +1415,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
-// TODO getDataString() ???
 		Uri url = intent.getData();
 		dialIdIntent = null;
 		if(url!=null) {
@@ -1449,8 +1435,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 			return;
 		}
-
-		//Log.d(TAG, "# newIntent unprocessed ("+comment+") "+intent.toString());
 	}
 
 	private void storeByteArrayToFile(byte[] blobAsBytes, String filename) {
@@ -1967,13 +1951,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			builder.scheme(url.getScheme())
 				.encodedAuthority(hostport)
 				.encodedPath(url.getPath());
-// NO: set urlArg "callerId" = username (not the nickname, but the calleeID)
-//			builder.appendQueryParameter("callerId", prefs.getString("username", ""));
-// OK: TODO better: allow users to select the outgoing callerId via idSelect
-			// TODO when we have a UI for idSelect, we can also
-			// - xhr the nickname from settings
-			// - store the target-ID (part of url.getPath()) in contacts (and give it a nickname)
-			// set urlArg "callerHost" = webcalldomain
 			builder.appendQueryParameter("callerHost", webcalldomain);
 			// append all remaining parameters other than the ones above
 			for(String key: params.keySet()) {
@@ -2053,7 +2030,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						// file will be stored in getBase64FromBlobData()
 					} else {
 						DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-						// TODO userAgent???
 						String cookies = CookieManager.getInstance().getCookie(userAgent);
 						request.addRequestHeader("cookie",cookies);
 						request.addRequestHeader("User-Agent",userAgent);
@@ -2109,7 +2085,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					canvas.drawARGB(200, 2, 2, 2);
 					return bitmap;
 				}
-
 
 				// handling input[type="file"] requests for android API 21+
 				@Override
@@ -2322,7 +2297,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				} else {
 					Log.d(TAG, "# onRequestPermissionsResult WRITE_EXTERNAL_STORAGE denied");
 					//Toast.makeText(this, "Permission WRITE_EXTERNAL_STORAGE denied", Toast.LENGTH_SHORT).show();
-					// TODO when we get this, we should NOT offer "Capture logs now"
+					// when we get this, we should NOT offer "Capture logs now"
 					writeExtStoragePermissionDenied = true;
 				}
 				break;

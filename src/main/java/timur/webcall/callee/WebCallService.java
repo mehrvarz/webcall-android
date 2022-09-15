@@ -353,8 +353,7 @@ public class WebCallService extends Service {
 						activityVisible = true;
 
 						if(mediaPlayer!=null) {
-							// if the service is ringing, we make sure to stop it in max 4s
-// TODO: this is false if user only switches to activity
+							// if service is ringing, we make sure to stop it in max 4s
 							// but service ringing may be stopped before that in rtcConnect()
 							final Runnable runnable2 = new Runnable() {
 								public void run() {
@@ -424,7 +423,7 @@ public class WebCallService extends Service {
 				if(message!=null && message!="") {
 					// user responded to the call-notification dialog by switching to activity
 					// this intent is coming from the started activity
-					if(webviewMainPageLoaded) {  // TODO: eigentlich if !rtcConnect
+					if(webviewMainPageLoaded) {
 						if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 							// kickstart processWebRtcMessages()
 							Log.d(TAG, "serviceCmdReceiver showCall "+message);
@@ -931,7 +930,7 @@ public class WebCallService extends Service {
 			activityWasDiscarded = true;
 			Log.d(TAG,"onStartCommand got existing wsClient "+activityWasDiscarded);
 			// probably the activity was discarded, got restarted, and no we see that service is still connected
-//			storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
+			//storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 		} else if(reconnectBusy) {
 			Log.d(TAG,"onStartCommand got reconnectBusy");
 			storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
@@ -1053,7 +1052,7 @@ public class WebCallService extends Service {
 			dozeStateReceiver = null;
 		}
 		if(serviceCmdReceiver!=null) {
-// TODO java.lang.IllegalArgumentException: Receiver not registered: timur.webcall.callee.WebCallService$1@bcedcb5
+			// java.lang.IllegalArgumentException: Receiver not registered: timur.webcall.callee.WebCallService
 			unregisterReceiver(serviceCmdReceiver);
 			serviceCmdReceiver = null;
 		}
@@ -1079,7 +1078,6 @@ public class WebCallService extends Service {
 		Log.d(TAG, "onTaskRemoved");
 		if(myWebView!=null) {
 			Log.d(TAG, "onTaskRemoved close webView");
-			//myWebView.loadUrl("file:///android_asset/index.html", null);
 			myWebView.destroy();
 			myWebView = null;
 		}
@@ -1088,38 +1086,7 @@ public class WebCallService extends Service {
 		webviewMainPageLoaded=false;
 		activityVisible=false;
 		calleeIsReady=false;
-
-		/*
-		// TODO if we want to do this, we may also need to re-login
-				PendingIntent service = PendingIntent.getService(
-					context.getApplicationContext(),
-					1001,
-					new Intent(context.getApplicationContext(), WebCallService.class),
-					PendingIntent.FLAG_ONE_SHOT);
-				alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, 1000, service);
-		*/
 	}
-
-	/*
-	// TODO if we want to do this, we may also need to re-login
-	private Thread.UncaughtExceptionHandler uncaughtExceptionHandler = new Thread.UncaughtExceptionHandler() {
-
-		@Override
-		public void uncaughtException(Thread thread, Throwable ex) {
-			Log.d(TAG, "Uncaught exception start!");
-			ex.printStackTrace();
-
-			//Same as done in onTaskRemoved()
-			PendingIntent service = PendingIntent.getService(
-				context.getApplicationContext(),
-				1001,
-				new Intent(context.getApplicationContext(), WebCallService.class),
-				PendingIntent.FLAG_ONE_SHOT);
-			alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, 1000, service);
-			System.exit(2);
-		}
-	};
-	*/
 
 
 	// section 2: class WebCallServiceBinder with exposed methodes: 
@@ -1148,21 +1115,15 @@ public class WebCallService extends Service {
 			webSettings.setMediaPlaybackRequiresUserGesture(false);
 			webSettings.setDomStorageEnabled(true);
 			webSettings.setAllowContentAccess(true);
-//			webSettings.setDatabaseEnabled(true);
-//			webSettings.setSaveFormData(true); // does not have the desired effect
-//			CookieManager.getInstance().setAcceptCookie(true);
-//			CookieManager.getInstance().acceptCookie();
-//			Log.d(TAG, "done webSettings "+webSettings.getSaveFormData());
+			//Log.d(TAG, "done webSettings "+webSettings.getSaveFormData());
 
 			myWebView.setDownloadListener(new DownloadListener() {
                 @Override
                 public void onDownloadStart(String url, String userAgent,
 						String contentDisposition, String mimetype, long contentLength) {
 					Log.d(TAG,"DownloadListener url="+url+" mime="+mimetype);
-//					blobFilename=null;
 					if(url.startsWith("blob:")) {
 						// this is for "downloading" files to disk, that were previously received from peer
-//						blobFilename = ""; // need the download= of the clicked a href
 						String fetchBlobJS =
 							"javascript: var xhr=new XMLHttpRequest();" +
 							"xhr.open('GET', '"+url+"', true);" +
@@ -1241,11 +1202,11 @@ public class WebCallService extends Service {
 					}
 				}
 
-//				@Override
-//				public void onReceivedClientCertRequest(WebView view, final ClientCertRequest request) {
-//					Log.d(TAG, "onReceivedClientCertRequest "+request);
-//					request.proceed(mPrivateKey, mCertificates);
-//				}
+				//@Override
+				//public void onReceivedClientCertRequest(WebView view, final ClientCertRequest request) {
+				//	Log.d(TAG, "onReceivedClientCertRequest "+request);
+				//	request.proceed(mPrivateKey, mCertificates);
+				//}
 
 				@SuppressWarnings("deprecation")
 				@Override
@@ -1689,7 +1650,7 @@ public class WebCallService extends Service {
 			if(str.startsWith("history.back()")) {
 				Log.d(TAG, "runJScode history.back()");
 			}
-// TODO apparently calling history.back() does not execute onbeforeunload
+			// TODO apparently calling history.back() does not execute onbeforeunload
 			runJS(str,null);
 		}
 
@@ -1771,16 +1732,6 @@ public class WebCallService extends Service {
 					Log.d(TAG,"# JS wsOpen return existing wsClient activityWasDiscarded !webviewMainPageLoaded");
 				} else {
 					Log.d(TAG,"JS wsOpen return existing wsClient");
-/*
-					Log.d(TAG,"JS wsOpen return existing wsClient: activityWasDiscarded -> wakeShowOnline()");
-					// wait for "broadcastReceiver wsCon state=connected" + "gotStream2 standby"
-					final Runnable runnable2 = new Runnable() {
-						public void run() {
-							runJS("wakeShowOnline()",null);
-						}
-					};
-					scheduler.schedule(runnable2, 500l, TimeUnit.MILLISECONDS);
-*/
 				}
 			} else {
 				Log.d(TAG,"JS wsOpen return existing wsClient: no activityWasDiscarded");
@@ -2004,7 +1955,7 @@ public class WebCallService extends Service {
 		public boolean rtcConnect() {
 			Log.d(TAG,"JS rtcConnect()");
 
-			// TODO stop ringtone ???
+			// stop ringtone ??? NO!
 			//stopMediaPlayer("rtcConnect");
 
 			// making sure this is activated (if it is enabled)
@@ -2070,8 +2021,8 @@ public class WebCallService extends Service {
 			// on devices without an earpiece (tablets) this is expected to do nothing
 			// we do it now here instead of at setProximity(true), because it is more reliable this way
 			// will be reversed by peerDisConnect()
-// TODO API>=31 use audioManager.setCommunicationDevice(speakerDevice);
-// see https://developer.android.com/reference/android/media/AudioManager#setCommunicationDevice(android.media.AudioDeviceInfo)
+			// TODO API>=31 use audioManager.setCommunicationDevice(speakerDevice);
+			// see https://developer.android.com/reference/android/media/AudioManager#setCommunicationDevice(android.media.AudioDeviceInfo)
 
 			Log.d(TAG, "JS prepareDial(), speakerphone=false");
 			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
@@ -2281,7 +2232,7 @@ public class WebCallService extends Service {
 				// example: (14 / 25) = 0,56
 				vol = (float)ringtoneSetvol / (float)maxvol;
 				Log.d(TAG,"ringtoneVol "+vol+" ("+ringtoneSetvol+"/"+maxvol+")");
-				// TODO: not sure why we need to do this 'adjust':
+				// TODO: not sure why we need to do this:
 				vol = vol + (1.0f-vol)/2f; if(vol>1.0f) vol = 1.0f;
 				Log.d(TAG,"ringtoneVol "+vol+" (adjusted)");
 			} else {
@@ -3114,7 +3065,7 @@ public class WebCallService extends Service {
 			String message = (String)(stringMessageQueue.poll());
 			String argStr = "wsOnMessage2('"+message+"','serv-process');";
 			//Log.d(TAG,"processWebRtcMessages runJS "+argStr);
-/*
+			/*
 			// we wait till runJS has been processed before we runJS the next
 	        runJS(argStr, new ValueCallback<String>() {
 			    @Override
@@ -3123,7 +3074,7 @@ public class WebCallService extends Service {
 					processWebRtcMessages();
 				}
 			});
-*/
+			*/
 			// schedule delayed runJS()
 			final Runnable runnable2 = new Runnable() {
 				public void run() {
