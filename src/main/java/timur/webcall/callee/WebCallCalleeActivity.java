@@ -2198,6 +2198,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			if(idxArgs>=0) {
 				urlString = urlString.substring(0,idxArgs);
 			}
+			//myNewWebView.destroyDrawingCache();
+			myNewWebView.clearView();
 			myNewWebView.loadUrl("file:///android_asset/busy.html?disp="+urlString, null);
 
 			// shortly after: load remote caller widget (takes a moment to load)
