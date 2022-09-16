@@ -1280,7 +1280,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onBackPressed switch back to myWebView");
 			myWebView.setVisibility(View.VISIBLE);
 			myNewWebView.setVisibility(View.INVISIBLE);
-			myNewWebView.loadUrl("");
+//			myNewWebView.loadUrl("");
+			myNewWebView.loadUrl("about:blank");
 			return;
 		}
 		if(webCallServiceBinder!=null) {
@@ -2175,7 +2176,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							// abort loading page: mimic onBackPressed()
 							myWebView.setVisibility(View.VISIBLE);
 							myNewWebView.setVisibility(View.INVISIBLE);
-							myNewWebView.loadUrl("");
+//							myNewWebView.loadUrl("");
+							myNewWebView.loadUrl("about:blank");
 						}
 					});
 					final AlertDialog dialog = builder.create();
@@ -2198,17 +2200,23 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 			myNewWebView.loadUrl("file:///android_asset/busy.html?disp="+urlString, null);
 
-			// shortly after load remote caller widget (takes a moment to load)
+			// shortly after: load remote caller widget (takes a moment to load)
 			final Handler handler = new Handler(Looper.getMainLooper());
 			final Uri finalUrl = url;
 			handler.postDelayed(new Runnable() {
 				@Override
 				public void run() {
-					myNewWebView.setVisibility(View.VISIBLE);
-					myNewWebView.setFocusable(true);
-					myWebView.setVisibility(View.INVISIBLE);
 					Log.d(TAG, "dialId load "+finalUrl.toString());
 					myNewWebView.loadUrl(finalUrl.toString());
+
+					handler.postDelayed(new Runnable() {
+						@Override
+						public void run() {
+							myWebView.setVisibility(View.INVISIBLE);
+							myNewWebView.setVisibility(View.VISIBLE);
+							myNewWebView.setFocusable(true);
+						}
+					}, 700);
 				}
 			}, 300);
 
