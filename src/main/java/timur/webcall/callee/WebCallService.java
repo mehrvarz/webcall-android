@@ -351,18 +351,6 @@ public class WebCallService extends Service {
 					Log.d(TAG, "serviceCmdReceiver activityVisible "+message);
 					if(message.equals("true")) {
 						activityVisible = true;
-/*
-						if(mediaPlayer!=null) {
-							// if service is ringing, we make sure to stop it in max 4s
-							// but service ringing may be stopped before that in rtcConnect()
-							final Runnable runnable2 = new Runnable() {
-								public void run() {
-									stopRinging("activityVisible delayed");
-								}
-							};
-							scheduler.schedule(runnable2, 4000l, TimeUnit.MILLISECONDS);
-						}
-*/
 					} else {
 						activityVisible = false;
 					}
@@ -1987,7 +1975,14 @@ public class WebCallService extends Service {
 			if(autoPickup) {
 				autoPickup = false;
 				Log.d(TAG,"JS rtcConnect() autoPickup...");
-				runJS("pickup()",null);
+
+				// allow time for callee.js to switch from online/offline to answer/reject layout
+				final Runnable runnable2 = new Runnable() {
+					public void run() {
+						runJS("pickup()",null);
+					}
+				};
+				scheduler.schedule(runnable2, 500l, TimeUnit.MILLISECONDS);
 				return true;
 			}
 			Log.d(TAG,"JS rtcConnect() no autoPickup");
