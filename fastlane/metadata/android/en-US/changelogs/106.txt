@@ -7,12 +7,7 @@ https://timur.mobi/webcall/update
 
 Release notes
 
-v1.1.6:
-
-WebCall service and WebCall core are now using the same ringtone
-volume level.
-
-v1.1.5:
+v1.1.5 and v1.1.6:
 
 You can now swipe-kill WebCall activity and continue to receive 
 calls. With the activity unloaded, memory consumption will be cut 
@@ -23,6 +18,10 @@ text message.
 
 Handling of incoming calls for Android 10+ has been partly re-
 implemented. The goal was to make the implementation more robust.
+
+WebCall is now using separate audio channels for ring and voice. 
+This way volume levels for ring (alarm) and voice can be set
+individually.
 
 v1.1.4:
 
