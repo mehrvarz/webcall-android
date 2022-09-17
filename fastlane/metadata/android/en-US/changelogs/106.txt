@@ -19,9 +19,9 @@ text message.
 Handling of incoming calls for Android 10+ has been partly re-
 implemented. The goal was to make the implementation more robust.
 
-WebCall is now using separate audio channels for ring and voice. 
-This way, the volume levels for ring (alarm) and voice can be
-adjusted individually.
+WebCall on Android 10+ is now using separate audio channels for 
+ringtone and in-call audio. This way, the volume levels for ring 
+(alarm) and voice can be adjusted individually.
 
 v1.1.4:
 
