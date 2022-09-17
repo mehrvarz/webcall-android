@@ -2195,13 +2195,21 @@ public class WebCallService extends Service {
 		}
 
 		@android.webkit.JavascriptInterface
-		public void ringStart() {
-			startRinging();
+		public boolean ringStart() {
+			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+				startRinging();
+				return true;
+			}
+			return false;
 		}
 
 		@android.webkit.JavascriptInterface
-		public void ringStop() {
-			stopRinging("JS");
+		public boolean ringStop() {
+			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+				stopRinging("JS");
+				return true;
+			}
+			return false;
 		}
 	}
 
@@ -2776,7 +2784,7 @@ public class WebCallService extends Service {
 		}
 
 		// start playing ringtone
-		//Log.d(TAG,"startRinging");
+		Log.d(TAG,"startRinging");
 		audioToSpeakerSet(audioToSpeakerMode>0,false);
 
 		mediaPlayer = new MediaPlayer();
@@ -2808,7 +2816,7 @@ public class WebCallService extends Service {
 			mediaPlayer.start();
 			// we stop ringing in multiple places, see: stopRinging()
 		} catch(IOException ex) {
-			Log.d(TAG,"# mediaPlayer ringtone ex="+ex);
+			Log.d(TAG,"# startRinging ringtone ex="+ex);
 			mediaPlayer.stop();
 			mediaPlayer = null;
 		}
