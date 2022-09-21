@@ -9,9 +9,9 @@ Release notes
 
 v1.1.5 and v1.1.6:
 
-You can now swipe-kill WebCall activity and continue to receive 
-calls. With the activity unloaded, memory consumption will be cut 
-in half.
+On Android 8+ you can now swipe-kill the WebCall activity and 
+continue to receive calls. With the activity unloaded, memory 
+use will be cut in half.
 
 On Android 10+ the notification bubble will now show the caller
 text message.
