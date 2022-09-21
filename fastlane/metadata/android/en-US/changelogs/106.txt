@@ -7,8 +7,8 @@ https://timur.mobi/webcall/update
 Release notes v1.1.5 and v1.1.6:
 
 You can swipe-kill the WebCall activity and continue to receive 
-calls (Android 8+). With the activity unloaded, memory use will
-be cut in half.
+calls (Android 8+). With the activity unloaded, memory use is cut 
+in half.
 
 On Android 10+ the notification bubble will now show the caller
 text message.
