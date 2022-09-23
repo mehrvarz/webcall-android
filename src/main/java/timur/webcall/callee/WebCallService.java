@@ -1218,9 +1218,12 @@ public class WebCallService extends Service {
 					}
 
 					if(path.startsWith("/webcall/update") && webviewMainPageLoaded) {
-						// load update page in iframe
-						Log.d(TAG, "open url ("+uri.toString()+") in iframe");
-						String jsString = "openNews(\""+uri.toString()+"\")";
+						// load update page into iframe
+						String urlStr = uri.toString();
+						// urlStr MUST NOT contain apostrophe
+						String encodedUrl = urlStr.replace("'", "&#39;");
+						Log.d(TAG, "open url ("+encodedUrl+") in iframe");
+						String jsString = "openNews(\""+encodedUrl+"\")";
 						Log.d(TAG, "runJS("+jsString+")");
 						runJS(jsString,null);
 						return true; // do not load this url into webview
@@ -3049,8 +3052,10 @@ public class WebCallService extends Service {
 	private void processWebRtcMessages() {
 		if(myWebView!=null && webviewMainPageLoaded && !stringMessageQueue.isEmpty()) {
 			String message = (String)(stringMessageQueue.poll());
-			String argStr = "wsOnMessage2('"+message+"','serv-process');";
-			//Log.d(TAG,"processWebRtcMessages runJS "+argStr);
+			// message MUST NOT contain apostrophe
+			String encodedMessage = message.replace("'", "&#39;");
+			String argStr = "wsOnMessage2('"+encodedMessage+"','serv-process');";
+			Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 			/*
 			// we wait till runJS has been processed before we runJS the next
 	        runJS(argStr, new ValueCallback<String>() {
@@ -4327,7 +4332,9 @@ public class WebCallService extends Service {
 	private void statusMessage(String msg, int timeoutMs, boolean notifi, boolean important) {
 		//Log.d(TAG,"statusMessage: "+msg+" n="+notifi+" i="+important);
 		if(myWebView!=null && webviewMainPageLoaded && msg!="") {
-			runJS("showStatus('"+msg+"',"+timeoutMs+");",null);
+			// msg MUST NOT contain apostrophe
+			String encodedMsg = msg.replace("'", "&#39;");
+			runJS("showStatus('"+encodedMsg+"',"+timeoutMs+");",null);
 		}
 		if(notifi) {
 			updateNotification("", msg, important);
