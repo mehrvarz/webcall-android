@@ -4345,6 +4345,7 @@ public class WebCallService extends Service {
 	}
 
 	private void updateNotification(String title, String msg, boolean important) {
+		if(stopSelfFlag) return;
 		if(msg!="" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
 			if(important || isScreenOn()) {
 				Log.d(TAG,"updateNotification msg="+msg+" important="+important);
