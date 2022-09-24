@@ -326,6 +326,7 @@ public class WebCallService extends Service {
 	@Override
 	public void onCreate() {
 		Log.d(TAG,"onCreate "+BuildConfig.VERSION_NAME);
+		stopSelfFlag = false;
 		alarmReceiver = new AlarmReceiver();
 		registerReceiver(alarmReceiver, new IntentFilter(startAlarmString));
 
@@ -345,7 +346,10 @@ public class WebCallService extends Service {
 			@Override
 			public void onReceive(Context context, Intent intent) {
 				//Log.d(TAG, "serviceCmdReceiver "+intent.toString());
-				if(stopSelfFlag) return;
+				if(stopSelfFlag) {
+					Log.d(TAG,"# serviceCmdReceiver skip on stopSelfFlag");
+					return;
+				}
 
 				String message = intent.getStringExtra("activityVisible");
 				if(message!=null && message!="") {
@@ -4345,7 +4349,10 @@ public class WebCallService extends Service {
 	}
 
 	private void updateNotification(String title, String msg, boolean important) {
-		if(stopSelfFlag) return;
+		if(stopSelfFlag) {
+			Log.d(TAG,"# updateNotification msg="+msg+" important="+important+" skip on stopSelfFlag");
+			return;
+		}
 		if(msg!="" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
 			if(important || isScreenOn()) {
 				Log.d(TAG,"updateNotification msg="+msg+" important="+important);
