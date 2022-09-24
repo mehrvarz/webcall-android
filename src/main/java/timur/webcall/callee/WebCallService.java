@@ -306,6 +306,7 @@ public class WebCallService extends Service {
 	private static volatile MediaPlayer mediaPlayer = null;
 	private static volatile boolean activityWasDiscarded = false;
 	private static volatile boolean calleeIsReady = false;
+	private static volatile boolean stopSelfFlag = false;
 
 	// section 1: android service methods
 	@Override
@@ -344,6 +345,7 @@ public class WebCallService extends Service {
 			@Override
 			public void onReceive(Context context, Intent intent) {
 				//Log.d(TAG, "serviceCmdReceiver "+intent.toString());
+				if(stopSelfFlag) return;
 
 				String message = intent.getStringExtra("activityVisible");
 				if(message!=null && message!="") {
@@ -415,7 +417,6 @@ public class WebCallService extends Service {
 							// kickstart processWebRtcMessages()
 							Log.d(TAG, "serviceCmdReceiver showCall "+message);
 							processWebRtcMessages();
-//							stopRinging("serviceCmdReceiver showCall");
 						}
 					}
 					return;
@@ -1039,6 +1040,7 @@ public class WebCallService extends Service {
 			unregisterReceiver(serviceCmdReceiver);
 			serviceCmdReceiver = null;
 		}
+		// TODO android10+: remove foreground service icon
 	}
 
 	@Override
@@ -1049,9 +1051,7 @@ public class WebCallService extends Service {
 
 	@Override
 	public void onTrimMemory(int level) {
-		if(extendedLogsFlag) {
-			Log.d(TAG, "onTrimMemory level="+level);
-		}
+		Log.d(TAG, "onTrimMemory level="+level);
 	}
 
 	@Override
@@ -1059,16 +1059,19 @@ public class WebCallService extends Service {
 		// activity killed, service still alive
 		super.onTaskRemoved(rootIntent);
 		Log.d(TAG, "onTaskRemoved");
+		webviewMainPageLoaded=false;
+		webSettings = null;
+		webviewCookies = null;
+		webCallJSInterface = null;
 		if(myWebView!=null) {
 			Log.d(TAG, "onTaskRemoved close webView");
 			myWebView.destroy();
 			myWebView = null;
 		}
-		webCallJSInterface=null;
 		currentUrl=null;
-		webviewMainPageLoaded=false;
 		activityVisible=false;
 		calleeIsReady=false;
+		System.gc();
 	}
 
 
@@ -1768,7 +1771,7 @@ public class WebCallService extends Service {
 				logstr = logstr.substring(0,40);
 			}
 			if(wsClient==null) {
-				Log.w(TAG,"JS wsSend wsClient==null "+logstr);
+				Log.w(TAG,"# JS wsSend wsClient==null "+logstr);
 			} else {
 				if(extendedLogsFlag) {
 					Log.d(TAG,"JS wsSend "+logstr);
@@ -4388,6 +4391,7 @@ public class WebCallService extends Service {
 
 		// kill the service itself
 		Log.d(TAG,"exitService stopSelf()");
+		stopSelfFlag = true;
 		stopSelf();
 	}
 
