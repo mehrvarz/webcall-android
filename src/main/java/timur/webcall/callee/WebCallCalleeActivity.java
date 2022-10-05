@@ -1280,7 +1280,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onBackPressed switch back to myWebView");
 			myWebView.setVisibility(View.VISIBLE);
 			myNewWebView.setVisibility(View.INVISIBLE);
-//			myNewWebView.loadUrl("");
 			myNewWebView.loadUrl("about:blank");
 			return;
 		}
@@ -1301,13 +1300,19 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			int connectType = webCallServiceBinder.webcallConnectType();
 			if(connectType>0) {
 				// service is connected to webcall server (1,2) or reconnecting (3)
+
+				if(webCallServiceBinder.isRinging()) {
+					Log.d(TAG, "onBackPressed connectType="+connectType+" + isRinging -> deny moveTaskToBack()");
+					return;
+				}
+
 				Log.d(TAG, "onBackPressed connectType="+connectType+" -> moveTaskToBack()");
 				moveTaskToBack(true);
 				return;
 			}
 
-			// if we are not connected to webcall server, we close the activity
-			// (which will end our service as well)
+			// service is NOT connected to webcall server: close activity
+			// (this will end our service as well)
 			Log.d(TAG, "onBackPressed connectType="+connectType+" -> destroy activity");
 			finish();
 		} else {

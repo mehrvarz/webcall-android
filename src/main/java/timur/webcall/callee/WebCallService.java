@@ -307,6 +307,7 @@ public class WebCallService extends Service {
 	private static volatile boolean activityWasDiscarded = false;
 	private static volatile boolean calleeIsReady = false;
 	private static volatile boolean stopSelfFlag = false;
+	private static volatile boolean ringFlag = false;
 
 	// section 1: android service methods
 	@Override
@@ -1662,6 +1663,10 @@ public class WebCallService extends Service {
 		public WebCallJSInterface getWebCallJSInterface() {
 			return webCallJSInterface;
 		}
+
+		public boolean isRinging() {
+			return ringFlag;
+		}
 	}
 
 	// section 3: class WebCallJSInterface with methods that can be called from javascript:
@@ -2206,6 +2211,7 @@ public class WebCallService extends Service {
 
 		@android.webkit.JavascriptInterface
 		public boolean ringStart() {
+			ringFlag = true;
 			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 				startRinging();
 				return true;
@@ -2215,6 +2221,7 @@ public class WebCallService extends Service {
 
 		@android.webkit.JavascriptInterface
 		public boolean ringStop() {
+			ringFlag = false;
 			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
 				stopRinging("JS");
 				return true;
