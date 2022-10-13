@@ -1,0 +1,120 @@
+v1.1.x comes with ID Manager which lets you use multiple WebCall 
+phone numbers (WebCall ID's) in parallel.
+
+For the latest WebCall news and updates go to:
+https://timur.mobi/webcall/update
+
+Release notes v1.1.7:
+
+Fixed an encoding issue that was causing the list of 'Missed calls' 
+to not be shown.
+
+Prevent the WebCall icon from being shown in the status bar after 
+"Exit" feature has been invoked and activity and service have been
+unloaded.
+
+Disable the Back button while WebCall is signaling an incoming call
+(while it is ringing).
+
+Release notes v1.1.6:
+
+You can swipe-kill the WebCall activity and continue to receive 
+calls (Android 8+). With the activity unloaded, memory use is cut 
+in half.
+
+On Android 10+ the notification bubble will now show the caller
+text message.
+
+WebCall on Android 10+ now uses separate audio channels for ring-
+tone and in-call audio. Volume levels can be adjusted separately.
+
+Handling of incoming calls for Android 10+ has been partly re-
+implemented. The goal was to make the implementation more robust.
+
+Release notes v1.1.4:
+
+Fixed NPE in dialId() url.getQuery()
+
+In onServiceConnected() if not on mainpage do not clr dialIdIntent
+
+Release notes v1.1.3:
+
+When screen is off, low-priority notifications are now suppressed.
+Only incoming calls and "Failed to connect" will be reported.
+
+File download and APK installation/upgrade now supported in-app.
+
+Widgets that require connectivity (Contacts, Dial-ID, ID-Manager, 
+etc.) cannot be opened anymore when no network is available.
+
+Resolved an issue on Android 12: The app now makes sure that the 
+caller widget is always executed in an isolated webview (and is not 
+unintentionally opened in an external browser).
+
+Release notes v1.1.2:
+
+When switching to offline mode, the status info in the Android 
+notification tray will now show "Offline". In v1.1.0 the most recent 
+status message stayed visible.
+
+On the base page, when changing the "Server address" (say, from 
+timur.mobi to xyz.com) and tapping on "Get new ID", the new server 
+address is now stored persistently. This does not happen in version 
+v1.1.0, so that on next start the app will try to connect to the old 
+server address. 
+
+Release notes v1.1.0:
+
+ID Manager lets you register multiple user-ID's and operate them all
+in parallel. #BurnerPhone #BurnerIDs
+See: https://timur.mobi/webcall/more/#id-manager
+
+Accept or Deny incoming calls directly from a popup notification on 
+Android 10+.
+
+You can now capture and view WebCall logs on Android 10+.
+
+New [Clear cache] option lets you update the WebCall core client,
+without having to exit the app.
+
+Federated WebCall allows many WebCall servers to work together,
+without data synchronization and without operator consultation.
+Call-widgets from remote servers are run inside isolated webview 
+instances. Incoming calls, missed calls and contacts now show
+remote user as: id@domain.
+See: https://timur.mobi/webcall/more/#federated
+
+WebCall links + NFC connect are not anymore tight to timur.mobi
+domain. Both will work with any domain you may run across. You
+can click on links like: https://(domain)/user/(id) and WebCall 
+for Android will let you call this party right away. 
+
+WebCall for Android now brings up the Android soft keyboard when 
+needed, without you having to explicity tap the form field.
+
+WebCall for Android comes with a refreshed base page, offering
+many small improvements.
+
+WebCall Update is now being shown inside the app. No need to start
+an external browser for this.
+
+Issues resolved:
+
+Reconnecter is now more resiliant, for instance when WebCall service
+was started during boot.
+
+On network loss you will now see 'No network. Reconnect paused.'
+(instead of 'No network. Giving up.'). Client will try to reconnect
+as soon as a network becomes available again, but will not attempt
+to reconnect while there is no network.
+
+An issue related to sending files was solved (on Android 9+ devices).
+
+When you click [Go Offline], the reconnecter service will stop right
+away and stay fully inactive until you [Go Online] again.
+
+Fixed an issue with the proximity sensor on some smartphone devices.
+
+Fixed an issue where 'Screen for wifi' could not be disabled on some
+older devices.
+
