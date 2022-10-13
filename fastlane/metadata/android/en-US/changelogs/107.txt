@@ -6,15 +6,14 @@ https://timur.mobi/webcall/update
 
 Release notes v1.1.7:
 
-Fixed an encoding issue that was causing the list of 'Missed calls' 
-to not be shown.
+Fixed an encoding issue that (in some cases) prevented the list
+of 'Missed calls' from being displayed.
 
-Prevent the WebCall icon from being shown in the status bar after 
-"Exit" feature has been invoked and activity and service have been
-unloaded.
+Now making sure the status bar WebCall icon is being removed when
+user invokes "Exit" and activity and service have been unloaded.
 
-Disable the Back button while WebCall is signaling an incoming call
-(while it is ringing).
+Back button will now be temporarily blocked while WebCall is
+signaling an incoming call (is ringing).
 
 Release notes v1.1.6:
 
