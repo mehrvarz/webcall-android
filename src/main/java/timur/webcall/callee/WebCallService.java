@@ -181,10 +181,18 @@ public class WebCallService extends Service {
 
 	// we do up to ReconnectCounterMax loops when we try to reconnect
 	// loops are done in ca. 30s intervals; so 40 loops will take up close to 20min
-	private final static int ReconnectCounterBeep = 6;    // make a beep after x reconnect loops
+	private final static int ReconnectCounterBeep = 10;   // make a beep after x reconnect loops
 														  // is currently disabled
-	private final static int ReconnectCounterScreen = 20; // turn screen on after x reconnect loops
-	private final static int ReconnectCounterMax = 40;    // max number of reconnect loops
+	private final static int ReconnectCounterScreen = 30; // turn screen on after x reconnect loops
+	private final static int ReconnectCounterMax = 100;   // max number of reconnect loops
+	private final static int ReconnectDelayMaxSecs = 600; // max number of delay secs per loop
+	// the 1st 60 loops go from 10s to 600s delay (average 300s, so 60*300 = 18000s = 300m = 6h)
+	// loops 61-100 are limited to 600s delay (40*600s = 24000s = 400m = 6.66h)
+	// total time before reconnect is given up: 12.66h
+	// loop counter: 1   2   3    4    5    6    7    8    9   10   11  12  13   14   15   16   17   18   19   20
+	// delayPerLoop: 10s 20s 30s  40s  50s  60s  70s  80s  90s 100s 110 120 130  140  150  160  170  180  190  200
+	// total delay:  10s 30s 60s 100s 150s 210s 280s 360s 450s 550  660 780 910 1030 1180 1340 1510 1690 1880 2080
+	// 10th retry after ~10m, 20th retry after 35m, 30th retry after 90m, 
 
     private Binder mBinder = new WebCallServiceBinder();
 
@@ -3392,10 +3400,11 @@ public class WebCallService extends Service {
 							wsClient = null;
 						}
 						if(reconnectCounter < ReconnectCounterMax) {
-							int delaySecs = reconnectCounter*5;
-							if(delaySecs>60) {
-								delaySecs=60;
+							int delaySecs = reconnectCounter*10;
+							if(delaySecs>ReconnectDelayMaxSecs) {
+								delaySecs = ReconnectDelayMaxSecs;
 							}
+							Log.d(TAG,"reconnecter reconnect status="+status+" retry in "+delaySecs+"sec");
 
 							boolean prio = false;
 							if(reconnectCounter==ReconnectCounterBeep) {
@@ -3408,7 +3417,7 @@ public class WebCallService extends Service {
 								reconnectSchedFuture = null;
 							}
 							reconnectSchedFuture =
-								scheduler.schedule(reconnecter,delaySecs,TimeUnit.SECONDS);
+								scheduler.schedule(reconnecter, delaySecs, TimeUnit.SECONDS);
 							return;
 						}
 						Log.d(TAG,"reconnecter con.connect() fail. give up.");
@@ -3417,6 +3426,10 @@ public class WebCallService extends Service {
 								playSoundAlarm();
 							}
 							statusMessage("Gave up reconnecting",-1,true,true);
+							if(myWebView!=null && webviewMainPageLoaded) {
+								// offlineAction(): disable offline-button and enable online-button
+								runJS("offlineAction();",null);
+							}
 							reconnectBusy = false;
 							// turn reconnecter off
 							connectToServerIsWanted = false;
@@ -3520,10 +3533,11 @@ public class WebCallService extends Service {
 					if(wsClient==null) {
 						// fail
 						if(reconnectCounter<ReconnectCounterMax) {
-							int delaySecs = reconnectCounter*5;
-							if(delaySecs>30) {
-								delaySecs=30;
+							int delaySecs = reconnectCounter*10;
+							if(delaySecs>ReconnectDelayMaxSecs) {
+								delaySecs = ReconnectDelayMaxSecs;
 							}
+							Log.d(TAG,"reconnecter reconnect retry in "+delaySecs+"sec");
 
 							//Log.d(TAG,"reconnecter connectHost() fail - retry...");
 							boolean prio = false;
@@ -3537,7 +3551,7 @@ public class WebCallService extends Service {
 								reconnectSchedFuture = null;
 							}
 							reconnectSchedFuture =
-								scheduler.schedule(reconnecter,delaySecs,TimeUnit.SECONDS);
+								scheduler.schedule(reconnecter, delaySecs, TimeUnit.SECONDS);
 							return;
 						}
 						Log.d(TAG,"reconnecter connectHost() fail - give up");
@@ -3546,10 +3560,10 @@ public class WebCallService extends Service {
 								playSoundAlarm();
 							}
 							statusMessage("Gave up reconnecting.",-1,true,true);
-						}
-						if(myWebView!=null && webviewMainPageLoaded) {
-							// offlineAction(): disable offline-button and enable online-button
-							runJS("offlineAction();",null);
+							if(myWebView!=null && webviewMainPageLoaded) {
+								// offlineAction(): disable offline-button and enable online-button
+								runJS("offlineAction();",null);
+							}
 						}
 						reconnectBusy = false;
 						reconnectCounter = 0;
@@ -3645,11 +3659,11 @@ public class WebCallService extends Service {
 
 					ex.printStackTrace();
 					if(reconnectCounter<ReconnectCounterMax) {
-						int delaySecs = reconnectCounter*5;
-						if(delaySecs>30) {
-							delaySecs=30;
+						int delaySecs = reconnectCounter*10;
+						if(delaySecs>ReconnectDelayMaxSecs) {
+							delaySecs = ReconnectDelayMaxSecs;
 						}
-						Log.d(TAG,"reconnecter reconnect ex="+ex+" retry...");
+						Log.d(TAG,"reconnecter reconnect ex="+ex+" retry in "+delaySecs+"sec");
 
 						boolean prio = false;
 						if(reconnectCounter==ReconnectCounterBeep) {
@@ -3661,7 +3675,8 @@ public class WebCallService extends Service {
 							reconnectSchedFuture.cancel(false);
 							reconnectSchedFuture = null;
 						}
-						reconnectSchedFuture =scheduler.schedule(reconnecter, delaySecs, TimeUnit.SECONDS);
+						reconnectSchedFuture =
+							scheduler.schedule(reconnecter, delaySecs, TimeUnit.SECONDS);
 						return;
 					}
 					Log.d(TAG,"reconnecter reconnect ex="+ex+" give up");

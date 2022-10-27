@@ -89,6 +89,9 @@ import java.util.Scanner;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
 import java.text.SimpleDateFormat;
 import java.io.File;
 import java.io.FileWriter;
@@ -149,6 +152,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	private ValueCallback<Uri[]> filePath = null; // for file selector
 	private volatile boolean activityVisible = false;
 	private Intent onCreateIntent = null;
+	private volatile DownloadManager downloadManager = null;
+	private volatile long downloadReference = 0;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -277,6 +282,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 		myNewWebView = (WebView)findViewById(R.id.webview2);
 		myNewWebView.setVisibility(View.INVISIBLE);
+
+		if(downloadManager==null) {
+			downloadManager = (DownloadManager)getSystemService(DOWNLOAD_SERVICE);
+		}
 
 		// to receive (pending-)intent msgs from the service
 		broadcastReceiver = new BroadcastReceiver() {
@@ -408,46 +417,91 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,
 								Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
 					} else {
-						DownloadManager.Request request = new DownloadManager.Request(Uri.parse(filedownloadUrl));
+						String myfiledownloadUrl = filedownloadUrl+"?i="+SystemClock.uptimeMillis();
+						Log.d(TAG, "broadcastReceiver request="+myfiledownloadUrl);
+						DownloadManager.Request request =
+							new DownloadManager.Request(Uri.parse(myfiledownloadUrl));
 						request.setDescription("Downloading file....");
-						request.setTitle(filedownloadUrl);
-
+//						request.setTitle(filedownloadUrl);
 						String filename = filedownloadUrl;
 						int idx = filename.lastIndexOf("/");
 						if(idx>0) {
 							filename = filename.substring(idx+1);
 						}
 						Log.d(TAG,"filename="+filename);
-						//request.setTitle(filename);
+						request.setTitle(filename);
 
 						String mimetype = URLConnection.guessContentTypeFromName(filename);
 						Log.d(TAG,"mimetype="+mimetype);
 						request.setMimeType(mimetype);
 
-						//String userAgent = intent.getStringExtra("useragent");
-						String userAgent = "WebCall for Android";
+						String userAgent = intent.getStringExtra("useragent");
+						//String userAgent = "WebCall for Android";
 						Log.d(TAG,"userAgent="+userAgent);
 						request.addRequestHeader("User-Agent",userAgent);
 
 						request.allowScanningByMediaScanner();
-						request.setAllowedNetworkTypes(
-							DownloadManager.Request.NETWORK_WIFI | DownloadManager.Request.NETWORK_MOBILE);
-						request.setAllowedOverRoaming(true);
-
+//						request.setAllowedNetworkTypes(
+//							DownloadManager.Request.NETWORK_WIFI | DownloadManager.Request.NETWORK_MOBILE);
+//						request.setAllowedOverRoaming(true);
+						request.setAllowedOverMetered(true);
 						request.setVisibleInDownloadsUi(true);
+						request.setShowRunningNotification(true);
 						if(filedownloadUrl.indexOf("//timur.mobi/")>0 && filedownloadUrl.indexOf("/WebCall")>0 &&
 								filedownloadUrl.endsWith(".apk")) {
 							// download + offer to install
+							// TODO testing:
+							//request.setNotificationVisibility(
+							//	DownloadManager.Request.VISIBILITY_VISIBLE);
 						} else {
 							// download file + create notification
 							request.setNotificationVisibility(
 								DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
 						}
 
+
 						request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+//						request.setDestinationInExternalFilesDir(activity.getApplicationContext(),
+//							Environment.DIRECTORY_DOWNLOADS,
+//							Environment.getExternalStorageDirectory().getPath() + "MyExternalStorageAppPath",
+//							filename);
+//						request.setDestinationInExternalFilesDir(activity.getApplicationContext(),null,filename);
+//						request.setDestinationUri(Uri.fromFile(
+//							new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), filename)));
+
+//File downloadFileDir =
+//	new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath() +
+//	"/Contents");
+
+// tmtmtm
+/*
+//						Uri uri = Uri.fromFile(new File(getFilesDir(), "")); //filename));
+						Uri uri = Uri.fromFile(new File(Environment.getExternalStorageDirectory() + "/" +
+							Environment.DIRECTORY_DOWNLOADS + "/"+ filename));
+						Log.d(TAG, "setDestinationUri="+uri);
+						request.setDestinationUri(uri);
+*/
+
+//						request.setDestinationInExternalFilesDir(activity,
+//							Environment.DIRECTORY_DOWNLOADS,filename);
+
+
+//						String destination = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) +"/"+filename;
+//						request.setDestinationUri(
+//							Uri.fromFile(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),filename));
+
+//						File result = new File(file.getAbsolutePath() + File.separator + name);
+//						request.setDestinationUri(Uri.fromFile(result));
+
+//						request.setDestinationInExternalFilesDir(activity, // .applicationContext
+//							Environment.DIRECTORY_DOWNLOADS,"");
+
+
+
+
+						String filenameFinal = filename;
 
 						// ask user: download?
-						String filenameFinal = filename;
 						AlertDialog.Builder alertbox = new AlertDialog.Builder(activity);
 						alertbox.setTitle("Download file");
 						alertbox.setMessage("Do you want to download "+filename+"?");
@@ -459,14 +513,60 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						alertbox.setPositiveButton("Download", new DialogInterface.OnClickListener() {
 							@Override
 							public void onClick(DialogInterface dialog, int which) {
-								DownloadManager downloadManager =
-									(DownloadManager)getSystemService(DOWNLOAD_SERVICE);
-								long downloadReference = downloadManager.enqueue(request);
+								//if(downloadManager==null) {
+								//	downloadManager = (DownloadManager)getSystemService(DOWNLOAD_SERVICE);
+								//}
+								downloadReference = 0;
+								try {
+									downloadReference = downloadManager.enqueue(request);
+								} catch(Exception ex) {
+									Log.d(TAG, "download ex="+ex);
+								}
 								if(downloadReference!=0) {
 									Log.d(TAG,"download start ref="+downloadReference);
 									Toast.makeText(activity,"Starting download "+filenameFinal,
 										Toast.LENGTH_LONG).show();
-									// file will be received in -> onDownloadComplete
+									// file download will trigger -> onDownloadComplete
+/*
+	final Runnable runnable2 = new Runnable() {
+		public void run() {
+
+			Cursor c = downloadManager.query(new DownloadManager.Query().setFilterById(downloadReference));
+			if (c == null) {
+			  Toast.makeText(activity, "download_not_found",
+				             Toast.LENGTH_LONG).show();
+			}
+			else {
+			  c.moveToFirst();
+
+			  Log.d(getClass().getName(),
+				    "COLUMN_ID: "
+				        + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_ID)));
+			  Log.d(getClass().getName(),
+				    "COLUMN_BYTES_DOWNLOADED_SO_FAR: "
+				        + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)));
+			  Log.d(getClass().getName(),
+				    "COLUMN_LAST_MODIFIED_TIMESTAMP: "
+				        + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_LAST_MODIFIED_TIMESTAMP)));
+			  Log.d(getClass().getName(),
+				    "COLUMN_LOCAL_URI: "
+				        + c.getString(c.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)));
+			  Log.d(getClass().getName(),
+				    "COLUMN_STATUS: "
+				        + c.getInt(c.getColumnIndex(DownloadManager.COLUMN_STATUS)));
+			  Log.d(getClass().getName(),
+				    "COLUMN_REASON: "
+				        + c.getInt(c.getColumnIndex(DownloadManager.COLUMN_REASON)));
+
+		//      Toast.makeText(activity, statusMessage(c), Toast.LENGTH_LONG)
+		//           .show();
+			  c.close();
+			}
+		}
+	};
+	ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(20);
+	scheduler.schedule(runnable2, 2000l, TimeUnit.MILLISECONDS);
+*/
 								} else {
 									Log.d(TAG,"download failed for ref="+downloadReference);
 									Toast.makeText(activity,"Download failed "+filenameFinal,
@@ -487,12 +587,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		onDownloadComplete = new BroadcastReceiver() {
 			public void onReceive(Context context, Intent intent) {
 				// find out if this is an apk (from timur.mobi) and if so, start install
-				Log.d(TAG, "onDownloadComplete "+intent.toString());
-
+// TODO Andr12 does not receive this, does not receive DownloadManager.ACTION_DOWNLOAD_COMPLETE
+				Log.d(TAG, "onDownloadComplete "+intent.getAction());
 				long referenceId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0);
 				Log.d(TAG, "onDownloadComplete referenceId="+referenceId);
 
-				DownloadManager downloadManager = (DownloadManager)getSystemService(DOWNLOAD_SERVICE);
 				Uri fileUri = downloadManager.getUriForDownloadedFile(referenceId);
 				Log.d(TAG,"onDownloadComplete fileUri="+fileUri);
 
@@ -503,15 +602,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Log.d(TAG, "# onDownloadComplete cursor empty row");
 					return;
 				}
-				// title is filedownloadUrl
+				// title is filename (not filedownloadUrl)
 				String title = cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_TITLE));
 				if(title==null) {
 					Log.d(TAG, "# onDownloadComplete title==null");
 					return;
 				}
 				Log.d(TAG, "onDownloadComplete title="+title);
-				if(title.indexOf("//timur.mobi/")<0 || !title.endsWith(".apk")) {
-					Log.d(TAG, "not an apk from timur.mobi. do not install.");
+				if(/*title.indexOf("//timur.mobi/")<0 ||*/ !title.endsWith(".apk")) {
+					//Log.d(TAG, "not an apk from timur.mobi. do not install.");
+					Log.d(TAG, "not an apk - do not install");
 					return;
 				}
 
@@ -531,7 +631,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 				if(status!=DownloadManager.STATUS_SUCCESSFUL) {
 					Log.d(TAG, "# onDownloadComplete status="+status+" not success");
-					Toast.makeText(activity,"APK downloaded. Cannot offer to install. status="+status,
+					Toast.makeText(activity,"APK downloaded. Cannot offer install. status="+status,
 						Toast.LENGTH_LONG).show();
 					return;
 				}
@@ -552,6 +652,62 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 		};
 		registerReceiver(onDownloadComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
+
+/* for testing/verification only
+		ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(20);
+		final Runnable runnable2 = new Runnable() {
+			public void run() {
+				if(downloadReference==0) {
+					Log.d(TAG, "# ContentObserver RUN abort: no downloadReference");
+					return;
+				}
+
+				Cursor c = downloadManager.query(
+					new DownloadManager.Query().setFilterById(downloadReference));
+
+				int count = c.getCount();
+				if(count == 0) {
+				    c.close();
+					Log.d(TAG, "# ContentObserver RUN abort: c.getCount() == 0");
+					return;
+				}
+				if(c.moveToFirst()) {
+				do {
+					int status = c.getInt(c.getColumnIndex(DownloadManager.COLUMN_STATUS));
+					int reason = c.getInt(c.getColumnIndex(DownloadManager.COLUMN_REASON));
+					int size = c.getInt(c.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES));
+					int downloaded = c.getInt(c.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR));
+
+					Log.d(TAG, "ContentObserver RUN status="+status+" "+reason+" "+size+" "+downloaded+" "+count);
+							// status
+							// DownloadManager.STATUS_PENDING 1
+							// DownloadManager.STATUS_RUNNING 2
+							// DownloadManager.STATUS_PAUSED 4
+							// DownloadManager.STATUS_SUCCESSFUL 8
+							// DownloadManager.STATUS_FAILED 16
+							// reason:
+							// DownloadManager.ERROR_INSUFFICIENT_SPACE
+				} while(c.moveToNext());
+				}
+				Log.d(TAG, "ContentObserver RUN done");
+			}
+		};
+
+		getContentResolver().registerContentObserver(Uri.parse("content://downloads/my_downloads"),
+			true, new android.database.ContentObserver(null) {
+				@Override
+				public void onChange(boolean selfChange) {
+					Log.d(TAG, "ContentObserver selfChange="+selfChange);
+					super.onChange(selfChange);
+
+					if(downloadManager==null) {
+						Log.d(TAG, "# ContentObserver abort: no downloadManager");
+						return;
+					}
+					scheduler.schedule(runnable2, 100l, TimeUnit.MILLISECONDS);
+				}
+			});
+*/
 
 		Intent serviceIntent = new Intent(this, WebCallService.class);
 		serviceIntent.putExtra("onstart", "donothing");
@@ -2039,16 +2195,24 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						String cookies = CookieManager.getInstance().getCookie(userAgent);
 						request.addRequestHeader("cookie",cookies);
 						request.addRequestHeader("User-Agent",userAgent);
-						request.setDescription("Downloading File....");
-						request.setTitle(URLUtil.guessFileName(url,contentDisposition,mimetype));
+						String filename = URLUtil.guessFileName(url,contentDisposition,mimetype);
+						Log.d(TAG,"Downloading file="+filename);
+						request.setDescription("Downloading File "+filename);
+						request.setTitle(filename);
+						request.setVisibleInDownloadsUi(true);
 						request.allowScanningByMediaScanner();
+						request.setAllowedNetworkTypes(
+							DownloadManager.Request.NETWORK_WIFI | DownloadManager.Request.NETWORK_MOBILE);
 						request.setNotificationVisibility(
 							DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-						request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS,
-							URLUtil.guessFileName(url,contentDisposition,mimetype));
-						DownloadManager downloadManager = (DownloadManager)getSystemService(DOWNLOAD_SERVICE);
+						request.setShowRunningNotification(true);
+						request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+//						request.setDestinationInExternalFilesDir(activity, null, filename);
+// activity.getApplicationContext()
+						if(downloadManager==null) {
+							downloadManager = (DownloadManager)getSystemService(DOWNLOAD_SERVICE);
+						}
 						downloadManager.enqueue(request);
-						Log.d(TAG,"Downloading File...");
 					}
 				}
 			});
