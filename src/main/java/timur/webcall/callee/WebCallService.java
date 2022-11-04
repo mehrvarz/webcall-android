@@ -179,20 +179,35 @@ public class WebCallService extends Service {
 	// after serverPingPeriodPlus secs with no pings, checkLastPing() considers server connection gone
 	private final static int serverPingPeriodPlus = 2*60+10;
 
-	// we do up to ReconnectCounterMax loops when we try to reconnect
-	// loops are done in ca. 30s intervals; so 40 loops will take up close to 20min
-	private final static int ReconnectCounterBeep = 10;   // make a beep after x reconnect loops
-														  // is currently disabled
-	private final static int ReconnectCounterScreen = 30; // turn screen on after x reconnect loops
+/*
 	private final static int ReconnectCounterMax = 100;   // max number of reconnect loops
 	private final static int ReconnectDelayMaxSecs = 600; // max number of delay secs per loop
 	// the 1st 60 loops go from 10s to 600s delay (average 300s, so 60*300 = 18000s = 300m = 6h)
 	// loops 61-100 are limited to 600s delay (40*600s = 24000s = 400m = 6.66h)
 	// total time before reconnect is given up: 12.66h
+
+	private final static int ReconnectCounterMax = 120;   // max number of reconnect loops
+	private final static int ReconnectDelayMaxSecs = 900; // max number of delay secs per loop
+	// the 1st 90 loops go from 10s to 900s delay (average 450s, so 90*450 = 40500s = 675m = 11h15m)
+	// loops 91-120 are limited to 900s delay (30*900s = 27000s = 450m = 7h30m)
+	// total time before reconnect is given up: 18.45h
+*/
+	private final static int ReconnectCounterMax = 120;   // max number of reconnect loops
+	private final static int ReconnectDelayMaxSecs = 1200; // max number of delay secs per loop
+	// the 1st 120 loops go from 10s to 1200s delay (average 600s, so 120*600 = 72000s = 1200m = 20h)
+	// loops 121-150 are limited to 1200s delay (30*1200s = 36000s = 600m = 10h)
+	// total time before reconnect is given up: 30h
+
 	// loop counter: 1   2   3    4    5    6    7    8    9   10   11  12  13   14   15   16   17   18   19   20
 	// delayPerLoop: 10s 20s 30s  40s  50s  60s  70s  80s  90s 100s 110 120 130  140  150  160  170  180  190  200
 	// total delay:  10s 30s 60s 100s 150s 210s 280s 360s 450s 550  660 780 910 1030 1180 1340 1510 1690 1880 2080
 	// 10th retry after ~10m, 20th retry after 35m, 30th retry after 90m, 
+
+	// we do up to ReconnectCounterMax loops when we try to reconnect
+	// loops are done in ca. 30s intervals; so 40 loops will take up close to 20min
+	private final static int ReconnectCounterBeep = 10;   // make a beep after x reconnect loops
+														  // is currently disabled
+	private final static int ReconnectCounterScreen = 30; // turn screen on after x reconnect loops
 
     private Binder mBinder = new WebCallServiceBinder();
 
