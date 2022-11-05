@@ -10,7 +10,7 @@ Fixed file name issue when downloading via in-app browser widget.
 Fixed encoding issue that was preventing the list of 'Missed calls' 
 from being shown in some cases.
 
-Back button will now be blocked while WebCall is signaling an 
+Back button will now be blocked while WebCall is signaling an
 incoming call (while ringing).
 
 WebCall status bar icon will be removed when app is terminated.
