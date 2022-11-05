@@ -1,21 +1,23 @@
-Release v1.1.x comes with ID Manager which lets you use multiple
-WebCall phone numbers (WebCall ID's) in parallel.
-
-For the latest WebCall news and updates go to:
-https://timur.mobi/webcall/update
+v1.1.x comes with ID Manager which lets you use multiple
+WebCall ID's (WebCall phone numbers) in parallel.
 
 Release notes v1.1.8 + v1.1.7:
 
 More robust client to server connectivity.
 
-Fixed download file name issue.
+Fixed file name issue when downloading via in-app browser widget.
 
-Fixed an encoding issue that could prevent the list of 'Missed calls'
-from being shown.
+Fixed encoding issue that was preventing the list of 'Missed calls' 
+from being shown in some cases.
 
-When user invokes "Exit" and WebCall is fully unloaded the status
-bar icon will now also be removed.
+Back button will now be blocked while WebCall is signaling an 
+incoming call (while ringing).
 
-When WebCall is signaling an incoming call (while is ringing) the
-back button is now being temporarily blocked.
+WebCall status bar icon will be removed when app is terminated.
+
+Full list of v1.1.x changes:
+https://timur.mobi/webcall/more/#v1.1
+
+WebCall latest news and updates:
+https://timur.mobi/webcall/update
 

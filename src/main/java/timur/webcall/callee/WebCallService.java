@@ -3081,8 +3081,7 @@ public class WebCallService extends Service {
 	}
 
 	private void queueWebRtcMessage(String message) {
-		// TODO if message startswith "missedCalls|" we should remove any previous "missedCalls|"
-		//      or maybe we should not queue any msg starting with "missedCalls|"
+		// we do not queue msgs that start with "missedCalls|"
 		if(!message.startsWith("missedCalls|")) {
 			stringMessageQueue.add(message);
 		}
