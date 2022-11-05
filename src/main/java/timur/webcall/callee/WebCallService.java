@@ -377,7 +377,7 @@ public class WebCallService extends Service {
 
 				String message = intent.getStringExtra("activityVisible");
 				if(message!=null && message!="") {
-					// here the activity tells us if she is in front or in the back
+					// activity is telling us that it is in front or not
 					Log.d(TAG, "serviceCmdReceiver activityVisible "+message);
 					if(message.equals("true")) {
 						activityVisible = true;
@@ -3081,7 +3081,11 @@ public class WebCallService extends Service {
 	}
 
 	private void queueWebRtcMessage(String message) {
-		stringMessageQueue.add(message);
+		// TODO if message startswith "missedCalls|" we should remove any previous "missedCalls|"
+		//      or maybe we should not queue any msg starting with "missedCalls|"
+		if(!message.startsWith("missedCalls|")) {
+			stringMessageQueue.add(message);
+		}
 	}
 
 	// push all queued rtcMessages into callee.js signalingCommand()
