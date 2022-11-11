@@ -3386,12 +3386,17 @@ public class WebCallService extends Service {
 						// in many other cases it DOES make sense to continue reconnecter
 						// java.net.ConnectException: failed to connect to /192.168.0.161 (port 8068)
 						//   after 22000ms: isConnected failed: EHOSTUNREACH (No route to host)
+						//
 						// java.net.ConnectException: failed to connect to /192.168.0.161 (port 8068)
 						//   after 22000ms: isConnected failed: ECONNREFUSED (Connection refused)
+						//
 						// java.net.ConnectException: Failed to connect to /192.168.0.161:8068
+						//
+						// javax.net.ssl.SSLHandshakeException: Chain validation failed
 
 						String exString = ex.toString();
-						if(exString.indexOf("SSLHandshakeException")>=0) {
+//						if(exString.indexOf("SSLHandshakeException")>=0) {
+						if(exString.indexOf("Trust anchor for certification path not found")>=0) {
 							// turn reconnecter off
 							connectToServerIsWanted = false;
 							storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
