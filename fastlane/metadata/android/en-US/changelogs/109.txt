@@ -1,4 +1,5 @@
-WebCall for Android - Release notes
+WebCall for Android - Release notes v1.2.0
 
-v1.2.0 comes with changes to support web telephony on the Mastodon platform
+- comes with changes to support web telephony on the Mastodon platform
 
+- activity can be started via URL's containing /callee/
