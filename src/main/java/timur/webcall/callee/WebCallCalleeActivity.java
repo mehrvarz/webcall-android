@@ -1551,7 +1551,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	////////// private functions //////////////////////////////////////
 
 	private void newIntent(Intent intent, String comment) {
-		Log.d(TAG, "newIntent ("+comment+") "+intent.toString());
+		Log.d(TAG, "newIntent ("+comment+") ("+intent.getData()+") "+intent.toString());
 
 		if(intent==null) {
 			Log.d(TAG, "newIntent ("+comment+") no intent");
@@ -1577,25 +1577,63 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
-		Uri url = intent.getData();
+		Uri uri = intent.getData();
 		dialIdIntent = null;
-		if(url!=null) {
-			String path = url.getPath();
+		if(uri!=null) {
+			String path = uri.getPath();
 			int idxUser = path.indexOf("/user/");
 			if(idxUser>=0) {
 				if(webCallServiceBinder==null) {
-					Log.d(TAG, "newIntent dialId url="+url+" !webCallServiceBinder ("+comment+")");
+					Log.d(TAG, "newIntent dialId uri="+uri+" !webCallServiceBinder ("+comment+")");
 					dialIdIntent = intent;
 					lastSetDialId = System.currentTimeMillis();
 					// dialIdIntent will be executed in onServiceConnected
 				} else {
-					Log.d(TAG, "newIntent dialId url="+url+" webCallServiceBinder ("+comment+")");
-					dialId(url);
+					Log.d(TAG, "newIntent dialId uri="+uri+" webCallServiceBinder ("+comment+")");
+					dialId(uri);
 				}
-			} else {
-				Log.d(TAG, "# newIntent dialId url="+url+" no /user/ ("+comment+")");
+				return;
 			}
+
+			int idxCallee = path.indexOf("/callee/");
+			if(idxCallee>=0) {
+// TODO tmtmtm implement uri ending with "/callee/(id)" to ALSO NOT openBrowserInIframe()
+				if(path.endsWith("/callee") || path.endsWith("/callee/") /*|| path.endsWith("/callee/"+)*/) {
+					// do NOT openBrowserInIframe()
+				} else {
+					Log.d(TAG, "newIntent openBrowserInIframe uri="+uri);
+					openBrowserInIframe(uri,0);
+					return;
+				}
+			}
+
+			Log.d(TAG, "# newIntent dialId uri="+uri+" not processes ("+comment+")");
 			return;
+		}
+	}
+
+	private void openBrowserInIframe(Uri uri, int counter) {
+		// webCallServiceBinder can be null, while connection to service is not established
+		Log.d(TAG, "openBrowserInIframe counter="+counter+" uri="+uri);
+		// if not connected to service or not connected to webcall server: delay
+		if(webCallServiceBinder==null || webCallServiceBinder.webcallConnectType()<=0) {
+			// cannot run webCallServiceBinder.runJScode() yet
+			if(counter>=10) {
+				// after 10s give up
+				Log.d(TAG, "# openBrowserInIframe give up");
+			} else {
+				final Handler handler = new Handler(Looper.getMainLooper());
+				handler.postDelayed(new Runnable() {
+					@Override
+					public void run() {
+						openBrowserInIframe(uri,counter+1);
+					}
+				}, 1000);
+			}
+		} else {
+			Log.d(TAG, "openBrowserInIframe runJScode");
+			//webCallServiceBinder.runJScode("iframeWindowOpen('"+uri+"',false,'',false)");
+			webCallServiceBinder.runJScode("openNews('"+uri+"')");
 		}
 	}
 

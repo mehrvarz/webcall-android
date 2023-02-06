@@ -85,6 +85,28 @@
 					  android:pathPrefix="/user/" />
 -->
 			</intent-filter>
+
+
+			<intent-filter>
+				<action android:name="android.intent.action.VIEW" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<category android:name="android.intent.category.BROWSABLE" />
+				<data android:scheme="https" />
+				<data android:scheme="http" />
+			    <data android:host="*" />
+				<data android:pathPrefix="/callee/" />
+			</intent-filter>
+
+			<intent-filter>
+				<action android:name="android.nfc.action.NDEF_DISCOVERED" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<category android:name="android.intent.category.BROWSABLE" />
+				<data android:scheme="https" />
+				<data android:scheme="http" />
+			    <data android:host="*" />
+				<data android:pathPrefix="/callee/" />
+			</intent-filter>
+
         </activity>
 
 		<service android:name=".WebCallService"
