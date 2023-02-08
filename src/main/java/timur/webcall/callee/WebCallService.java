@@ -1285,7 +1285,7 @@ public class WebCallService extends Service {
 						int idxCallee = path.indexOf("/callee/");
 						if(idxCallee>=0) {
 							username = path.substring(idxCallee+8);
-							if(!username.startsWith("register")) {
+							if(!username.startsWith("register") && username.indexOf("/")<0) {
 								// store username from callee-URL into the prefs
 								Log.d(TAG, "handleUri store username=("+username+")");
 								storePrefsString("username",username);

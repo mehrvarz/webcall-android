@@ -1,0 +1,7 @@
+WebCall for Android - Release notes v1.2.1
+
+- Receive Web telephony calls with your Mastodon ID
+- WebCall activity can now be started via /callee/ URL's
+
+Latest Updates: https://timur.mobi/webcall/update/
+
