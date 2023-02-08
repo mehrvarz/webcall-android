@@ -741,11 +741,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 		}
 
+		onCreateIntent = getIntent();
 		if(extendedLogsFlag) {
 			Log.d(TAG, "onCreate done");
 		}
-
-		onCreateIntent = getIntent();
 	}
 
 	private ServiceConnection serviceConnection = new ServiceConnection() {
@@ -1273,6 +1272,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		checkPermissions();
 
 		if(onCreateIntent!=null) {
+			// set by onCreate
 			newIntent(onCreateIntent,"onCreate");
 			onCreateIntent = null;
 		}
@@ -1281,6 +1281,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public void onNewIntent(Intent intent) {
 		// this is needed if the activity is running already when the request comes in (most usual scenario)
+		Log.d(TAG, "onNewIntent");
 		newIntent(intent,"onNewIntent");
 	}
 
@@ -1446,7 +1447,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			// except there is a '#' in webviewUrl
 			if(webviewUrl!=null) {
 				if(webviewUrl.indexOf("#")>=0 || webviewUrl.indexOf("/callee/register")>=0 ||
-					(webviewUrl.indexOf("/callee/")<0 && webviewUrl.indexOf("/android_asset/")<0)) {
+						webviewUrl.indexOf("/callee/mastodon")>=0 ||
+						(webviewUrl.indexOf("/callee/")<0 && webviewUrl.indexOf("/android_asset/")<0)) {
 					Log.d(TAG, "onBackPressed -> history.back()");
 					webCallServiceBinder.runJScode("history.back()");
 					return;
@@ -1551,13 +1553,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	////////// private functions //////////////////////////////////////
 
 	private void newIntent(Intent intent, String comment) {
-		Log.d(TAG, "newIntent ("+comment+") ("+intent.getData()+") "+intent.toString());
-
 		if(intent==null) {
 			Log.d(TAG, "newIntent ("+comment+") no intent");
 			return;
 		}
 
+		Log.d(TAG, "newIntent ("+comment+") ("+intent.getData()+") <"+intent.toString()+">");
 		String wakeup = intent.getStringExtra("wakeup");
 		if(wakeup!=null) {
 			Date currentDate = new Date();
@@ -1578,9 +1579,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 
 		Uri uri = intent.getData();
-		dialIdIntent = null;
 		if(uri!=null) {
 			String path = uri.getPath();
+			Log.d(TAG, "newIntent ("+comment+") path=("+path+")");
+
+			dialIdIntent = null;
 			int idxUser = path.indexOf("/user/");
 			if(idxUser>=0) {
 				if(webCallServiceBinder==null) {
@@ -1600,9 +1603,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 // TODO tmtmtm implement uri ending with "/callee/(id)" to ALSO NOT openBrowserInIframe()
 				if(path.endsWith("/callee") || path.endsWith("/callee/") /*|| path.endsWith("/callee/"+)*/) {
 					// do NOT openBrowserInIframe()
+					Log.d(TAG, "newIntent ignore endsWith /callee");
 				} else {
 					Log.d(TAG, "newIntent openBrowserInIframe uri="+uri);
-					openBrowserInIframe(uri,0);
+					openBrowserInIframe(uri,false,0);
 					return;
 				}
 			}
@@ -1610,13 +1614,38 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "# newIntent dialId uri="+uri+" not processes ("+comment+")");
 			return;
 		}
+
+		Log.d(TAG, "# newIntent done");
 	}
 
-	private void openBrowserInIframe(Uri uri, int counter) {
+	private void openBrowserInIframe(Uri uri, boolean needLogin, int counter) {
+// tmtmtm
 		// webCallServiceBinder can be null, while connection to service is not established
-		Log.d(TAG, "openBrowserInIframe counter="+counter+" uri="+uri);
+		Log.d(TAG, "openBrowserInIframe needLogin="+needLogin+" counter="+counter+" uri="+uri);
 		// if not connected to service or not connected to webcall server: delay
-		if(webCallServiceBinder==null || webCallServiceBinder.webcallConnectType()<=0) {
+
+		if(!needLogin) {
+			if(myWebView==null) {
+				if(counter>=10) {
+					// after 10s give up
+					Log.d(TAG, "# openBrowserInIframe give up");
+				} else {
+					final Handler handler = new Handler(Looper.getMainLooper());
+					handler.postDelayed(new Runnable() {
+						@Override
+						public void run() {
+							openBrowserInIframe(uri,needLogin,counter+1);
+						}
+					}, 1000);
+				}
+			} else {
+				String url = uri.toString();
+				Log.d(TAG, "openBrowserInIframe loadUrl="+url);
+				myWebView.loadUrl(url);
+			}
+
+		} else if(webCallServiceBinder==null ||
+				(needLogin && webCallServiceBinder.webcallConnectType()<=0)) {
 			// cannot run webCallServiceBinder.runJScode() yet
 			if(counter>=10) {
 				// after 10s give up
@@ -1626,7 +1655,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				handler.postDelayed(new Runnable() {
 					@Override
 					public void run() {
-						openBrowserInIframe(uri,counter+1);
+						openBrowserInIframe(uri,needLogin,counter+1);
 					}
 				}, 1000);
 			}
