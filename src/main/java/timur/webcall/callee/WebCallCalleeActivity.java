@@ -280,6 +280,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			});
 		}
 
+		myWebView = findViewById(R.id.webview);
 		myNewWebView = (WebView)findViewById(R.id.webview2);
 		myNewWebView.setVisibility(View.INVISIBLE);
 
@@ -497,8 +498,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 //							Environment.DIRECTORY_DOWNLOADS,"");
 
 
-
-
 						String filenameFinal = filename;
 
 						// ask user: download?
@@ -587,7 +586,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		onDownloadComplete = new BroadcastReceiver() {
 			public void onReceive(Context context, Intent intent) {
 				// find out if this is an apk (from timur.mobi) and if so, start install
-// TODO Andr12 does not receive this, does not receive DownloadManager.ACTION_DOWNLOAD_COMPLETE
+				// TODO Andr12 does not receive this / DownloadManager.ACTION_DOWNLOAD_COMPLETE
 				Log.d(TAG, "onDownloadComplete "+intent.getAction());
 				long referenceId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, 0);
 				Log.d(TAG, "onDownloadComplete referenceId="+referenceId);
@@ -763,7 +762,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 				// immediately start our webview
 				Log.d(TAG, "onServiceConnected startWebView");
-				myWebView = findViewById(R.id.webview);
+//				myWebView = findViewById(R.id.webview);
 				myWebView.setBackgroundColor(Color.TRANSPARENT);
 				registerForContextMenu(myWebView);
 
@@ -1600,13 +1599,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 			int idxCallee = path.indexOf("/callee/");
 			if(idxCallee>=0) {
-// TODO tmtmtm implement uri ending with "/callee/(id)" to ALSO NOT openBrowserInIframe()
-				if(path.endsWith("/callee") || path.endsWith("/callee/") /*|| path.endsWith("/callee/"+)*/) {
-					// do NOT openBrowserInIframe()
-					Log.d(TAG, "newIntent ignore endsWith /callee");
+				if(path.endsWith("/callee/") || path.substring(idxCallee+8).indexOf("/")<0) {
+					// do NOT waitForBrowser()
+					Log.d(TAG, "newIntent no render path="+path);
 				} else {
-					Log.d(TAG, "newIntent openBrowserInIframe uri="+uri);
-					openBrowserInIframe(uri,false,0);
+					Log.d(TAG, "newIntent render path="+path);
+					waitForBrowser(uri,false,0);
 					return;
 				}
 			}
@@ -1618,30 +1616,31 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		Log.d(TAG, "# newIntent done");
 	}
 
-	private void openBrowserInIframe(Uri uri, boolean needLogin, int counter) {
-// tmtmtm
+	private void waitForBrowser(Uri uri, boolean needLogin, int counter) {
 		// webCallServiceBinder can be null, while connection to service is not established
-		Log.d(TAG, "openBrowserInIframe needLogin="+needLogin+" counter="+counter+" uri="+uri);
+		Log.d(TAG, "waitForBrowser needLogin="+needLogin+" counter="+counter+" uri="+uri);
 		// if not connected to service or not connected to webcall server: delay
 
 		if(!needLogin) {
-			if(myWebView==null) {
+			if(myWebView==null || myNewWebView==null || webCallServiceBinder==null) {
 				if(counter>=10) {
 					// after 10s give up
-					Log.d(TAG, "# openBrowserInIframe give up");
+					Log.d(TAG, "# waitForBrowser give up");
 				} else {
 					final Handler handler = new Handler(Looper.getMainLooper());
 					handler.postDelayed(new Runnable() {
 						@Override
 						public void run() {
-							openBrowserInIframe(uri,needLogin,counter+1);
+							waitForBrowser(uri,needLogin,counter+1);
 						}
 					}, 1000);
 				}
 			} else {
-				String url = uri.toString();
-				Log.d(TAG, "openBrowserInIframe loadUrl="+url);
-				myWebView.loadUrl(url);
+				//String url = uri.toString();
+				//Log.d(TAG, "waitForBrowser loadUrl="+url);
+				//myNewWebView.loadUrl(url);
+				Log.d(TAG, "waitForBrowser render="+uri.toString());
+				render(uri);
 			}
 
 		} else if(webCallServiceBinder==null ||
@@ -1649,18 +1648,18 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			// cannot run webCallServiceBinder.runJScode() yet
 			if(counter>=10) {
 				// after 10s give up
-				Log.d(TAG, "# openBrowserInIframe give up");
+				Log.d(TAG, "# waitForBrowser give up");
 			} else {
 				final Handler handler = new Handler(Looper.getMainLooper());
 				handler.postDelayed(new Runnable() {
 					@Override
 					public void run() {
-						openBrowserInIframe(uri,needLogin,counter+1);
+						waitForBrowser(uri,needLogin,counter+1);
 					}
 				}, 1000);
 			}
 		} else {
-			Log.d(TAG, "openBrowserInIframe runJScode");
+			Log.d(TAG, "waitForBrowser runJScode");
 			//webCallServiceBinder.runJScode("iframeWindowOpen('"+uri+"',false,'',false)");
 			webCallServiceBinder.runJScode("openNews('"+uri+"')");
 		}
@@ -2107,19 +2106,19 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 	}
 
-	private void dialId(Uri url) {
-		// example url (as string):
+	private void dialId(Uri uri) {
+		// example uri (as string):
 		// https://timur.mobi/user/id?callerId=id&callerName=username&ds=false
 		String webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
-		String host = url.getHost().toLowerCase(Locale.getDefault());
-		int port = url.getPort();
+		String host = uri.getHost().toLowerCase(Locale.getDefault());
+		int port = uri.getPort();
 		String hostport = host;
 		if(port>0) {
 			hostport += ":"+port;
 		}
-		Log.d(TAG, "dialId url hostport="+hostport+" webcalldomain="+webcalldomain);
+		Log.d(TAG, "dialId uri hostport="+hostport+" webcalldomain="+webcalldomain);
 
-		String path = url.getPath();
+		String path = uri.getPath();
 		int idxUser = path.indexOf("/user/");
 		if(idxUser<0) {
 			Log.d(TAG, "# dialId no /user/ in uri");
@@ -2130,24 +2129,24 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		lastSetDialId = System.currentTimeMillis();	// ???
 		Log.d(TAG, "dialId dialId="+dialId);
 
-		// if url points to the local server
+		// if uri points to the local server
 		if(hostport.equals(webcalldomain) || host.equals(webcalldomain)) {
-			// the domain(:andPort) of the requested url is the same as that of the callee
+			// the domain(:andPort) of the requested uri is the same as that of the callee
 			// we can run caller-widget in an iframe via: runJScode(openDialId(dialId))
 			// we only hand over the target ID (aka dialId)
 			// note: only run this if we are on the main page
 			if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
-				Log.d(TAG, "# dialId not on the main page, local url="+url);
+				Log.d(TAG, "# dialId not on the main page, local uri="+uri);
 				return;
 			}
-			Log.d(TAG, "dialId local url="+url);
+			Log.d(TAG, "dialId local uri="+uri);
 			webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
 			return;
 		}
 
 
 		/////////////////////////////////////////////////////////////////////////////
-		// url points to a remote server
+		// uri points to a remote server
 		// we have to run the caller-widget from the remote server in webview2
 
 		// but first: sanitize the given UriArgs
@@ -2156,7 +2155,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		// ?callerId=19230843600&callerName=Timur4
 		String iParamValue = null;
 		Map<String, Object> params = new HashMap<String, Object>();
-		String query = url.getQuery();
+		String query = uri.getQuery();
 		if(query!=null) {
 			String[] pairs = query.split("&");
 			for(String pair: pairs) {
@@ -2177,9 +2176,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(iParamValue==null || iParamValue.equals("") || iParamValue.equals("null")) {
 			// rebuild the Uri with callerHost = webcalldomain
 			Uri.Builder builder = new Uri.Builder();
-			builder.scheme(url.getScheme())
+			builder.scheme(uri.getScheme())
 				.encodedAuthority(hostport)
-				.encodedPath(url.getPath());
+				.encodedPath(uri.getPath());
 			builder.appendQueryParameter("callerHost", webcalldomain);
 			// append all remaining parameters other than the ones above
 			for(String key: params.keySet()) {
@@ -2187,8 +2186,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					builder.appendQueryParameter(key, (String)params.get(key));
 				}
 			}
-			url = builder.build();
-			Log.d(TAG, "dialId remote "+url.toString());
+			uri = builder.build();
+			Log.d(TAG, "dialId remote "+uri.toString());
 
 			// open dial-id-dialog only if we are on the main page
 			if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
@@ -2206,7 +2205,17 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			// when uri comes back (sanitized) it will have &i= set
 			return;
 		}
+		render(uri);
+	}
 
+	private void render(Uri uri) {
+		String host = uri.getHost().toLowerCase(Locale.getDefault());
+		int port = uri.getPort();
+		String hostport = host;
+		if(port>0) {
+			hostport += ":"+port;
+		}
+		Log.d(TAG, "render uri hostport="+hostport);
 
 		// if iParamValue is non-empty, it is coming from dial-id (idSelect)
 		// STEP 2: open remote caller-widget in webview2 (aka myNewWebView)
@@ -2410,9 +2419,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							handler.cancel();
 							//super.onReceivedSslError(view, handler, error);
 							// abort loading page: mimic onBackPressed()
-							myWebView.setVisibility(View.VISIBLE);
+							if(myWebView!=null) {
+								myWebView.setVisibility(View.VISIBLE);
+							}
 							myNewWebView.setVisibility(View.INVISIBLE);
-//							myNewWebView.loadUrl("");
 							myNewWebView.loadUrl("about:blank");
 						}
 					});
@@ -2424,10 +2434,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			// let JS call java service code
 			// this provides us for instance with access to webCallServiceBinder.callInProgress()
 			// because our JS code can call WebCallJSInterface.peerConnect() etc.
-			myNewWebView.addJavascriptInterface(webCallServiceBinder.getWebCallJSInterface(), "Android");
+			myNewWebView.addJavascriptInterface(
+//				webCallServiceBinder.getWebCallJSInterface(), "Android");
+				webCallServiceBinder.getWebCallJSInterfaceMini(), "Android");
 
 			// first, load local busy.html with running spinner (loads fast)
-			String urlString = url.toString();
+			String urlString = uri.toString();
 			Log.d(TAG, "dialId load busy.html disp="+urlString);
 			// display urlString with args cut off
 			int idxArgs = urlString.indexOf("?");
@@ -2440,7 +2452,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 			// shortly after: load remote caller widget (takes a moment to load)
 			final Handler handler = new Handler(Looper.getMainLooper());
-			final Uri finalUrl = url;
+			final Uri finalUrl = uri;
 			handler.postDelayed(new Runnable() {
 				@Override
 				public void run() {
@@ -2450,7 +2462,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					handler.postDelayed(new Runnable() {
 						@Override
 						public void run() {
-							myWebView.setVisibility(View.INVISIBLE);
+							if(myWebView!=null) {
+								myWebView.setVisibility(View.INVISIBLE);
+							}
 							myNewWebView.setVisibility(View.VISIBLE);
 							myNewWebView.setFocusable(true);
 						}
@@ -2460,8 +2474,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 			// myNewWebView will be closed in onBackPressed()
 		} catch(Exception ex) {
-			Log.d(TAG, "# dialId myNewWebView ex="+ex);
-			myWebView.setVisibility(View.VISIBLE);
+			if(myWebView!=null) {
+				Log.d(TAG, "# dialId myNewWebView ex="+ex);
+				myWebView.setVisibility(View.VISIBLE);
+			}
 		}
 	}
 

@@ -41,6 +41,8 @@ import android.content.pm.PackageInfo;
 import android.content.ContentValues;
 import android.content.ContentResolver;
 import android.content.res.AssetFileDescriptor;
+import android.content.ClipboardManager;
+import android.content.ClipData;
 import android.preference.PreferenceManager;
 import android.os.Binder;
 import android.os.IBinder;
@@ -322,7 +324,6 @@ public class WebCallService extends Service {
 	private static volatile long keepAwakeWakeLockMS = 0;
 
 	private static volatile Lock lock = new ReentrantLock();
-	private static volatile WebCallJSInterface webCallJSInterface = null;
 
 	private static BroadcastReceiver serviceCmdReceiver = null;
 	private static volatile boolean activityVisible = false;
@@ -332,6 +333,9 @@ public class WebCallService extends Service {
 	private static volatile boolean calleeIsReady = false;
 	private static volatile boolean stopSelfFlag = false;
 	private static volatile boolean ringFlag = false;
+
+	private volatile WebCallJSInterface webCallJSInterface = new WebCallJSInterface();
+	private volatile WebCallJSInterfaceMini webCallJSInterfaceMini = new WebCallJSInterfaceMini();
 
 	// section 1: android service methods
 	@Override
@@ -1091,7 +1095,8 @@ public class WebCallService extends Service {
 		webviewMainPageLoaded=false;
 		webSettings = null;
 		webviewCookies = null;
-		webCallJSInterface = null;
+		//webCallJSInterface = null;
+		//webCallJSInterfaceMini = null;
 		if(myWebView!=null) {
 			Log.d(TAG, "onTaskRemoved close webView");
 			myWebView.destroy();
@@ -1462,7 +1467,7 @@ public class WebCallService extends Service {
 			});
 
 			// let JS call java service code
-			webCallJSInterface = new WebCallJSInterface();
+//			webCallJSInterface = new WebCallJSInterface();
 			myWebView.addJavascriptInterface(webCallJSInterface, "Android");
 
 			// render base page - or main page if we are connected already
@@ -1688,6 +1693,10 @@ public class WebCallService extends Service {
 			return webCallJSInterface;
 		}
 
+		public WebCallJSInterfaceMini getWebCallJSInterfaceMini() {
+			return webCallJSInterfaceMini;
+		}
+
 		public boolean isRinging() {
 			return ringFlag;
 		}
@@ -1696,6 +1705,130 @@ public class WebCallService extends Service {
 	// section 3: class WebCallJSInterface with methods that can be called from javascript:
 	//   wsOpen(), wsSend(), wsClose(), wsExit(), isConnected(), wsClearCookies(), wsClearCache(),
 	//   rtcConnect(), callPickedUp(), peerConnect(), peerDisConnect(), storePreference()
+
+	public class WebCallJSInterfaceMini {
+		static final String TAG = "WebCallJSIntrfMini";
+
+		WebCallJSInterfaceMini() {
+		}
+
+		@android.webkit.JavascriptInterface
+		public String getVersionName() {
+			return BuildConfig.VERSION_NAME;
+		}
+
+		@android.webkit.JavascriptInterface
+		public String webviewVersion() {
+			return getWebviewVersion();
+		}
+
+		@android.webkit.JavascriptInterface
+		public void prepareDial() {
+			// does nothing
+		}
+
+		@android.webkit.JavascriptInterface
+		public void peerConnect() {
+			// aka mediaConnect
+			Log.d(TAG,"JS peerConnect() - mediaConnect");
+			peerConnectFlag=true;
+			callPickedUpFlag=false;
+		}
+
+		@android.webkit.JavascriptInterface
+		public void peerDisConnect() {
+			// called by endWebRtcSession()
+			Log.d(TAG,"JS peerDisConnect()");
+			if(peerConnectFlag) { // aka mediaConnect
+				// we want to show "Peer disconnect" ONLY if we had a media connect
+				statusMessage("Peer disconnect",500,false,false);
+			} else {
+				// if we did not have a media connect, we may need to dismiss the notification bubble
+				// it may still be visible
+				// we can close the notification by sending a new not-high-priority notification
+				// we want to send one updateNotification() in any case
+				if(wsClient!=null) {
+					// display awaitingCalls ONLY if we are still ws-connected
+					updateNotification("",awaitingCalls,false);
+				} else {
+					// otherwise display "Offline"
+					updateNotification("","Offline",false);
+				}
+			}
+			peerConnectFlag = false;
+
+			callPickedUpFlag = false;
+			peerDisconnnectFlag = true;
+			autoPickup = false;
+
+			stopRinging("peerDisConnect");
+
+			if(audioManager!=null) {
+				if(audioManager.isWiredHeadsetOn()) {
+					Log.d(TAG, "JS peerDisConnect() isWiredHeadsetOn: skip setSpeakerphoneOn(true)");
+				} else if(audioManager.isBluetoothA2dpOn()) {
+					Log.d(TAG, "JS peerDisConnect() isBluetoothA2dpOn: skip setSpeakerphoneOn(true)");
+				} else {
+					Log.d(TAG, "JS peerDisConnect(), speakerphone=true");
+					audioManager.setSpeakerphoneOn(true);
+				}
+			}
+
+			// this is used for ringOnSpeakerOn
+			audioToSpeakerSet(audioToSpeakerMode>0,false);
+		}
+
+		@android.webkit.JavascriptInterface
+		public long keepAwakeMS() {
+			return keepAwakeWakeLockMS;
+		}
+
+		@android.webkit.JavascriptInterface
+		public boolean isNetwork() {
+			return haveNetworkInt>0;
+		}
+
+		@android.webkit.JavascriptInterface
+		public void toast(String msg) {
+			Intent intent = new Intent("webcall");
+			intent.putExtra("toast", msg);
+			sendBroadcast(intent);
+		}
+
+		@android.webkit.JavascriptInterface
+		public void gotoBasepage() {
+			if(myWebView!=null) {
+				// loadUrl() must be called on main thread
+				myWebView.post(new Runnable() {
+					@Override
+					public void run() {
+						if(myWebView!=null) {
+							myWebView.loadUrl("file:///android_asset/index.html", null);
+						}
+					}
+				});
+			}
+		}
+
+		@android.webkit.JavascriptInterface
+		public void setClipboard(String clipText) {
+			if(clipText!=null) {
+				Log.d(TAG, "setClipboard "+clipText);
+				ClipData clipData = ClipData.newPlainText(null,clipText);
+				ClipboardManager clipboard =
+					(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
+				if(clipboard!=null) {
+					clipboard.setPrimaryClip(clipData);
+					Intent intent = new Intent("webcall");
+					intent.putExtra("toast", "Data copied to clipboard");
+					sendBroadcast(intent);
+				}
+				return;
+			}
+		}
+	}
+
+
 	public class WebCallJSInterface {
 		static final String TAG = "WebCallJSIntrf";
 
