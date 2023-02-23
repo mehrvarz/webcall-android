@@ -58,14 +58,6 @@
 				<data android:scheme="http" />
 			    <data android:host="*" />
 				<data android:pathPrefix="/user/" />
-<!-- maybe this would work as well:
-				<data android:scheme="https"
-					  android:host="*"
-					  android:pathPrefix="/user/" />
-				<data android:scheme="http"
-					  android:host="*"
-					  android:pathPrefix="/user/" />
--->
 			</intent-filter>
 
 			<intent-filter>
@@ -76,14 +68,6 @@
 				<data android:scheme="http" />
 			    <data android:host="*" />
 				<data android:pathPrefix="/user/" />
-<!-- maybe this would work as well:
-				<data android:scheme="https"
-					  android:host="*"
-					  android:pathPrefix="/user/" />
-				<data android:scheme="http"
-					  android:host="*"
-					  android:pathPrefix="/user/" />
--->
 			</intent-filter>
 
 

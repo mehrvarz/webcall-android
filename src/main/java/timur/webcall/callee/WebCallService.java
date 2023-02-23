@@ -1725,6 +1725,16 @@ public class WebCallService extends Service {
 		@android.webkit.JavascriptInterface
 		public void prepareDial() {
 			// does nothing
+			// turn speakerphone off - the idea is to always switch audio playback to the earpiece
+			// on devices without an earpiece (tablets) this is expected to do nothing
+			// we do it now here instead of at setProximity(true), because it is more reliable this way
+			// will be reversed by peerDisConnect()
+			// TODO API>=31 use audioManager.setCommunicationDevice(speakerDevice);
+			// see https://developer.android.com/reference/android/media/AudioManager#setCommunicationDevice(android.media.AudioDeviceInfo)
+
+			//Log.d(TAG, "JS prepareDial(), speakerphone=false");
+			//audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
+			//audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1733,6 +1743,13 @@ public class WebCallService extends Service {
 			Log.d(TAG,"JS peerConnect() - mediaConnect");
 			peerConnectFlag=true;
 			callPickedUpFlag=false;
+			// turn speakerphone off - the idea is to always switch audio playback to the earpiece
+			// on devices without an earpiece (tablets) this is expected to do nothing
+			// we do it now here instead of at setProximity(true), because it is more reliable this way
+			// will be reversed by peerDisConnect()
+			//Log.d(TAG, "JS peerConnect(), speakerphone=false");
+			//audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
+			//audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
 		}
 
 		@android.webkit.JavascriptInterface
@@ -1829,7 +1846,7 @@ public class WebCallService extends Service {
 	}
 
 
-	public class WebCallJSInterface {
+	public class WebCallJSInterface extends WebCallJSInterfaceMini {
 		static final String TAG = "WebCallJSIntrf";
 
 		WebCallJSInterface() {
@@ -1839,7 +1856,7 @@ public class WebCallService extends Service {
 		public WebSocketClient wsOpen(String setWsAddr) {
 			// js code wants to open a websocket connection
 			// wsOpen() does not start reconnecter (reconnecter will be started if the connection is lost)
-			// wsOpen() does NOT call runJS("wakeGoOnline()") (does not send "init|") <-- JS takes care of this
+			// wsOpen() does NOT call runJS("wakeGoOnline()") (does not send "init|") JS takes care of this
 			if(reconnectBusy && wsClient!=null) {
 				Log.d(TAG,"JS wsOpen reconnectBusy return existing wsClient");
 				connectToServerIsWanted = true;
@@ -1990,24 +2007,9 @@ public class WebCallService extends Service {
 		}
 
 		@android.webkit.JavascriptInterface
-		public boolean isNetwork() {
-			return haveNetworkInt>0;
-		}
-
-		@android.webkit.JavascriptInterface
 		public void wsClearCookies() {
 			// used by WebCallAndroid
 			clearCookies();
-		}
-
-		@android.webkit.JavascriptInterface
-		public String webviewVersion() {
-			return getWebviewVersion();
-		}
-
-		@android.webkit.JavascriptInterface
-		public long keepAwakeMS() {
-			return keepAwakeWakeLockMS;
 		}
 
 		@android.webkit.JavascriptInterface
@@ -2015,13 +2017,6 @@ public class WebCallService extends Service {
 			insecureTlsFlag = flag;
 			Log.d(TAG,"JS insecureTlsFlag="+insecureTlsFlag);
 			storePrefsBoolean("insecureTlsFlag", insecureTlsFlag);
-		}
-
-		@android.webkit.JavascriptInterface
-		public void toast(String msg) {
-			Intent intent = new Intent("webcall");
-			intent.putExtra("toast", msg);
-			sendBroadcast(intent);
 		}
 
 		@android.webkit.JavascriptInterface
@@ -2171,102 +2166,11 @@ public class WebCallService extends Service {
 
 
 		@android.webkit.JavascriptInterface
-		public void prepareDial() {
-			/*
-			// turn speakerphone off - the idea is to always switch audio playback to the earpiece
-			// on devices without an earpiece (tablets) this is expected to do nothing
-			// we do it now here instead of at setProximity(true), because it is more reliable this way
-			// will be reversed by peerDisConnect()
-			// TODO API>=31 use audioManager.setCommunicationDevice(speakerDevice);
-			// see https://developer.android.com/reference/android/media/AudioManager#setCommunicationDevice(android.media.AudioDeviceInfo)
-
-			Log.d(TAG, "JS prepareDial(), speakerphone=false");
-			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
-			audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
-			*/
-		}
-
-		@android.webkit.JavascriptInterface
-		public void peerConnect() {
-			// aka mediaConnect
-			Log.d(TAG,"JS peerConnect() - mediaConnect");
-			peerConnectFlag=true;
-			callPickedUpFlag=false;
-			/*
-			// turn speakerphone off - the idea is to always switch audio playback to the earpiece
-			// on devices without an earpiece (tablets) this is expected to do nothing
-			// we do it now here instead of at setProximity(true), because it is more reliable this way
-			// will be reversed by peerDisConnect()
-			Log.d(TAG, "JS peerConnect(), speakerphone=false");
-			audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION); // deactivates speakerphone on P9
-			audioManager.setSpeakerphoneOn(false); // deactivates speakerphone on Gn
-			*/
-		}
-
-		@android.webkit.JavascriptInterface
-		public void peerDisConnect() {
-			// called by endWebRtcSession()
-			Log.d(TAG,"JS peerDisConnect()");
-			if(peerConnectFlag) { // aka mediaConnect
-				// we want to show "Peer disconnect" ONLY if we had a media connect
-				statusMessage("Peer disconnect",500,false,false);
-			} else {
-				// if we did not have a media connect, we may need to dismiss the notification bubble
-				// it may still be visible
-				// we can close the notification by sending a new not-high-priority notification
-				// we want to send one updateNotification() in any case
-				if(wsClient!=null) {
-					// display awaitingCalls ONLY if we are still ws-connected
-					updateNotification("",awaitingCalls,false);
-				} else {
-					// otherwise display "Offline"
-					updateNotification("","Offline",false);
-				}
-			}
-			peerConnectFlag = false;
-
-			callPickedUpFlag = false;
-			peerDisconnnectFlag = true;
-			autoPickup = false;
-
-			stopRinging("peerDisConnect");
-
-			if(audioManager!=null) {
-				if(audioManager.isWiredHeadsetOn()) {
-					Log.d(TAG, "JS peerDisConnect() isWiredHeadsetOn: skip setSpeakerphoneOn(true)");
-				} else if(audioManager.isBluetoothA2dpOn()) {
-					Log.d(TAG, "JS peerDisConnect() isBluetoothA2dpOn: skip setSpeakerphoneOn(true)");
-				} else {
-					Log.d(TAG, "JS peerDisConnect(), speakerphone=true");
-					audioManager.setSpeakerphoneOn(true);
-				}
-			}
-
-			// this is used for ringOnSpeakerOn
-			audioToSpeakerSet(audioToSpeakerMode>0,false);
-		}
-
-		@android.webkit.JavascriptInterface
 		public void browse(String url) {
 			Log.d(TAG,"JS browse("+url+")");
 			Intent intent = new Intent("webcall");
 			intent.putExtra("browse", url);
 			sendBroadcast(intent);
-		}
-
-		@android.webkit.JavascriptInterface
-		public void gotoBasepage() {
-			if(myWebView!=null) {
-				// loadUrl() must be called on main thread
-				myWebView.post(new Runnable() {
-					@Override
-					public void run() {
-						if(myWebView!=null) {
-							myWebView.loadUrl("file:///android_asset/index.html", null);
-						}
-					}
-				});
-			}
 		}
 
 		@android.webkit.JavascriptInterface
@@ -2343,11 +2247,6 @@ public class WebCallService extends Service {
 			// used by WebCallAndroid
 			storePrefsLong(pref,val);
 			Log.d(TAG, "JS storePreferenceLong "+pref+" "+val+" stored");
-		}
-
-		@android.webkit.JavascriptInterface
-		public String getVersionName() {
-			return BuildConfig.VERSION_NAME;
 		}
 
 		@android.webkit.JavascriptInterface
