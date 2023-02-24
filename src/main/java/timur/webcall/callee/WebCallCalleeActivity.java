@@ -1,4 +1,4 @@
-// WebCall Copyright 2022 timur.mobi. All rights reserved.
+// WebCall Copyright 2023 timur.mobi. All rights reserved.
 package timur.webcall.callee;
 
 import android.app.Activity;
@@ -1201,7 +1201,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 			return true;
 		}
-		if(selectedItem==menuExtendedLogsOn) {
+		if(selectedItem==menuExtendedLogsOn) { // not being used at this time
 			if(webCallServiceBinder==null) {
 				Log.d(TAG, "onContextItemSelected extended logs on, no webCallServiceBinder");
 				return true;
@@ -1213,7 +1213,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 			return true;
 		}
-		if(selectedItem==menuExtendedLogsOff) {
+		if(selectedItem==menuExtendedLogsOff) { // not being used at this time
 			if(webCallServiceBinder==null) {
 				Log.d(TAG, "onContextItemSelected extended logs on, no webCallServiceBinder");
 				return true;
@@ -1368,7 +1368,11 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 		if(broadcastReceiver!=null) {
 			Log.d(TAG, "onDestroy unregisterReceiver broadcastReceiver");
-			if(broadcastReceiver!=null) unregisterReceiver(broadcastReceiver);
+			if(broadcastReceiver!=null) {
+				unregisterReceiver(broadcastReceiver);
+				broadcastReceiver = null;
+				// -> WebCallService: activityDestroyed exitService()
+			}
 		}
 		if(webCallServiceBinder!=null) {
 			// tell our service that the activity is being destroyed
@@ -1376,7 +1380,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			if(serviceConnection!=null /*&& !startupFail*/) {
 				Log.d(TAG, "onDestroy unbindService");
 				unbindService(serviceConnection);
+				serviceConnection = null;
 			}
+			webCallServiceBinder = null;
+			boundService = false;
 		}
 		if(myNewWebView!=null) {
 			Log.d(TAG, "onDestroy myNewWebView.destroy()");
@@ -1387,6 +1394,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onDestroy myWebView.destroy()");
 			myWebView.destroy();
 			myWebView=null;
+// TODO -> WebCallService: # serviceCmdReceiver skip on stopSelfFlag Intent { act=serviceCmdReceiver flg=0x10 (has extras) }
 		}
 
 		super.onDestroy();
@@ -1432,7 +1440,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 	@Override
 	public void onBackPressed() {
 		Log.d(TAG, "onBackPressed");
-		if(myNewWebView.getVisibility()==View.VISIBLE) {
+		if(myNewWebView!=null && myNewWebView.getVisibility()==View.VISIBLE) {
 			Log.d(TAG, "onBackPressed switch back to myWebView");
 			myWebView.setVisibility(View.VISIBLE);
 			myNewWebView.setVisibility(View.INVISIBLE);
@@ -1613,7 +1621,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
-		Log.d(TAG, "# newIntent done");
+		//Log.d(TAG, "# newIntent done");
 	}
 
 	private void waitForBrowser(Uri uri, boolean needLogin, int counter) {
@@ -2435,7 +2443,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			// this provides us for instance with access to webCallServiceBinder.callInProgress()
 			// because our JS code can call WebCallJSInterface.peerConnect() etc.
 			myNewWebView.addJavascriptInterface(
-//				webCallServiceBinder.getWebCallJSInterface(), "Android");
 				webCallServiceBinder.getWebCallJSInterfaceMini(), "Android");
 
 			// first, load local busy.html with running spinner (loads fast)

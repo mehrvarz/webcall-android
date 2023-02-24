@@ -1,4 +1,4 @@
-// WebCall Copyright 2022 timur.mobi. All rights reserved.
+// WebCall Copyright 2023 timur.mobi. All rights reserved.
 //
 // WebCallService.java is split in code sections
 //
@@ -182,19 +182,6 @@ public class WebCallService extends Service {
 	// after serverPingPeriodPlus secs with no pings, checkLastPing() considers server connection gone
 	private final static int serverPingPeriodPlus = 2*60+10;
 
-/*
-	private final static int ReconnectCounterMax = 100;   // max number of reconnect loops
-	private final static int ReconnectDelayMaxSecs = 600; // max number of delay secs per loop
-	// the 1st 60 loops go from 10s to 600s delay (average 300s, so 60*300 = 18000s = 300m = 6h)
-	// loops 61-100 are limited to 600s delay (40*600s = 24000s = 400m = 6.66h)
-	// total time before reconnect is given up: 12.66h
-
-	private final static int ReconnectCounterMax = 120;   // max number of reconnect loops
-	private final static int ReconnectDelayMaxSecs = 900; // max number of delay secs per loop
-	// the 1st 90 loops go from 10s to 900s delay (average 450s, so 90*450 = 40500s = 675m = 11h15m)
-	// loops 91-120 are limited to 900s delay (30*900s = 27000s = 450m = 7h30m)
-	// total time before reconnect is given up: 18.45h
-*/
 	private final static int ReconnectCounterMax = 120;   // max number of reconnect loops
 	private final static int ReconnectDelayMaxSecs = 1200; // max number of delay secs per loop
 	// the 1st 120 loops go from 10s to 1200s delay (average 600s, so 120*600 = 72000s = 1200m = 20h)
@@ -212,9 +199,6 @@ public class WebCallService extends Service {
 														  // is currently disabled
 	private final static int ReconnectCounterScreen = 30; // turn screen on after x reconnect loops
 
-    private Binder mBinder = new WebCallServiceBinder();
-
-	private static Context context = null;
 	private static BroadcastReceiver networkStateReceiver = null; // for api < 24
 	private static BroadcastReceiver dozeStateReceiver = null;
 	private static BroadcastReceiver alarmReceiver = null;
@@ -230,6 +214,7 @@ public class WebCallService extends Service {
 	private static AlarmManager alarmManager = null;
 	private static WakeLock keepAwakeWakeLock = null; // PARTIAL_WAKE_LOCK (screen off)
 	private static ConnectivityManager connectivityManager = null;
+	private static ConnectivityManager.NetworkCallback myNetworkCallback = null;
 	private static DisplayManager displayManager = null;
 	private static String userAgentString = null;
 	private static AudioManager audioManager = null;
@@ -251,8 +236,6 @@ public class WebCallService extends Service {
 
 	// haveNetworkInt describes the type of network cur in use: 0=noNet, 2=wifi, 1=other
 	private static volatile int haveNetworkInt = -1;
-
-	private static volatile WebView myWebView = null;
 
 	// currentUrl contains the currently loaded URL
 	private static volatile String currentUrl = null;
@@ -325,7 +308,7 @@ public class WebCallService extends Service {
 
 	private static volatile Lock lock = new ReentrantLock();
 
-	private static BroadcastReceiver serviceCmdReceiver = null;
+	private static volatile BroadcastReceiver serviceCmdReceiver = null;
 	private static volatile boolean activityVisible = false;
 	private static volatile boolean autoPickup = false;
 	private static volatile MediaPlayer mediaPlayer = null;
@@ -334,8 +317,12 @@ public class WebCallService extends Service {
 	private static volatile boolean stopSelfFlag = false;
 	private static volatile boolean ringFlag = false;
 
+	private volatile WebView myWebView = null;
 	private volatile WebCallJSInterface webCallJSInterface = new WebCallJSInterface();
 	private volatile WebCallJSInterfaceMini webCallJSInterfaceMini = new WebCallJSInterfaceMini();
+
+	private Binder mBinder = null;
+	private Context context = null;
 
 	// section 1: android service methods
 	@Override
@@ -343,6 +330,7 @@ public class WebCallService extends Service {
 		Log.d(TAG,"onBind "+BuildConfig.VERSION_NAME);
 		context = this;
 		prefs = PreferenceManager.getDefaultSharedPreferences(context);
+		mBinder = new WebCallServiceBinder();
 		return mBinder;
 	}
 
@@ -376,7 +364,7 @@ public class WebCallService extends Service {
 			public void onReceive(Context context, Intent intent) {
 				//Log.d(TAG, "serviceCmdReceiver "+intent.toString());
 				if(stopSelfFlag) {
-					Log.d(TAG,"# serviceCmdReceiver skip on stopSelfFlag");
+					Log.d(TAG,"# serviceCmdReceiver skip on stopSelfFlag "+intent.toString());
 					return;
 				}
 
@@ -685,7 +673,7 @@ public class WebCallService extends Service {
 
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) { // >=api24
 			// networkCallback code fully replaces checkNetworkState()
-			connectivityManager.registerDefaultNetworkCallback(new ConnectivityManager.NetworkCallback() {
+			myNetworkCallback = new ConnectivityManager.NetworkCallback() {
 				@Override
 				public void onAvailable(Network network) {
 		            super.onAvailable(network);
@@ -808,7 +796,9 @@ public class WebCallService extends Service {
 				//public void onLinkPropertiesChanged(Network network, LinkProperties linkProperties) {
 				//	Log.d(TAG, "The default network changed link properties: " + linkProperties);
 				//}
-			});
+			};
+
+			connectivityManager.registerDefaultNetworkCallback(myNetworkCallback);
 		} else {
 			checkNetworkState(false);
 			if(networkStateReceiver==null) {
@@ -1073,6 +1063,15 @@ public class WebCallService extends Service {
 			unregisterReceiver(serviceCmdReceiver);
 			serviceCmdReceiver = null;
 		}
+		if(connectivityManager!=null && myNetworkCallback!=null) {
+			if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) { // >=api24
+				connectivityManager.unregisterNetworkCallback(myNetworkCallback);
+				myNetworkCallback = null;
+			}
+		}
+		if(mBinder!=null) {
+			mBinder = null;
+		}
 		// TODO android10+: remove foreground service icon
 	}
 
@@ -1085,6 +1084,7 @@ public class WebCallService extends Service {
 	@Override
 	public void onTrimMemory(int level) {
 		Log.d(TAG, "onTrimMemory level="+level);
+		super.onTrimMemory(level);
 	}
 
 	@Override
@@ -4503,8 +4503,9 @@ public class WebCallService extends Service {
 		}
 
 		// kill the service itself
-		Log.d(TAG,"exitService stopSelf()");
+		Log.d(TAG, "exitService stopSelf()");
 		stopSelfFlag = true;
+		onDestroy();
 		stopSelf();
 	}
 
