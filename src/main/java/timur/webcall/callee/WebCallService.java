@@ -4438,7 +4438,7 @@ public class WebCallService extends Service {
 				NotificationManager notificationManager =
 					(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
 				Notification notification = buildFgServiceNotification(title, msg, important);
-/*
+				/*
 				if(msg.equals("Incoming WebCall")) {
 					Log.d(TAG,"updateNotification 'Incoming WebCall' setLights");
 					notification.ledARGB = Color.argb(255, 0, 255, 0);
@@ -4446,7 +4446,7 @@ public class WebCallService extends Service {
 					notification.ledOnMS = 200;
 					notification.ledOffMS = 300;
 				}
-*/
+				*/
 				notificationManager.notify(NOTIF_ID, notification);
 			}
 		}
@@ -4467,15 +4467,7 @@ public class WebCallService extends Service {
 			if(msg.equals("")) {
 				msg = "Offline";
 			}
-/*
-			return new NotificationCompat.Builder(this, notifChannel)
-						.setContentTitle(title) // 1st line showing in top-bar
-						.setContentText(msg) // 2nd line showing in top-bar
-						.setSmallIcon(R.mipmap.notification_icon)
-						.setDefaults(0)
-						.setContentIntent(pendingIntent)
-						.build();
-*/
+
 			NotificationCompat.Builder notificationBuilder =
 				new NotificationCompat.Builder(this, notifChannel)
 						.setContentTitle(title) // 1st line showing in top-bar
@@ -4483,13 +4475,13 @@ public class WebCallService extends Service {
 						.setSmallIcon(R.mipmap.notification_icon)
 						//.setDefaults(0)
 						.setContentIntent(pendingIntent);
-/*
+			/*
 			if(msg.equals("Incoming WebCall")) {
 				Log.d(TAG,"buildFgServiceNotification 'Incoming WebCall' setLights");
 				notificationBuilder.setLights(0xff00ff00, 300, 100);
 				notificationBuilder.setPriority(Notification.PRIORITY_MAX);
 			}
-*/
+			*/
 			return notificationBuilder.build();
 		}
 		return null;
