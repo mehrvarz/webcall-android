@@ -250,7 +250,7 @@ public class WebCallService extends Service {
 	private static volatile boolean peerConnectFlag = false;
 
 	// peerDisconnnectFlag is set when call is ended by endWebRtcSession() -> peerDisConnect()
-	// peerDisconnnectFlag will get cleard by rtcConnect() of the next call
+	// peerDisconnnectFlag will get cleared by rtcConnect() of the next call
 	// peerDisconnnectFlag is used to detect 'ringing' state
 	// !callPickedUpFlag && !peerConnectFlag && !peerDisconnnectFlag = ringing
 	// !callPickedUpFlag && !peerConnectFlag && peerDisconnnectFlag  = not ringing
@@ -1338,13 +1338,15 @@ public class WebCallService extends Service {
 					// here we cut off "auto=1"
 					currentUrl = url.replace("?auto=1","");
 					Log.d(TAG, "onPageFinished currentUrl=" + currentUrl);
-					webviewMainPageLoaded = false;
+// TODO maybe false to always clear webviewMainPageLoader
+//					webviewMainPageLoaded = false;
 					webviewCookies = CookieManager.getInstance().getCookie(currentUrl);
 					//Log.d(TAG, "onPageFinished webviewCookies=" + webviewCookies);
 					if(webviewCookies!=null) {
 						storePrefsString("cookies", webviewCookies);
 					}
 
+// TODO tmtmtm auch "/callee/mastodon" excluden?
 					if(url.indexOf("/callee/")>=0 && url.indexOf("/callee/register")<0) {
 						// webview has just finished loading the callee main page
 						webviewMainPageLoaded = true;
@@ -1354,6 +1356,7 @@ public class WebCallService extends Service {
 
 						if(wsClient==null) {
 							Log.d(TAG, "onPageFinished main page not yet connected to server");
+							// we now await "connectHost hostVerify Success net=x" ...
 						} else {
 							Log.d(TAG, "onPageFinished main page: already connected to server");
 							// we are already connected to server (probably from before activity started)
@@ -1954,6 +1957,7 @@ public class WebCallService extends Service {
 				logstr = logstr.substring(0,40);
 			}
 			if(wsClient==null) {
+				// THIS SHOULD NEVER HAPPEN (maybe wsConn wrongly set in client js)
 				Log.w(TAG,"# JS wsSend wsClient==null "+logstr);
 			} else {
 				if(extendedLogsFlag) {
@@ -2344,7 +2348,7 @@ public class WebCallService extends Service {
 		public void onClose(int code, String reason, boolean remote) {
 			// code 1002: an endpoint is terminating the connection due to a protocol error
 			// code 1006: connection was closed abnormally (locally)
-			// code 1000: indicates a normal closure (when we click goOffline)
+			// code 1000: indicates a normal closure (when we click goOffline, or server forced disconnect)
 			Intent brintent = new Intent("webcall");
 			brintent.putExtra("state", "disconnected");
 			sendBroadcast(brintent);
@@ -2352,8 +2356,15 @@ public class WebCallService extends Service {
 
 			if(reconnectBusy) {
 				Log.d(TAG,"onClose skip busy (code="+code+" "+reason+")");
-			} else if(code==1000) { // TODO hack?!
+			} else if(code==1000) {
+				// normal disconnect: shut down connection - do NOT reconnect
 				Log.d(TAG,"onClose skip code=1000");
+				wsClient = null;
+				statusMessage("disconnected from WebCall server",-1,true,false);
+				if(myWebView!=null && webviewMainPageLoaded) {
+					// disable offline-button and enable online-button
+					runJS("wsOnClose2();",null); // TODO or goOffline() ?
+				}
 			} else {
 				Log.d(TAG,"onClose code="+code+" reason="+reason);
 
@@ -3532,7 +3543,8 @@ public class WebCallService extends Service {
 						Log.d(TAG,"reconnecter login fail '"+wsAddr+"' give up "+reader.readLine()+
 							" "+reader.readLine()+" "+reader.readLine()+" "+reader.readLine());
 						statusMessage("Gave up reconnecting. "+response,-1,true,true);
-						if(myWebView!=null && webviewMainPageLoaded) {
+// TODO tmtmtm
+						if(myWebView!=null /*&& webviewMainPageLoaded*/) {
 							// offlineAction(): disable offline-button and enable online-button
 							runJS("offlineAction();", new ValueCallback<String>() {
 								@Override

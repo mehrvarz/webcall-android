@@ -1617,7 +1617,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				}
 			}
 
-			Log.d(TAG, "# newIntent dialId uri="+uri+" not processes ("+comment+")");
+			Log.d(TAG, "newIntent dialId uri="+uri+" not processed ("+comment+")");
 			return;
 		}
 
