@@ -129,7 +129,6 @@ import java.text.SimpleDateFormat;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
-import java.net.URLEncoder;
 import java.net.URISyntaxException;
 import java.net.HttpURLConnection;
 import java.nio.ByteBuffer;

@@ -105,7 +105,10 @@ import java.lang.reflect.Method;
 import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.net.URL;
 import java.net.URLConnection;
+import java.net.URI;
+//import java.net.URLEncoder;
 
 import timur.webcall.callee.BuildConfig;
 
@@ -1621,7 +1624,29 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			return;
 		}
 
-		//Log.d(TAG, "# newIntent done");
+		String action = intent.getAction();
+		String type = intent.getType();
+		if(Intent.ACTION_SEND.equals(action) && type != null) {
+			Log.d(TAG, "newIntent ACTION_SEND type="+type);
+			if("text/plain".equals(type)) {
+				String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
+				if(sharedText != null) {
+					Log.d(TAG, "newIntent ACTION_SEND sharedText="+sharedText);
+					if(sharedText.startsWith("https://")) {
+						uri = Uri.parse(sharedText);
+						if(uri.getPath().startsWith("/callee/")) {
+							Log.d(TAG, "newIntent ACTION_SEND browse path="+uri);
+							waitForBrowser(uri,false,0);
+						} else {
+							Log.d(TAG, "newIntent ACTION_SEND ignore path="+uri.getPath());
+						}
+					}
+				}
+			}
+			return;
+		}
+
+		Log.d(TAG, "newIntent done "+action+" "+type);
 	}
 
 	private void waitForBrowser(Uri uri, boolean needLogin, int counter) {
