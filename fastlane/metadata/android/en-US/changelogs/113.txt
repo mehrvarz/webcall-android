@@ -1,0 +1,11 @@
+WebCall for Android - Release notes v1.2.4
+
+- Support for Mastodon handle as web telephony ID
+- WebCall can now be invoked via /callee/ URL's
+- fixed a security issue
+- fixed a memory leak
+- improved server disconnect handling
+- improved 'Gave up reconnect' handling
+
+Latest info: https://timur.mobi/webcall/update/
+
