@@ -2357,11 +2357,13 @@ public class WebCallService extends Service {
 				Log.d(TAG,"onClose skip busy (code="+code+" "+reason+")");
 			} else if(code==1000) {
 				// normal disconnect: shut down connection - do NOT reconnect
-				Log.d(TAG,"onClose skip code=1000");
+				Log.d(TAG,"onClose code=1000");
 				wsClient = null;
 				statusMessage("disconnected from WebCall server",-1,true,false);
 				if(myWebView!=null && webviewMainPageLoaded) {
 					// disable offline-button and enable online-button
+// TODO etwas stimmt aber nicht:
+// connectToServerIsWanted wird hier noch nicht gelöscht, es kommt später noch ein alarm + reconnect
 					runJS("wsOnClose2();",null); // TODO or goOffline() ?
 				}
 			} else {
@@ -3664,7 +3666,10 @@ public class WebCallService extends Service {
 					// calleeIsConnected() will send awaitingCalls notification
 					// calleeIsConnected() will brodcast state connected
 
+
+/* tmtmtm: sending init is too important to risk that runJS("wakeGoOnline()") cannot be executed
 					if(myWebView!=null && webviewMainPageLoaded) {
+						Log.d(TAG,"reconnecter call js:wakeGoOnline()...");
 						// wakeGoOnline() makes sure:
 						// - js:wsConn is set (to wsClient)
 						// - JS will send "init|" to register callee
@@ -3681,7 +3686,8 @@ public class WebCallService extends Service {
 								}
 							}
 						});
-					} else {
+					} else 
+					{
 						// send 'init' to register as callee
 						// otherwise the server will kick us out
 						Log.d(TAG,"reconnecter send init "+(myWebView!=null)+" "+webviewMainPageLoaded);
@@ -3699,6 +3705,7 @@ public class WebCallService extends Service {
 							// ignore
 						}
 					}
+*/
 				} catch(Exception ex) {
 					// this can be caused by webview not installed or just now uninstalled
 					// "android.webkit.WebViewFactory$MissingWebViewPackageException: "
@@ -3767,6 +3774,44 @@ public class WebCallService extends Service {
 						reconnectBusy = false;
 					}
 					reconnectCounter = 0;
+					return;
+				}
+
+				// send 'init' to register as callee
+				// otherwise the server will kick us out
+				Log.d(TAG,"reconnecter send init "+(myWebView!=null)+" "+webviewMainPageLoaded);
+				try {
+					wsClient.send("init|");
+
+					if(myWebView!=null && webviewMainPageLoaded) {
+						Log.d(TAG,"reconnecter call js:wakeGoOnlineNoInit()...");
+						// wakeGoOnlineNoInit() makes sure:
+						// - js:wsConn is set (to wsClient)
+						// - UI in online state (green led + goOfflineButton enabled)
+						runJS("wakeGoOnlineNoInit();", new ValueCallback<String>() {
+							@Override
+							public void onReceiveValue(String s) {
+								if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+									long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+									Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
+									keepAwakeWakeLockMS += wakeMS;
+									storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+									keepAwakeWakeLock.release();
+								}
+							}
+						});
+					}
+
+					if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
+						long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
+						Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
+						keepAwakeWakeLockMS += wakeMS;
+						storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
+						keepAwakeWakeLock.release();
+					}
+				} catch(Exception ex) {
+					Log.d(TAG,"reconnecter send init ex="+ex);
+					// ignore
 				}
 				return;
 			} // end of run()
