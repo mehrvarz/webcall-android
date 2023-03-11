@@ -1571,16 +1571,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			int idxCallee = path.indexOf("/callee/");
 			if(idxCallee>=0) {
 				if(path.endsWith("/callee/") || path.substring(idxCallee+8).indexOf("/")<0) {
-					// do NOT waitForBrowser()
+					// do NOT waitForBrowser() (only bring activity to front)
 					Log.d(TAG, "newIntent no render path="+path);
 				} else {
 					Log.d(TAG, "newIntent render path="+path);
 					waitForBrowser(uri,0);
 					return;
 				}
+			} else {
+				Log.d(TAG, "# newIntent uri="+uri+" not processed ("+comment+")");
 			}
-
-			Log.d(TAG, "newIntent dialId uri="+uri+" not processed ("+comment+")");
 			return;
 		}
 
