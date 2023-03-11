@@ -1077,6 +1077,7 @@ public class WebCallService extends Service {
 	@Override
 	public boolean onUnbind(Intent intent) {
 		Log.d(TAG, "onUnbind");
+		webviewMainPageLoaded=false;
 		return true; // true: call onRebind(Intent) later when new clients bind
 	}
 

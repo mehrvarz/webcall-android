@@ -1578,8 +1578,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			int ageSecs = (int)((ageMS+500)/1000);
 			if(ageSecs > 120) {
 				// wakeup intent denied based on age
-				Log.d(TAG, "newIntent wakeup="+wakeup+" eventMS="+eventMS+" curMS="+currentMS+
-					" ageMS="+ageMS+" ageSecs="+ageSecs+" TOO OLD ("+comment+")");
+				//Log.d(TAG, "newIntent wakeup="+wakeup+" eventMS="+eventMS+" curMS="+currentMS+
+				//	" ageMS="+ageMS+" ageSecs="+ageSecs+" TOO OLD ("+comment+")");
 			} else {
 				// wakeup intent accepted
 				Log.d(TAG, "newIntent wakeup="+wakeup+" ageMS="+ageMS+" ageSecs="+ageSecs+" ("+comment+")");
