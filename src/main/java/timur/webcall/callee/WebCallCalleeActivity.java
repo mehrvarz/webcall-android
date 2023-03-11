@@ -1575,7 +1575,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					Log.d(TAG, "newIntent no render path="+path);
 				} else {
 					Log.d(TAG, "newIntent render path="+path);
-					waitForBrowser(uri,false,0);
+					waitForBrowser(uri,0);
 					return;
 				}
 			}
@@ -1596,7 +1596,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						uri = Uri.parse(sharedText);
 						if(uri.getPath().startsWith("/callee/")) {
 							Log.d(TAG, "newIntent ACTION_SEND browse path="+uri);
-							waitForBrowser(uri,false,0);
+							waitForBrowser(uri,0);
 						} else {
 							Log.d(TAG, "newIntent ACTION_SEND ignore path="+uri.getPath());
 						}
@@ -1609,36 +1609,12 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		Log.d(TAG, "newIntent done "+action+" "+type);
 	}
 
-	private void waitForBrowser(Uri uri, boolean needLogin, int counter) {
+	private void waitForBrowser(Uri uri, int counter) {
 		// webCallServiceBinder can be null, while connection to service is not established
-		Log.d(TAG, "waitForBrowser needLogin="+needLogin+" counter="+counter+" uri="+uri);
+		Log.d(TAG, "waitForBrowser counter="+counter+" uri="+uri);
 		// if not connected to service or not connected to webcall server: delay
 
-		if(!needLogin) {
-			if(myWebView==null || myNewWebView==null || webCallServiceBinder==null) {
-				if(counter>=10) {
-					// after 10s give up
-					Log.d(TAG, "# waitForBrowser give up");
-				} else {
-					final Handler handler = new Handler(Looper.getMainLooper());
-					handler.postDelayed(new Runnable() {
-						@Override
-						public void run() {
-							waitForBrowser(uri,needLogin,counter+1);
-						}
-					}, 1000);
-				}
-			} else {
-				//String url = uri.toString();
-				//Log.d(TAG, "waitForBrowser loadUrl="+url);
-				//myNewWebView.loadUrl(url);
-				Log.d(TAG, "waitForBrowser render="+uri.toString());
-				render(uri);
-			}
-
-		} else if(webCallServiceBinder==null ||
-				(needLogin && webCallServiceBinder.webcallConnectType()<=0)) {
-			// cannot run webCallServiceBinder.runJScode() yet
+		if(myWebView==null || myNewWebView==null || webCallServiceBinder==null) {
 			if(counter>=10) {
 				// after 10s give up
 				Log.d(TAG, "# waitForBrowser give up");
@@ -1647,14 +1623,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				handler.postDelayed(new Runnable() {
 					@Override
 					public void run() {
-						waitForBrowser(uri,needLogin,counter+1);
+						waitForBrowser(uri,counter+1);
 					}
 				}, 1000);
 			}
 		} else {
-			Log.d(TAG, "waitForBrowser runJScode");
-			//webCallServiceBinder.runJScode("iframeWindowOpen('"+uri+"',false,'',false)");
-			webCallServiceBinder.runJScode("openNews('"+uri+"')");
+			Log.d(TAG, "waitForBrowser render="+uri.toString());
+			// open via myNewWebView
+			render(uri);
 		}
 	}
 
