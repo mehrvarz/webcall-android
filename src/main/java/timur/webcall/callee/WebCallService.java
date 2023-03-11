@@ -935,7 +935,7 @@ public class WebCallService extends Service {
 		if(wsClient!=null) {
 			activityWasDiscarded = true;
 			Log.d(TAG,"onStartCommand got existing wsClient "+activityWasDiscarded);
-			// probably the activity was discarded, got restarted, and no we see that service is still connected
+			// probably activity was discarded, got restarted, and now we see service is still connected
 			//storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 		} else if(reconnectBusy) {
 			Log.d(TAG,"onStartCommand got reconnectBusy");
@@ -1338,15 +1338,14 @@ public class WebCallService extends Service {
 					// here we cut off "auto=1"
 					currentUrl = url.replace("?auto=1","");
 					Log.d(TAG, "onPageFinished currentUrl=" + currentUrl);
-// TODO maybe false to always clear webviewMainPageLoader
-//					webviewMainPageLoaded = false;
+					//webviewMainPageLoaded = false;
 					webviewCookies = CookieManager.getInstance().getCookie(currentUrl);
 					//Log.d(TAG, "onPageFinished webviewCookies=" + webviewCookies);
 					if(webviewCookies!=null) {
 						storePrefsString("cookies", webviewCookies);
 					}
 
-// TODO tmtmtm auch "/callee/mastodon" excluden?
+					// TODO tmtmtm auch "/callee/mastodon" excluden?
 					if(url.indexOf("/callee/")>=0 && url.indexOf("/callee/register")<0) {
 						// webview has just finished loading the callee main page
 						webviewMainPageLoaded = true;
@@ -2363,8 +2362,8 @@ public class WebCallService extends Service {
 				statusMessage("disconnected from WebCall server",-1,true,false);
 				if(myWebView!=null && webviewMainPageLoaded) {
 					// disable offline-button and enable online-button
-// TODO etwas stimmt aber nicht:
-// connectToServerIsWanted wird hier noch nicht gelöscht, es kommt später noch ein alarm + reconnect
+					// TODO etwas stimmt aber nicht:
+					// connectToServerIsWanted wird hier noch nicht gelöscht, später kommt noch ein alarm + reconnect
 					runJS("wsOnClose2();",null); // TODO or goOffline() ?
 				}
 			} else {
@@ -2877,20 +2876,20 @@ public class WebCallService extends Service {
 		mediaPlayer = new MediaPlayer();
 		AudioAttributes aa = new AudioAttributes.Builder()
 				.setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-//				.setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+				//.setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
 				.setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-//				.setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-//				.setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+				//.setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+				//.setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
 				.setLegacyStreamType(AudioManager.STREAM_RING)
 				.build();
 
-//		int vol = audioManager.getStreamVolume(AudioManager.STREAM_RING);
-//		int maxvol = audioManager.getStreamMaxVolume(AudioManager.STREAM_RING);
-//		Log.d(TAG,"mediaPlayer AudioManager.STREAM_RING vol="+vol+" maxvol="+maxvol);
-//		Log.d(TAG,"mediaPlayer aa.getVolumeControlStream() "+aa.getVolumeControlStream());
-//		vol = audioManager.getStreamVolume(aa.getVolumeControlStream());
-//		maxvol = audioManager.getStreamMaxVolume(aa.getVolumeControlStream());
-//		Log.d(TAG,"mediaPlayer aa.getVolumeControlStream vol="+vol+" maxvol="+maxvol);
+		// int vol = audioManager.getStreamVolume(AudioManager.STREAM_RING);
+		// int maxvol = audioManager.getStreamMaxVolume(AudioManager.STREAM_RING);
+		// Log.d(TAG,"mediaPlayer AudioManager.STREAM_RING vol="+vol+" maxvol="+maxvol);
+		// Log.d(TAG,"mediaPlayer aa.getVolumeControlStream() "+aa.getVolumeControlStream());
+		// vol = audioManager.getStreamVolume(aa.getVolumeControlStream());
+		// maxvol = audioManager.getStreamMaxVolume(aa.getVolumeControlStream());
+		// Log.d(TAG,"mediaPlayer aa.getVolumeControlStream vol="+vol+" maxvol="+maxvol);
 
 		mediaPlayer.setAudioAttributes(aa);
 		mediaPlayer.setLooping(true);
@@ -3442,7 +3441,7 @@ public class WebCallService extends Service {
 						// javax.net.ssl.SSLHandshakeException: Chain validation failed
 
 						String exString = ex.toString();
-//						if(exString.indexOf("SSLHandshakeException")>=0) {
+						//if(exString.indexOf("SSLHandshakeException")>=0) {
 						if(exString.indexOf("Trust anchor for certification path not found")>=0) {
 							// turn reconnecter off
 							connectToServerIsWanted = false;
@@ -3545,7 +3544,7 @@ public class WebCallService extends Service {
 						Log.d(TAG,"reconnecter login fail '"+wsAddr+"' give up "+reader.readLine()+
 							" "+reader.readLine()+" "+reader.readLine()+" "+reader.readLine());
 						statusMessage("Gave up reconnecting. "+response,-1,true,true);
-// TODO tmtmtm
+
 						if(myWebView!=null /*&& webviewMainPageLoaded*/) {
 							// offlineAction(): disable offline-button and enable online-button
 							runJS("offlineAction();", new ValueCallback<String>() {
@@ -3668,7 +3667,7 @@ public class WebCallService extends Service {
 					// calleeIsConnected() will brodcast state connected
 
 
-/* tmtmtm: sending init is too important to risk that runJS("wakeGoOnline()") cannot be executed
+					/* tmtmtm: sending init is too important to risk that runJS("wakeGoOnline()") cannot be executed
 					if(myWebView!=null && webviewMainPageLoaded) {
 						Log.d(TAG,"reconnecter call js:wakeGoOnline()...");
 						// wakeGoOnline() makes sure:
@@ -3706,7 +3705,7 @@ public class WebCallService extends Service {
 							// ignore
 						}
 					}
-*/
+					*/
 				} catch(Exception ex) {
 					// this can be caused by webview not installed or just now uninstalled
 					// "android.webkit.WebViewFactory$MissingWebViewPackageException: "

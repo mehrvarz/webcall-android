@@ -426,7 +426,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						DownloadManager.Request request =
 							new DownloadManager.Request(Uri.parse(myfiledownloadUrl));
 						request.setDescription("Downloading file....");
-//						request.setTitle(filedownloadUrl);
+						//request.setTitle(filedownloadUrl);
 						String filename = filedownloadUrl;
 						int idx = filename.lastIndexOf("/");
 						if(idx>0) {
@@ -445,9 +445,9 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						request.addRequestHeader("User-Agent",userAgent);
 
 						request.allowScanningByMediaScanner();
-//						request.setAllowedNetworkTypes(
-//							DownloadManager.Request.NETWORK_WIFI | DownloadManager.Request.NETWORK_MOBILE);
-//						request.setAllowedOverRoaming(true);
+						//request.setAllowedNetworkTypes(
+						//	DownloadManager.Request.NETWORK_WIFI | DownloadManager.Request.NETWORK_MOBILE);
+						//request.setAllowedOverRoaming(true);
 						request.setAllowedOverMetered(true);
 						request.setVisibleInDownloadsUi(true);
 						request.setShowRunningNotification(true);
@@ -529,46 +529,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 									Toast.makeText(activity,"Starting download "+filenameFinal,
 										Toast.LENGTH_LONG).show();
 									// file download will trigger -> onDownloadComplete
-/*
-	final Runnable runnable2 = new Runnable() {
-		public void run() {
-
-			Cursor c = downloadManager.query(new DownloadManager.Query().setFilterById(downloadReference));
-			if (c == null) {
-			  Toast.makeText(activity, "download_not_found",
-				             Toast.LENGTH_LONG).show();
-			}
-			else {
-			  c.moveToFirst();
-
-			  Log.d(getClass().getName(),
-				    "COLUMN_ID: "
-				        + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_ID)));
-			  Log.d(getClass().getName(),
-				    "COLUMN_BYTES_DOWNLOADED_SO_FAR: "
-				        + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)));
-			  Log.d(getClass().getName(),
-				    "COLUMN_LAST_MODIFIED_TIMESTAMP: "
-				        + c.getLong(c.getColumnIndex(DownloadManager.COLUMN_LAST_MODIFIED_TIMESTAMP)));
-			  Log.d(getClass().getName(),
-				    "COLUMN_LOCAL_URI: "
-				        + c.getString(c.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)));
-			  Log.d(getClass().getName(),
-				    "COLUMN_STATUS: "
-				        + c.getInt(c.getColumnIndex(DownloadManager.COLUMN_STATUS)));
-			  Log.d(getClass().getName(),
-				    "COLUMN_REASON: "
-				        + c.getInt(c.getColumnIndex(DownloadManager.COLUMN_REASON)));
-
-		//      Toast.makeText(activity, statusMessage(c), Toast.LENGTH_LONG)
-		//           .show();
-			  c.close();
-			}
-		}
-	};
-	ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(20);
-	scheduler.schedule(runnable2, 2000l, TimeUnit.MILLISECONDS);
-*/
 								} else {
 									Log.d(TAG,"download failed for ref="+downloadReference);
 									Toast.makeText(activity,"Download failed "+filenameFinal,
@@ -655,7 +615,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		};
 		registerReceiver(onDownloadComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
 
-/* for testing/verification only
+		/* for testing/verification only
 		ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(20);
 		final Runnable runnable2 = new Runnable() {
 			public void run() {
@@ -709,7 +669,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					scheduler.schedule(runnable2, 100l, TimeUnit.MILLISECONDS);
 				}
 			});
-*/
+		*/
 
 		Intent serviceIntent = new Intent(this, WebCallService.class);
 		serviceIntent.putExtra("onstart", "donothing");
@@ -1397,7 +1357,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			Log.d(TAG, "onDestroy myWebView.destroy()");
 			myWebView.destroy();
 			myWebView=null;
-// TODO -> WebCallService: # serviceCmdReceiver skip on stopSelfFlag Intent { act=serviceCmdReceiver flg=0x10 (has extras) }
+			// TODO -> WebCallService: # serviceCmdReceiver skip on stopSelfFlag Intent { act=serviceCmdReceiver flg=0x10 (has extras) }
 		}
 
 		super.onDestroy();
@@ -2316,8 +2276,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
 						request.setShowRunningNotification(true);
 						request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
-//						request.setDestinationInExternalFilesDir(activity, null, filename);
-// activity.getApplicationContext()
+						//request.setDestinationInExternalFilesDir(activity, null, filename);
+						// activity.getApplicationContext()
 						if(downloadManager==null) {
 							downloadManager = (DownloadManager)getSystemService(DOWNLOAD_SERVICE);
 						}
