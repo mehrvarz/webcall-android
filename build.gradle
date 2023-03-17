@@ -1,6 +1,5 @@
-// WebCall Copyright 2022 timur.mobi. All rights reserved.
+// WebCall Copyright 2023 timur.mobi. All rights reserved.
 apply plugin: 'com.android.application'
-
 android {
 	compileSdkVersion 31
 	defaultConfig {
@@ -8,11 +7,46 @@ android {
 		minSdkVersion 21
 		targetSdkVersion 31
 		versionCode 114
-		versionName "1.2.5F"
+		versionName "1.2.5"
+	}
+	signingConfigs {
+		release {
+			def keystorePropertiesFile = rootProject.file("keystore.properties");
+			def keystoreProperties = new Properties()
+			keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+			storeFile file("releasekey.keystore")
+			storePassword keystoreProperties['RELEASE_STORE_PASSWORD']
+			keyAlias keystoreProperties['RELEASE_KEY_ALIAS']
+			keyPassword keystoreProperties['RELEASE_KEY_PASSWORD']
+			//v1SigningEnabled true
+			//v2SigningEnabled true
+		}
+		debug {
+			def keystorePropertiesFile = rootProject.file("keystore.properties");
+			def keystoreProperties = new Properties()
+			keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+			storeFile file("releasekey.keystore")
+			storePassword keystoreProperties['RELEASE_STORE_PASSWORD']
+			keyAlias keystoreProperties['RELEASE_KEY_ALIAS']
+			keyPassword keystoreProperties['RELEASE_KEY_PASSWORD']
+			//minifyEnabled false
+		}
 	}
 	buildTypes {
 		release {
 			minifyEnabled false
+			//proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+			signingConfig signingConfigs.release
+		}
+		debug {
+			minifyEnabled false
+			//proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+			signingConfig signingConfigs.debug
+
+			dependencies {
+				//Add the debugImplementation as LeakCanary framework is supposed to only run in debug
+				debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.10'
+			}
 		}
 		applicationVariants.all { variant ->
 			variant.outputs.all {
@@ -48,7 +82,16 @@ repositories {
 	}
 }
 dependencies {
+	//implementation fileTree(dir: 'libs', include: ['*.jar'])
 	implementation 'androidx.appcompat:appcompat:1.4.0'
 	implementation 'org.java-websocket:Java-WebSocket:1.5.2'
+}
+tasks.withType(JavaCompile) {
+	//options.compilerArgs << '-Xlint:unchecked'
+	//options.deprecation = true
+}
+tasks.withType(AbstractArchiveTask) {
+	preserveFileTimestamps = false
+	reproducibleFileOrder = true
 }
 
