@@ -46,10 +46,39 @@ Or search for "webcall" inside the F-Droid app.
 
 ## Building the APK
 
-You need Java 11 and Gradle 7.3.3. You can build this project by running:
+You need Java 11, Gradle 7.3.3 and the Android SDK.
+
+Create a local.properties file and make it point to your Android SDK:
+
 ```
-gradle build
+sdk.dir=/home/username/bin/android-sdk...
 ```
+Build the APK without signing it:
+
+In build.gradle, outcomment the "signingConfig" commands:
+
+```
+buildTypes {
+    release {
+        minifyEnabled false
+        //signingConfig signingConfigs.release
+    }
+    debug {
+        minifyEnabled false
+        //signingConfig signingConfigs.debug
+    }
+```
+
+Run gradle build:
+
+```
+rm -rf build/outputs/apk && gradle build --info
+```
+
+You can now install the APK from build/outputs/apk/release/
+
+Reproducible builds: https://timur.mobi/webcall/android/#reproducible
+
 
 ## License
 
