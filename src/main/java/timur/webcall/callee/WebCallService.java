@@ -1414,6 +1414,7 @@ public class WebCallService extends Service {
 						}
 					}
 					// TODO other "Uncaught Reference" may occure
+					// "Uncaught ReferenceError: gentle is not defined" L1736
 
 					if(msg.startsWith("showNumberForm pos")) {
 						// showNumberForm pos 95.0390625 52.1953125 155.5859375 83.7421875 L1590
@@ -2309,7 +2310,15 @@ public class WebCallService extends Service {
 			// connection was opened, so we tell JS code
 			if(myWebView!=null && webviewMainPageLoaded) {
 				Log.d(TAG,"WsClient onOpen -> js:wsOnOpen");
-				runJS("wsOnOpen()",null);
+				// wsOnOpen may come too early and cause:
+				// D WebCallService: con: Uncaught ReferenceError: wsOnOpen is not defined L1
+				//runJS("wsOnOpen()",null);
+				final Runnable runnable2 = new Runnable() {
+					public void run() {
+						runJS("wsOnOpen()",null);
+					}
+				};
+				scheduler.schedule(runnable2, 500l, TimeUnit.MILLISECONDS);
 			} else {
 				Log.d(TAG,"WsClient onOpen, but not webviewMainPageLoaded");
 				//updateNotification("",awaitingCalls,false);	// ??? too early? has init been sent?
