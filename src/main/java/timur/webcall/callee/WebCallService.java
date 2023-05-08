@@ -315,6 +315,7 @@ public class WebCallService extends Service {
 	private static volatile boolean calleeIsReady = false;
 	private static volatile boolean stopSelfFlag = false;
 	private static volatile boolean ringFlag = false;
+	private static volatile String textmode = "";
 
 	private volatile WebView myWebView = null;
 	private volatile WebCallJSInterface webCallJSInterface = new WebCallJSInterface();
@@ -2496,6 +2497,11 @@ public class WebCallService extends Service {
 				return;
 			}
 
+			if(message.startsWith("textmode|")) {
+				textmode = message.substring(9);
+				Log.d(TAG,"onMessage textmode "+message);
+			}
+
 			if(message.startsWith("callerOffer|") && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
 				// incoming call!!
 				// for Android <= 9: wake activity via wakeIntent
@@ -2543,12 +2549,15 @@ public class WebCallService extends Service {
 						}
 					}
 				}
-				Log.d(TAG,"onMessage incoming call name="+callerName+" ID="+callerID+" txtMsg="+txtMsg);
 
 				String contentText = callerName+" "+callerID;
-				if(txtMsg!="") {
-					contentText += " \""+txtMsg+"\"";
+				if(textmode.equals("true")) { // set by signalingCommand()
+					contentText += " TextMode ";
 				}
+				if(txtMsg!="") {
+					contentText += " \""+txtMsg+"\""; // greeting msg
+				}
+				Log.d(TAG,"onMessage incoming call: "+contentText);
 
 				if(context==null) {
 					Log.e(TAG,"onMessage incoming call, but no context to wake activity");

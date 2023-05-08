@@ -1,0 +1,7 @@
+WebCall for Android
+Latest info: https://timur.mobi/webcall/update/
+
+Release notes v1.2.7:
+- Support for secure e2ee text messaging
+- Fixed minor issue related to wsOnOpen() reconnect
+
