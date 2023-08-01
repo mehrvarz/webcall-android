@@ -28,6 +28,7 @@
 
 package timur.webcall.callee;
 
+import android.annotation.TargetApi;
 import android.app.Service;
 import android.app.DownloadManager;
 import android.app.AlarmManager;
@@ -69,6 +70,7 @@ import android.webkit.PermissionRequest;
 import android.webkit.CookieManager;
 import android.webkit.CookieSyncManager;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceError;
 import android.webkit.ValueCallback;
 import android.webkit.DownloadListener;
 import android.webkit.URLUtil;
@@ -83,6 +85,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.net.Network;
+import android.net.NetworkRequest;
 import android.net.NetworkCapabilities;
 import android.net.LinkProperties;
 import android.net.http.SslError;
@@ -233,7 +236,7 @@ public class WebCallService extends Service {
 	// all ws-communications with and from the signalling server go through wsClient
 	private static volatile WebSocketClient wsClient = null;
 
-	// haveNetworkInt describes the type of network cur in use: 0=noNet, 2=wifi, 1=other
+	// haveNetworkInt describes the type of network cur in use: 0=noNet, 1=mobile, 2=wifi, 3=other
 	private static volatile int haveNetworkInt = -1;
 
 	// currentUrl contains the currently loaded URL
@@ -342,7 +345,7 @@ public class WebCallService extends Service {
 
 	@Override
 	public void onCreate() {
-		Log.d(TAG,"onCreate "+BuildConfig.VERSION_NAME);
+		Log.d(TAG,"onCreate "+BuildConfig.VERSION_NAME+" "+Build.VERSION.SDK_INT);
 		stopSelfFlag = false;
 		alarmReceiver = new AlarmReceiver();
 		registerReceiver(alarmReceiver, new IntentFilter(startAlarmString));
@@ -389,7 +392,7 @@ public class WebCallService extends Service {
 					peerDisconnnectFlag = true;
 
 					// close the notification by sending a new not-high-priority notification
-					updateNotification("",awaitingCalls,false);
+					updateNotification(awaitingCalls,false);
 
 					// disconnect caller / stop ringing
 					if(myWebView!=null && webviewMainPageLoaded) {
@@ -474,7 +477,7 @@ public class WebCallService extends Service {
 					Log.d(TAG, "serviceCmdReceiver dismissNotification "+message);
 
 					// we can later close this notification by sending a new not-high priority notification
-					updateNotification("","Incoming WebCall",false);
+					updateNotification("Incoming WebCall",false);
 					return;
 				}
 
@@ -671,74 +674,138 @@ public class WebCallService extends Service {
 			Log.d(TAG,"onStartCommand versionName ex="+ex);
 		}
 
+/*
+		final NetworkRequest requestForCellular =
+			new NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR).build();
+		final NetworkRequest requestForWifi =
+			new NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build();
+		final NetworkRequest requestForEthernet =
+			new NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_ETHERNET).build();
+		final NetworkRequest requestForUSB =
+			new NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_USB).build();
+*/
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) { // >=api24
 			// networkCallback code fully replaces checkNetworkState()
 			myNetworkCallback = new ConnectivityManager.NetworkCallback() {
+
+//tmtmtm: onAvailable() is doing nothing currently
 				@Override
 				public void onAvailable(Network network) {
-		            super.onAvailable(network);
-					if(haveNetworkInt==0) {
-						Log.d(TAG, "networkCallback got access to network");
+					super.onAvailable(network);
+					if(network!=null) {
+						NetworkInfo netInfo = connectivityManager.getNetworkInfo(network);
+						if(netInfo != null) {
+							// getType() 1=wifi, 0=mobile (extra="internet.eplus.de")
+							Log.d(TAG,"networkCallback onAvailable avail="+netInfo.getType()+" "+netInfo.getExtraInfo());
+/*
+// TODO is bindProcessToNetwork() supported on Build.VERSION_CODES.N (api24) or Build.VERSION_CODES.M (api25) ?
+//							if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+								// no matter what network type: bind our process to it
+								// ALL networking sockets are bound to that network until bindProcessToNetwork(null)
+
+// TODO either we un-bind it in onLost(), or we make sure we only bind once!
+//								connectivityManager.bindProcessToNetwork(network);
+//							}
+// TODO do we need to bindProcessToNetwork(null) on unregister?
+*/
+
+							//need to be connected to server to do this?
+							//runJS("newPeerCon();",null);
+							//runJS("triggerOnIceCandidates();",null);
+						} else {
+							Log.d(TAG,"# networkCallback onAvailable netInfo==null "+network.toString());
+						}
+					} else {
+						Log.d(TAG,"# networkCallback onAvailable network==null");
 					}
 				}
 
+//tmtmtm: onLost() calls wifiLock.release() and clears haveNetworkInt
 				@Override
 				public void onLost(Network network) {
-					if(haveNetworkInt>0) {
-						Log.d(TAG,"networkCallback default network lost; conWant="+connectToServerIsWanted);
-						if(connectToServerIsWanted) {
-							statusMessage("No network. Reconnect paused.",-1,true,false);
+			        super.onLost(network);
+					if(network!=null) {
+						Log.d(TAG,"networkCallback onLost "+network.toString()+" conWant="+connectToServerIsWanted);
+						// check the type of network lost...
+						NetworkInfo netInfo = connectivityManager.getNetworkInfo(network);
+						if(netInfo != null) {
+							if(netInfo.getType() == ConnectivityManager.TYPE_WIFI) {  // TYPE_WIFI==1
+								Log.d(TAG,"networkCallback onLost wifi "+netInfo.getExtraInfo());
+								if(haveNetworkInt==2) {
+									haveNetworkInt = 0;		// TODO ???
+									if(connectToServerIsWanted) {
+										statusMessage("Wifi lost. Reconnect paused.",-1,true,false);
+									} else {
+										//statusMessage("Wifi lost.",-1,true,false);
+									}
+								}
+								if(wifiLock!=null && wifiLock.isHeld()) {
+									Log.d(TAG,"networkCallback onLost wifi wifiLock.release");
+									wifiLock.release();
+								}
+							} else {
+								Log.d(TAG,"networkCallback onLost other "+netInfo.getType()+" "+netInfo.getExtraInfo());
+								if(haveNetworkInt==1) {
+									haveNetworkInt = 0;		// TODO ???
+								}
+							}
+						} else {
+							Log.d(TAG,"# networkCallback onLost netInfo==null");
+							// we will release wifi.lock on onCapabilitiesChanged()
 						}
-						haveNetworkInt = 0;
-					}
-					if(!connectToServerIsWanted) {
-						if(wifiLock!=null && wifiLock.isHeld()) {
-							// release wifi lock
-							Log.d(TAG,"networkCallback wifiLock.release");
-							wifiLock.release();
-						}
+					} else {
+						Log.d(TAG,"# networkCallback onLost network==null");
 					}
 				}
 
 				@Override
 				public void onCapabilitiesChanged(Network network, NetworkCapabilities networkCapabi) {
+					// comes only after onAvailable(), not after onLost()
+					// this is why we wifiLock.release() in onLost()
 					lock.lock();
 					int newNetworkInt = 0;
-					if(networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-						newNetworkInt = 2;
-					} else if(networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
-							networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ||
-							networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB)) {
+					if(networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
 						newNetworkInt = 1;
+					} else if(networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+						newNetworkInt = 2;
+					} else if(networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ||
+							networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB)) {
+						newNetworkInt = 3;
 					}
 
 					if(newNetworkInt!=haveNetworkInt) {
-						Log.d(TAG,"networkCallback network capab change: " + haveNetworkInt+" "+newNetworkInt+" "+
+						Log.d(TAG,"networkCallback capab change: " + haveNetworkInt+" "+newNetworkInt+" "+
 							" conWanted="+connectToServerIsWanted+
 							" wsCon="+(wsClient!=null)+
 							" wifi="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)+
 							" cell="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)+
-							//" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
-							//" vpn="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_VPN)+
+							" ether="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)+
+							" vpn="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_VPN)+
 							" wifiAw="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_WIFI_AWARE)+
 							" usb="+networkCapabi.hasTransport(NetworkCapabilities.TRANSPORT_USB));
 					}
 
-					if(haveNetworkInt==2 && newNetworkInt==1) {
-						// losing wifi, switch to other net
+					if(newNetworkInt!=2 && haveNetworkInt==2) {
+						// lost wifi
 						if(wifiLock!=null && wifiLock.isHeld()) {
 							// release wifi lock
 							wifiLock.release();
 							Log.d(TAG,"networkCallback wifi->other wifiLock.release");
 						}
-						if(wsClient!=null) {
-							if(connectToServerIsWanted) {
-								statusMessage("Using other network (not Wifi)",-1,false,false);
-							}
+					}
+					boolean mustReconnectOnNetworkChange = false;
+					if(newNetworkInt==1 && haveNetworkInt!=1) {
+						// gained mobile
+						if(connectToServerIsWanted) {
+							statusMessage("Using mobile network",-1,false,false);
+							mustReconnectOnNetworkChange = true;
+						} else {
+							Log.d(TAG,"networkCallback mobile but conWant==false");
 						}
 					}
 					if(newNetworkInt==2 && haveNetworkInt!=2) {
-						// gaining wifi
+						// gained wifi
+						// lock wifi if required
 						if(setWifiLockMode<=0) {
 							// prefer wifi not enabled by user
 							Log.d(TAG,"networkCallback gainWifi WifiLockMode off");
@@ -751,19 +818,29 @@ public class WebCallService extends Service {
 							Log.d(TAG,"networkCallback gainWifi wifiLock.acquire");
 							wifiLock.acquire();
 						}
+
 						if(connectToServerIsWanted) {
 							statusMessage("Using Wifi network",-1,false,false);
+							mustReconnectOnNetworkChange = true;
 						} else {
 							Log.d(TAG,"networkCallback gainWifi but conWant==false");
 						}
 					}
+					if(newNetworkInt==3 && haveNetworkInt!=3) {
+						// gained other net
+						if(connectToServerIsWanted) {
+							statusMessage("Using other network",-1,false,false);
+							mustReconnectOnNetworkChange = true;
+						} else {
+							Log.d(TAG,"networkCallback gainOther but conWant==false");
+						}
+					}
 
-					// gained network: if goOnline is activated and reconnecter is idle -> start reconnecter
-					if(newNetworkInt>0 && haveNetworkInt<=0 &&
-							connectToServerIsWanted && !reconnectBusy) {
+					// gained new network: start reconnecter	// TODO sure?
+					if(mustReconnectOnNetworkChange && connectToServerIsWanted && !reconnectBusy) {
 						// call scheduler.schedule()
 						if(keepAwakeWakeLock!=null && !keepAwakeWakeLock.isHeld()) {
-							Log.d(TAG,"networkState noNet->Net keepAwakeWakeLock.acquire");
+							Log.d(TAG,"networkCallback keepAwakeWakeLock.acquire");
 							keepAwakeWakeLock.acquire(3 * 60 * 1000);
 							keepAwakeWakeLockStartTime = (new Date()).getTime();
 						}
@@ -771,21 +848,36 @@ public class WebCallService extends Service {
 						haveNetworkInt = newNetworkInt;
 
 						if(!reconnectBusy) {
+							if(newNetworkInt==2) {
+								statusMessage("Reconnect Wifi...",-1,true,false);
+							} else if(newNetworkInt==1) {
+								statusMessage("Reconnect Mobile...",-1,true,false);
+							} else {
+								statusMessage("Reconnect other...",-1,true,false);
+							}
 							if(reconnectSchedFuture!=null && !reconnectSchedFuture.isDone()) {
 								// why wait for the scheduled reconnecter job
-								// let's cancel it and start it immediately
-								Log.d(TAG,"networkState noNet->Net cancel reconnectSchedFuture");
+								// let's cancel it and start in 3s from now
+								// (so that the server has enough time to detect the disconnect)
+								Log.d(TAG,"networkCallback cancel reconnectSchedFuture");
 								if(reconnectSchedFuture.cancel(false)) {
 									// now run reconnecter in the next second
-									Log.d(TAG,"networkState noNet->Net restart reconnecter in 0s");
-									reconnectSchedFuture = scheduler.schedule(reconnecter, 0 ,TimeUnit.SECONDS);
+									Log.d(TAG,"networkCallback restart reconnecter in 3s");
+									reconnectSchedFuture = scheduler.schedule(reconnecter, 3 ,TimeUnit.SECONDS);
 								}
 							} else {
-								Log.d(TAG,"networkState noNet->Net start reconnecter in 0s");
-								reconnectSchedFuture = scheduler.schedule(reconnecter, 0, TimeUnit.SECONDS);
+								Log.d(TAG,"networkCallback start reconnecter in 3s");
+								reconnectSchedFuture = scheduler.schedule(reconnecter, 3, TimeUnit.SECONDS);
+							}
+							if(wsClient!=null) {
+								// disconnect old connection to avoid server re-login denial ("already/still logged in")
+								// note: this will cause: onClose code=1000
+								Log.d(TAG,"disconnect old connection");
+								wsClient.close();
+								wsClient = null;
 							}
 						} else {
-							Log.d(TAG,"networkState noNet->Net no reconnecter: reconnectBusy="+reconnectBusy);
+							Log.d(TAG,"networkCallback no reconnecter: reconnectBusy="+reconnectBusy);
 						}
 					}
 					haveNetworkInt = newNetworkInt;
@@ -798,8 +890,23 @@ public class WebCallService extends Service {
 				//}
 			};
 
+			Log.d(TAG, "networkCallback init registerDefaultNetworkCallback");
 			connectivityManager.registerDefaultNetworkCallback(myNetworkCallback);
+/*
+			Log.d(TAG, "networkCallback init requestForCellular");
+			connectivityManager.requestNetwork(requestForCellular, myNetworkCallback);
+
+			Log.d(TAG, "networkCallback init requestForWifi");
+			connectivityManager.requestNetwork(requestForWifi, myNetworkCallback);
+
+			Log.d(TAG, "networkCallback init requestForEthernet");
+			connectivityManager.requestNetwork(requestForEthernet, myNetworkCallback);
+
+			Log.d(TAG, "networkCallback init requestForUSB");
+			connectivityManager.requestNetwork(requestForUSB, myNetworkCallback);
+*/
 		} else {
+			// SDK_INT < Build.VERSION_CODES.N) // <api24
 			checkNetworkState(false);
 			if(networkStateReceiver==null) {
 				networkStateReceiver = new BroadcastReceiver() {
@@ -818,7 +925,37 @@ public class WebCallService extends Service {
 				Log.d(TAG,"fatal: cannot create networkStateReceiver");
 				return 0;
 			}
+
+/*
+			ConnectivityManager.NetworkCallback cbWifi = new ConnectivityManager.NetworkCallback() {
+				@Override
+				public void onAvailable(Network network) {
+					Log.d(TAG, "networkCallback onAvailable bind cbWifi");
+// TODO is bindProcessToNetwork() supported if SDK_INT < Build.VERSION_CODES.N) // <api24
+					connectivityManager.bindProcessToNetwork(network);
+
+// TODO do we need to bindProcessToNetwork(null) on unregister?
+				}
+			};
+
+			ConnectivityManager.NetworkCallback cbCellular = new ConnectivityManager.NetworkCallback() {
+				@Override
+				public void onAvailable(Network network) {
+					Log.d(TAG, "networkCallback onAvailable bind cbCellular");
+// TODO is bindProcessToNetwork() supported if SDK_INT < Build.VERSION_CODES.N) // <api24
+					connectivityManager.bindProcessToNetwork(network);
+
+// TODO do we need to bindProcessToNetwork(null) on unregister?
+				}
+			};
+			Log.d(TAG, "networkCallback init requestNetwork cbWifi");
+			connectivityManager.requestNetwork(requestForWifi, cbWifi);
+
+			Log.d(TAG, "networkCallback init requestNetwork cbCellular");
+			connectivityManager.requestNetwork(requestForCellular, cbCellular);
+*/
 		}
+
 
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 			if(dozeStateReceiver==null) {
@@ -1195,6 +1332,34 @@ public class WebCallService extends Service {
 				//	super.onLoadResource(view, url);
 				//}
 
+				@SuppressWarnings("deprecation")
+				@Override
+				public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+					// must tell user
+					Intent intent = new Intent("webcall");
+					if(errorCode==ERROR_HOST_LOOKUP) {
+						Log.d(TAG, "# onReceivedError HOST_LOOKUP "+description+" "+failingUrl);
+						intent.putExtra("toast", "No Network?");
+					} else if(errorCode==ERROR_UNKNOWN) {
+						Log.d(TAG, "# onReceivedError UNKNOWN "+description+" "+failingUrl);
+// TODO maybe this should not generate a toast
+// "# onReceivedError UNKNOWN net::ERR_FAILED https://timur.mobi/callee/1980-phone-ringing.mp3"
+//						intent.putExtra("toast", "Network error "+description);
+					} else {
+						Log.d(TAG, "# onReceivedError code="+errorCode+" "+description+" "+failingUrl);
+						intent.putExtra("toast", "Error "+errorCode+" "+description);
+					}
+					sendBroadcast(intent);
+				}
+
+				@TargetApi(android.os.Build.VERSION_CODES.M)
+				public void onReceivedError(WebView view, WebResourceRequest req, WebResourceError err) {
+					super.onReceivedError(view, req, err);
+					// forward to old method (above)
+					onReceivedError(view, err.getErrorCode(), err.getDescription().toString(),
+						req.getUrl().toString());
+				}
+
 				@Override
 				public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
 					// this is called when webview does a https PAGE request and fails
@@ -1513,7 +1678,6 @@ public class WebCallService extends Service {
 
 		// callInProgress() returns >0 when there is an incoming call (ringing) or the device is in-a-call
 		public int callInProgress() {
-			Log.d(TAG, "callInProgress callPickedUpFlag="+callPickedUpFlag+" peerConnectFlag="+peerConnectFlag);
 			int ret = 0;
 			if(callPickedUpFlag) {
 				ret = 1; // waiting for full mediaConnect
@@ -1522,7 +1686,9 @@ public class WebCallService extends Service {
 				ret = 2; // call in progress / mediaConnect
 			}
 			if(ret>0) {
-				Log.d(TAG, "callInProgress ret="+ret);
+				Log.d(TAG, "callInProgress ret="+ret+" pickedUp="+callPickedUpFlag+" peerConnect="+peerConnectFlag);
+			} else {
+				Log.d(TAG, "callInProgress no! pickedUp="+callPickedUpFlag+" peerConnect="+peerConnectFlag);
 			}
 			return ret;
 		}
@@ -1770,10 +1936,10 @@ public class WebCallService extends Service {
 				// we want to send one updateNotification() in any case
 				if(wsClient!=null) {
 					// display awaitingCalls ONLY if we are still ws-connected
-					updateNotification("",awaitingCalls,false);
+					updateNotification(awaitingCalls,false);
 				} else {
 					// otherwise display "Offline"
-					updateNotification("","Offline",false);
+					updateNotification("Offline",false);
 				}
 			}
 			peerConnectFlag = false;
@@ -2322,7 +2488,7 @@ public class WebCallService extends Service {
 				scheduler.schedule(runnable2, 500l, TimeUnit.MILLISECONDS);
 			} else {
 				Log.d(TAG,"WsClient onOpen, but not webviewMainPageLoaded");
-				//updateNotification("",awaitingCalls,false);	// ??? too early? has init been sent?
+				//updateNotification(awaitingCalls,false);	// ??? too early? has init been sent?
 			}
 		}
 
@@ -2369,12 +2535,14 @@ public class WebCallService extends Service {
 				// normal disconnect: shut down connection - do NOT reconnect
 				Log.d(TAG,"onClose code=1000");
 				wsClient = null;
-				statusMessage("disconnected from WebCall server",-1,true,false);
+				if(reconnectSchedFuture==null) {
+					statusMessage("disconnected from WebCall server",-1,true,false);
+				}
 				if(myWebView!=null && webviewMainPageLoaded) {
 					// disable offline-button and enable online-button
 					// TODO etwas stimmt aber nicht:
 					// connectToServerIsWanted wird hier noch nicht gelöscht, später kommt noch ein alarm + reconnect
-					runJS("wsOnClose2();",null); // TODO or goOffline() ?
+					runJS("wsOnClose2();",null);
 				}
 			} else {
 				Log.d(TAG,"onClose code="+code+" reason="+reason);
@@ -2434,7 +2602,9 @@ public class WebCallService extends Service {
 						// and that re-login below may fail with "already/still logged in" because of this
 
 					} else {
-						statusMessage("disconnected from WebCall server",-1,true,false);
+						if(reconnectSchedFuture==null) {
+							statusMessage("disconnected from WebCall server",-1,true,false);
+						}
 					}
 
 					if(reconnectSchedFuture==null && !reconnectBusy) {
@@ -2497,9 +2667,16 @@ public class WebCallService extends Service {
 				return;
 			}
 
+			if(message.equals("clearcache")) {
+				Log.d(TAG,"onMessage clearcache "+message);
+				// TODO implement clearcache: force callee web-client reload
+				return;
+			}
+
 			if(message.startsWith("textmode|")) {
 				textmode = message.substring(9);
 				Log.d(TAG,"onMessage textmode "+message);
+				return;
 			}
 
 			if(message.startsWith("callerOffer|") && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
@@ -2562,7 +2739,7 @@ public class WebCallService extends Service {
 				if(context==null) {
 					Log.e(TAG,"onMessage incoming call, but no context to wake activity");
 				} else if(activityVisible) {
-					Log.d(TAG,"onMessage incoming call, but activityVisible (do nothing)");
+					Log.d(TAG,"onMessage incoming call, activityVisible (do nothing)");
 				} else {
 					// activity is NOT visible
 					Date wakeDate = new Date();
@@ -2644,13 +2821,13 @@ public class WebCallService extends Service {
 					if(wsClient!=null) {
 						wsClient.send("init|");
 					} else {
-						updateNotification("","",false);
+						updateNotification("",false);
 					}
 					return;
 				}
 
 				Log.d(TAG,"onMessage cancel got myWebView + webviewMainPageLoaded");
-				//updateNotification("",awaitingCalls,false);
+				//updateNotification(awaitingCalls,false);
 			}
 
 			if(myWebView==null || !webviewMainPageLoaded ||
@@ -2677,8 +2854,13 @@ public class WebCallService extends Service {
 				// NOTE: message MUST NOT contain apostrophe (') characters
 				String encodedMessage = message.replace("'", "&#39;");
 				String argStr = "wsOnMessage2('"+encodedMessage+"','serv-direct');";
+
+				if(message.startsWith("sessionId|")) {
+					Log.d(TAG,"onMessage sessionId -> runJS("+argStr+")");
+				}
 				//Log.d(TAG,"onMessage runJS "+argStr);
 				// this message goes straight to callee.js signalingCommand()
+// tmtmtm TODO is not always executed
 				runJS(argStr,null);
 			}
 		}
@@ -2940,11 +3122,14 @@ public class WebCallService extends Service {
 	private void calleeIsConnected() {
 		Log.d(TAG,"calleeIsConnected()");
 
-		updateNotification("",awaitingCalls,false);
+		updateNotification(awaitingCalls,false);
 
 		Intent brintent = new Intent("webcall");
 		brintent.putExtra("state", "connected");
 		sendBroadcast(brintent);
+
+		// peerConCreateOffer() does not trigger onIceCandidate() callbacks
+		//runJS("peerConCreateOffer();",null);
 
 		// TODO if wsClient!=null but calleeIsConnected() is NOT called, what does this mean?
 		// especially for webcallConnectType() ?
@@ -3162,9 +3347,9 @@ public class WebCallService extends Service {
 			Log.d(TAG,"processWebRtcMessages runJS "+argStr);
 			/*
 			// we wait till runJS has been processed before we runJS the next
-	        runJS(argStr, new ValueCallback<String>() {
-			    @Override
-			    public void onReceiveValue(String s) {
+			runJS(argStr, new ValueCallback<String>() {
+				@Override
+				public void onReceiveValue(String s) {
 					// continue with next msg
 					processWebRtcMessages();
 				}
@@ -3277,6 +3462,7 @@ public class WebCallService extends Service {
 					return;
 				}
 
+/*
 				reconnectSchedFuture = null;
 				if(wsClient!=null) {
 					Log.d(TAG,"reconnecter already connected");
@@ -3288,6 +3474,7 @@ public class WebCallService extends Service {
 					reconnectBusy = false;
 					return;
 				}
+*/
 				reconnectBusy = true;
 				Log.d(TAG,"reconnecter start "+reconnectCounter+" net="+haveNetworkInt+" "+
 					currentDateTimeString());
@@ -3312,6 +3499,7 @@ public class WebCallService extends Service {
 						wakeUpFromDoze();
 					}
 					if(beepOnLostNetworkMode>0) {
+// TODO
 						// while playSoundAlarm() plays, a "networkCallback network capab change" may come in
 						playSoundAlarm();
 					}
@@ -3462,6 +3650,8 @@ public class WebCallService extends Service {
 						//if(exString.indexOf("SSLHandshakeException")>=0) {
 						if(exString.indexOf("Trust anchor for certification path not found")>=0) {
 							// turn reconnecter off
+// TODO: java.net.UnknownHostException: Unable to resolve host "hostname.com": No address associated with hostname
+// happens on P9 lite on LineageOS due to bug in wifi driver
 							connectToServerIsWanted = false;
 							storePrefsBoolean("connectWanted",false); // used in case of service crash + restart
 						} else {
@@ -3679,51 +3869,16 @@ public class WebCallService extends Service {
 					reconnectBusy = false;
 					reconnectCounter = 0;
 					Log.d(TAG,"reconnecter connectHost() success net="+haveNetworkInt);
+					//statusMessage("Reconnect to server",500,true,false);	// TODO statusMessage needed ???
 
-					// we trust now that server will receive "init", so that calleeIsConnected() will be called
+					// we trust now that server will receive "init" and respond with "sessionId|"+codetag
+					// onMessage() will receive this and call runJS(wsOnMessage2('sessionId|v3.5.5','serv-direct');)
+					// this should call calleeIsConnected() - but this does not always work
+// tmtmtm TODO calleeIsConnected() is not always called
+
 					// calleeIsConnected() will send awaitingCalls notification
 					// calleeIsConnected() will brodcast state connected
 
-
-					/* tmtmtm: sending init is too important to risk that runJS("wakeGoOnline()") cannot be executed
-					if(myWebView!=null && webviewMainPageLoaded) {
-						Log.d(TAG,"reconnecter call js:wakeGoOnline()...");
-						// wakeGoOnline() makes sure:
-						// - js:wsConn is set (to wsClient)
-						// - JS will send "init|" to register callee
-						// - UI in online state (green led + goOfflineButton enabled)
-						runJS("wakeGoOnline();", new ValueCallback<String>() {
-							@Override
-							public void onReceiveValue(String s) {
-								if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-									long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-									Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
-									keepAwakeWakeLockMS += wakeMS;
-									storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
-									keepAwakeWakeLock.release();
-								}
-							}
-						});
-					} else 
-					{
-						// send 'init' to register as callee
-						// otherwise the server will kick us out
-						Log.d(TAG,"reconnecter send init "+(myWebView!=null)+" "+webviewMainPageLoaded);
-						try {
-							wsClient.send("init|");
-							if(keepAwakeWakeLock!=null && keepAwakeWakeLock.isHeld()) {
-								long wakeMS = (new Date()).getTime() - keepAwakeWakeLockStartTime;
-								Log.d(TAG,"reconnecter keepAwakeWakeLock.release 2 +"+wakeMS);
-								keepAwakeWakeLockMS += wakeMS;
-								storePrefsLong("keepAwakeWakeLockMS", keepAwakeWakeLockMS);
-								keepAwakeWakeLock.release();
-							}
-						} catch(Exception ex) {
-							Log.d(TAG,"reconnecter send init ex="+ex);
-							// ignore
-						}
-					}
-					*/
 				} catch(Exception ex) {
 					// this can be caused by webview not installed or just now uninstalled
 					// "android.webkit.WebViewFactory$MissingWebViewPackageException: "
@@ -3800,6 +3955,7 @@ public class WebCallService extends Service {
 				Log.d(TAG,"reconnecter send init "+(myWebView!=null)+" "+webviewMainPageLoaded);
 				try {
 					wsClient.send("init|");
+// TODO server expected to send "sessionId|(serverCodetag)"
 
 					if(myWebView!=null && webviewMainPageLoaded) {
 						Log.d(TAG,"reconnecter call js:wakeGoOnlineNoInit()...");
@@ -4021,7 +4177,7 @@ public class WebCallService extends Service {
 		Log.d(TAG,"connectHost fail, return null");
 		wsClient = null;
 
-		updateNotification("","Offline",false);
+		updateNotification("Offline",false);
 
 		Intent brintent = new Intent("webcall");
 		brintent.putExtra("state", "disconnected");
@@ -4032,7 +4188,7 @@ public class WebCallService extends Service {
 
 	// checkNetworkState() is for API <= 23 (Android 6) only; for higher API's we use networkCallback
 	private void checkNetworkState(boolean restartReconnectOnNetwork) {
-		// sets haveNetworkInt = 0,1,2
+		// sets haveNetworkInt = 0,1,2,3
 		// if wifi connected -> wifiLock.acquire(), otherwise -> wifiLock.release()
 		// on gain of any network: call scheduler.schedule(reconnecter)
 		// but checkNetworkState() is not reliable
@@ -4041,6 +4197,38 @@ public class WebCallService extends Service {
 		if(extendedLogsFlag) {
 			Log.d(TAG,"checkNetworkState");
 		}
+
+/* TODO: latest: cm.getNetworkCapabilities(cm.activeNetwork).hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+		ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+		    if (cm != null) {
+		        NetworkCapabilities capabilities = cm.getNetworkCapabilities(cm.getActiveNetwork());
+		        if (capabilities != null) {
+		            if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+		                result = 2;
+		            } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
+		                result = 1;
+		            } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
+		                result = 3;
+		            }
+		        }
+		    }
+		} else {
+		    if (cm != null) {
+		        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+		        if (activeNetwork != null) {
+		            // connected to the internet
+		            if (activeNetwork.getType() == ConnectivityManager.TYPE_WIFI) {
+		                result = 2;
+		            } else if (activeNetwork.getType() == ConnectivityManager.TYPE_MOBILE) {
+		                result = 1;
+		            } else if (activeNetwork.getType() == ConnectivityManager.TYPE_VPN) {
+		                result = 3;
+		            }
+		        }
+		    }
+		}
+*/
 		NetworkInfo netActiveInfo = connectivityManager.getActiveNetworkInfo();
 		NetworkInfo wifiInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 		NetworkInfo mobileInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
@@ -4118,8 +4306,7 @@ public class WebCallService extends Service {
 			} else {
 				// if we are NOT supposed to be connected 
 				// or we are, but reconnecter is in progress and is NOT waiting for network to come back
-				Log.d(TAG,"networkState wifi !connectToServerIsWanted "+
-					connectToServerIsWanted);
+				Log.d(TAG,"networkState wifi !connectToServerIsWanted "+connectToServerIsWanted);
 			}
 
 		} else if((netActiveInfo!=null && netActiveInfo.isConnected()) ||
@@ -4226,9 +4413,9 @@ public class WebCallService extends Service {
 			if(myWebView!=null && webviewMainPageLoaded) {
 				Log.d(TAG, "endPeerConAndWebView runJS('endWebRtcSession()')");
 				// we need to call endPeerConAndWebView2() after JS:endWebRtcSession() returns
-		        runJS("endWebRtcSession(true,false)", new ValueCallback<String>() {
-				    @Override
-				    public void onReceiveValue(String s) {
+				runJS("endWebRtcSession(true,false)", new ValueCallback<String>() {
+					@Override
+					public void onReceiveValue(String s) {
 						endPeerConAndWebView2();
 					}
 				});
@@ -4258,21 +4445,26 @@ public class WebCallService extends Service {
 			logstr = logstr.substring(0,40);
 		}
 		if(myWebView==null) {
-			Log.d(TAG, "runJS("+logstr+") but no webview");
+			Log.d(TAG, "# runJS("+logstr+") but no webview");
 		} else if(!webviewMainPageLoaded && !str.equals("history.back()")) {
-			Log.d(TAG, "runJS("+logstr+") but no webviewMainPageLoaded");
+			Log.d(TAG, "# runJS("+logstr+") but no webviewMainPageLoaded");
 		} else {
-			if(extendedLogsFlag && !logstr.startsWith("wsOnError") && !logstr.startsWith("showStatus")) {
-				Log.d(TAG, "runJS("+logstr+")");
-			}
+//			if(extendedLogsFlag && !logstr.startsWith("wsOnError") && !logstr.startsWith("showStatus")) {
+				Log.d(TAG, "runJS("+logstr+") post...");
+//			}
 			myWebView.post(new Runnable() {
 				@Override
 				public void run() {
 					// escape '\r\n' to '\\r\\n'
 					final String str2 = str.replace("\\", "\\\\");
 					//Log.d(TAG,"runJS evalJS "+str2);
-					if(myWebView!=null && (webviewMainPageLoaded || str.equals("history.back()"))) {
+					if(myWebView==null) {
+						Log.d(TAG,"# runJS evalJS "+str2+" but no myWebView");
+					} else if(!webviewMainPageLoaded && !str.equals("history.back()")) {
+						Log.d(TAG,"# runJS evalJS "+str2+" but no webviewMainPageLoaded (and not history.back())");
+					} else {
 						// evaluateJavascript() instead of loadUrl()
+						Log.d(TAG,"runJS evalJS exec "+str2);
 						myWebView.evaluateJavascript(str2, myBlock);
 					}
 				}
@@ -4490,6 +4682,7 @@ public class WebCallService extends Service {
 	}
 
 	private void statusMessage(String msg, int timeoutMs, boolean notifi, boolean important) {
+		// webcall status msg + android notification (if notifi + important are true)
 		//Log.d(TAG,"statusMessage: "+msg+" n="+notifi+" i="+important);
 		if(myWebView!=null && webviewMainPageLoaded && msg!="") {
 			// msg MUST NOT contain apostrophe
@@ -4497,32 +4690,38 @@ public class WebCallService extends Service {
 			runJS("showStatus('"+encodedMsg+"',"+timeoutMs+");",null);
 		}
 		if(notifi) {
-			updateNotification("", msg, important);
+			updateNotification(msg, important);
 		}
 	}
 
-	private void updateNotification(String title, String msg, boolean important) {
-		if(stopSelfFlag) {
+	private void updateNotification(String msg, boolean important) {
+		// android notification
+		if(msg=="") {
+			Log.d(TAG,"# updateNotification msg empty");
+		} else if(stopSelfFlag) {
 			Log.d(TAG,"# updateNotification msg="+msg+" important="+important+" skip on stopSelfFlag");
-			return;
-		}
-		if(msg!="" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { // >= 26
-			if(important || isScreenOn()) {
-				Log.d(TAG,"updateNotification msg="+msg+" important="+important);
-				NotificationManager notificationManager =
-					(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
-				Notification notification = buildFgServiceNotification(title, msg, important);
-				/*
-				if(msg.equals("Incoming WebCall")) {
-					Log.d(TAG,"updateNotification 'Incoming WebCall' setLights");
-					notification.ledARGB = Color.argb(255, 0, 255, 0);
-					notification.flags |= Notification.FLAG_SHOW_LIGHTS;
-					notification.ledOnMS = 200;
-					notification.ledOffMS = 300;
-				}
-				*/
-				notificationManager.notify(NOTIF_ID, notification);
+		} else if(Build.VERSION.SDK_INT < Build.VERSION_CODES.O) { // < 26
+			Log.d(TAG,"# updateNotification msg="+msg+" but sdk="+Build.VERSION.SDK_INT+" smaller than O (26)");
+//		} else if(!important) {
+//			Log.d(TAG,"# updateNotification msg="+msg+" but important not set");
+//		} else if(!isScreenOn()) {
+//			Log.d(TAG,"# updateNotification msg="+msg+" but screen is off");
+		} else {
+			Log.d(TAG,"updateNotification msg="+msg+" important="+important);
+			NotificationManager notificationManager =
+				(NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+			String title = "";
+			Notification notification = buildFgServiceNotification(title, msg, important);
+			/*
+			if(msg.equals("Incoming WebCall")) {
+				Log.d(TAG,"updateNotification 'Incoming WebCall' setLights");
+				notification.ledARGB = Color.argb(255, 0, 255, 0);
+				notification.flags |= Notification.FLAG_SHOW_LIGHTS;
+				notification.ledOnMS = 200;
+				notification.ledOffMS = 300;
 			}
+			*/
+			notificationManager.notify(NOTIF_ID, notification);
 		}
 	}
 

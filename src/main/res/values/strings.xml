@@ -33,7 +33,7 @@
     <string name="msg_proximity_action_screen_off" >Proximity Action: Screen dim</string>
     <string name="msg_proximity_action_screen_dim" >Proximity Action: Screen off</string>
 
-    <string name="msg_capture_logs"                >Capture logs now</string>
+    <string name="msg_capture_logs"                >Capture logs</string>
     <string name="msg_open_logs"                   >Open log file</string>
     <string name="msg_ext_logs_off"                ># Extended logs: Off</string>
     <string name="msg_ext_logs_on"                 ># Extended logs: On</string>

@@ -42,8 +42,8 @@ window.onload = function() {
 	var webviewVersion = Android.webviewVersion();
 	if(!webviewVersion) {
 		webviewVersion = "no version, old webview?";
-	} else if(webviewVersion<"80.0") {
-		webviewVersion = webviewVersion + " TOO OLD!";
+	//} else if(webviewVersion<"80.0") {
+	//	webviewVersion = webviewVersion + " TOO OLD?";
 	}
 	document.getElementById("webviewversion").innerHTML = webviewVersion;
 
@@ -292,13 +292,13 @@ function connectServer() {
 		abort = true;
 		divspinnerframe.style.display = "none";
 		setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
-		Android.toast("Connection failed. Please check server address and user ID.");
+		Android.toast("Connection failed. Check network connectivity and server address.");
 	}, function(errString,errcode) {
 		console.log('xhr error ('+errString+') errcode='+errcode);
 		abort = true;
 		divspinnerframe.style.display = "none";
 		setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
-		Android.toast("Connection failed. Please check your server address and user ID.");
+		Android.toast("Connection failed. Check network connectivity and server address.");
 	});
 }
 

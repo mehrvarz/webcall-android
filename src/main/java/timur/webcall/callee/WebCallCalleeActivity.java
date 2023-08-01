@@ -298,7 +298,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 				String message = intent.getStringExtra("toast");
 				if(message!=null && !message.equals("")) {
-					Log.d(TAG, "broadcastReceiver toast "+message);
+					Log.d(TAG, "broadcastReceiver toast '"+message+"'");
 					Toast.makeText(context, message, Toast.LENGTH_LONG).show();
 					return;
 				}
@@ -685,9 +685,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE);
 		// onServiceConnected -> webCallServiceBinder.startWebView()
 
-		if(extendedLogsFlag) {
-			Log.d(TAG, "onCreate registerForContextMenu");
-		}
+		Log.d(TAG, "onCreate registerForContextMenu");
 		registerForContextMenu(mainView);
 
 		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // >=api23
@@ -702,7 +700,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				return;
 			}
 		}
-
 		onCreateIntent = getIntent();
 		if(extendedLogsFlag) {
 			Log.d(TAG, "onCreate done");
@@ -725,7 +722,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 				// immediately start our webview
 				Log.d(TAG, "onServiceConnected startWebView");
-//				myWebView = findViewById(R.id.webview);
 				myWebView.setBackgroundColor(Color.TRANSPARENT);
 				registerForContextMenu(myWebView);
 
@@ -1598,6 +1594,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 							Log.d(TAG, "newIntent ACTION_SEND browse path="+uri);
 							waitForBrowser(uri,0);
 						} else {
+// TODO this will ignore /user/ID...
 							Log.d(TAG, "newIntent ACTION_SEND ignore path="+uri.getPath());
 						}
 					}
