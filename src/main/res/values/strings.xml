@@ -20,9 +20,12 @@
     <string name="msg_beep_on_lost_network_off"    >Beep on no network: On</string>
     <string name="msg_start_on_boot_on"            >Start on boot: Off</string>
     <string name="msg_start_on_boot_off"           >Start on boot: On</string>
-
+<!--
     <string name="msg_wifi_lock_is_on"             >Wifi preferred: Off</string>
     <string name="msg_wifi_lock_is_off"            >Wifi preferred: On</string>
+-->
+    <string name="msg_wifi_lock_is_on"             >Keep Wifi locked: Off</string>
+    <string name="msg_wifi_lock_is_off"            >Keep Wifi locked: On</string>
 
     <string name="msg_screen_for_wifi_on"          >Screen for Wifi: Off</string>
     <string name="msg_screen_for_wifi_off"         >Screen for Wifi: On</string>

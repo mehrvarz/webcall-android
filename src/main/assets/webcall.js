@@ -221,7 +221,7 @@ function connectServer() {
 	if(valueUsername=="") {
 		// register new ID
 		console.log('username is empty');
-		Android.toast("Cannot start with an empty User-ID.");
+		Android.toast("No user-ID");
 		setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
 		return;
 	}
@@ -230,8 +230,9 @@ function connectServer() {
 	console.log('isNetwork='+isNetwork);
 	if(!isNetwork) {
 		// there is no point advancing if we have no network
+		console.log('no network');
+		Android.toast("No network");
 		setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
-		alert("no network");
 		return;
 	}
 
