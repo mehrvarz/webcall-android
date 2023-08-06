@@ -293,13 +293,13 @@ function connectServer() {
 		abort = true;
 		divspinnerframe.style.display = "none";
 		setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
-		Android.toast("Connection failed. Check network connectivity and server address.");
+		Android.toast("Connection failed. Check server address and user ID.");
 	}, function(errString,errcode) {
 		console.log('xhr error ('+errString+') errcode='+errcode);
 		abort = true;
 		divspinnerframe.style.display = "none";
 		setTimeout(function() { document.activeElement.blur(); },100); // deactivate button
-		Android.toast("Connection failed. Check network connectivity and server address.");
+		Android.toast("Connection failed. Check server address and user ID.");
 	});
 }
 
