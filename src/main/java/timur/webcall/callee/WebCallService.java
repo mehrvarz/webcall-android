@@ -4411,7 +4411,7 @@ public class WebCallService extends Service {
 			}
 			reconnectBusy = false;
 		}
-		statusMessage("Offline", 0, sendNotification,false);
+		statusMessage("Offline", -1, sendNotification,false);
 
 		Intent brintent = new Intent("webcall");
 		brintent.putExtra("state", "disconnected");
