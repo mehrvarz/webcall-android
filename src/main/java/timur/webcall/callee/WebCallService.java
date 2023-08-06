@@ -3558,9 +3558,24 @@ public class WebCallService extends Service {
 						}
 					}
 
-					HttpURLConnection con = (HttpURLConnection)url.openConnection();
+					HttpsURLConnection con = (HttpsURLConnection)url.openConnection();
 					con.setConnectTimeout(22000);
 					con.setReadTimeout(10000);
+
+					if(insecureTlsFlag) {
+						// avoid: "javax.net.ssl.SSLPeerUnverifiedException: Hostname 192.168.0.161 not verified"
+						// on reconnect on LineageOS
+						con.setHostnameVerifier(new HostnameVerifier() {
+							@Override
+							public boolean verify(String hostname, SSLSession session) {
+								//HostnameVerifier hv = new org.apache.http.conn.ssl.StrictHostnameVerifier();
+								//boolean ret = hv.verify("192.168.0.161", session);
+								Log.d(TAG,"reconnecter HostnameVerifier accept "+hostname);
+								return true;
+							}
+						});
+					}
+
 					CookieManager.getInstance().setAcceptCookie(true);
 					if(webviewCookies==null) {
 						webviewCookies = CookieManager.getInstance().getCookie(loginUrl);
