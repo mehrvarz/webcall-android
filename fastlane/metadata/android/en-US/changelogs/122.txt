@@ -1,7 +1,7 @@
 WebCall for Android
 
 Release notes v1.3.2:
-- Quicker, more reliable Wifi/Mobile handover
+- Improved Wifi/Mobile handover
 - several bugfixes (webview version check)
-- several UI improvements
+- UI improvements
 
