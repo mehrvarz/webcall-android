@@ -4,4 +4,5 @@ Release notes v1.3.2:
 - Reliable Wifi/Mobile handover
 - several bugfixes (webview version check, no network, etc.)
 - UI improvements
+- improved 'Allow insecure TLS' with custom HostnameVerifier
 
