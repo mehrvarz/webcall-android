@@ -362,7 +362,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					//   handled by an external browser
 					// this is why we take a short cut here:
 					if(url.indexOf("/user/")>0) {
-						dialId(Uri.parse(url));
+						dialId(Uri.parse(url),0);
 						return;
 					}
 					Intent i = new Intent(Intent.ACTION_VIEW);
@@ -1559,7 +1559,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					// dialIdIntent will be executed in onServiceConnected
 				} else {
 					Log.d(TAG, "newIntent dialId uri="+uri+" webCallServiceBinder ("+comment+")");
-					dialId(uri);
+					dialId(uri,0);
 				}
 				return;
 			}
@@ -1567,7 +1567,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			int idxCallee = path.indexOf("/callee/");
 			if(idxCallee>=0) {
 				if(path.endsWith("/callee/") || path.substring(idxCallee+8).indexOf("/")<0) {
-					// do NOT waitForBrowser() (only bring activity to front)
+					// do NOT waitForBrowser (only bring activity to front)
 					Log.d(TAG, "newIntent no render path="+path);
 				} else {
 					Log.d(TAG, "newIntent render path="+path);
@@ -1593,8 +1593,10 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 						if(uri.getPath().startsWith("/callee/")) {
 							Log.d(TAG, "newIntent ACTION_SEND browse path="+uri);
 							waitForBrowser(uri,0);
+						} else if(uri.getPath().startsWith("/user/")) {
+							Log.d(TAG, "newIntent ACTION_SEND dialId path="+uri);
+							dialId(uri,0);
 						} else {
-// TODO this will ignore /user/ID...
 							Log.d(TAG, "newIntent ACTION_SEND ignore path="+uri.getPath());
 						}
 					}
@@ -1612,8 +1614,8 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		// if not connected to service or not connected to webcall server: delay
 
 		if(myWebView==null || myNewWebView==null || webCallServiceBinder==null) {
-			if(counter>=10) {
-				// after 10s give up
+			if(counter>=15) {
+				// after 15s give up
 				Log.d(TAG, "# waitForBrowser give up");
 			} else {
 				final Handler handler = new Handler(Looper.getMainLooper());
@@ -2072,7 +2074,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		}
 	}
 
-	private void dialId(Uri uri) {
+	private void dialId(final Uri uri, int counter) {
 		// example uri (as string):
 		// https://timur.mobi/user/id?callerId=id&callerName=username&ds=false
 		String webcalldomain = prefs.getString("webcalldomain", "").toLowerCase(Locale.getDefault());
@@ -2082,7 +2084,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 		if(port>0) {
 			hostport += ":"+port;
 		}
-		Log.d(TAG, "dialId uri hostport="+hostport+" webcalldomain="+webcalldomain);
 
 		String path = uri.getPath();
 		int idxUser = path.indexOf("/user/");
@@ -2093,7 +2094,6 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 		String dialId = path.substring(idxUser+6);
 		lastSetDialId = System.currentTimeMillis();	// ???
-		Log.d(TAG, "dialId dialId="+dialId);
 
 		// if uri points to the local server
 		if(hostport.equals(webcalldomain) || host.equals(webcalldomain)) {
@@ -2102,14 +2102,24 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			// we only hand over the target ID (aka dialId)
 			// note: only run this if we are on the main page
 			if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
-				Log.d(TAG, "# dialId not on the main page, local uri="+uri);
+				if(counter>=15) {
+					// after 15s give up
+					Log.d(TAG, "# dialId not on the main page give up, local uri="+uri);
+				} else {
+					final Handler handler = new Handler(Looper.getMainLooper());
+					handler.postDelayed(new Runnable() {
+						@Override
+						public void run() {
+							dialId(uri,counter+1);
+						}
+					}, 1000);
+				}
 				return;
 			}
-			Log.d(TAG, "dialId local uri="+uri);
+			Log.d(TAG, "dialId openDialId local uri="+uri);
 			webCallServiceBinder.runJScode("openDialId('"+dialId+"')");
 			return;
 		}
-
 
 		/////////////////////////////////////////////////////////////////////////////
 		// uri points to a remote server
@@ -2134,12 +2144,14 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 
 			iParamValue = (String)params.get("i");
-			Log.d(TAG, "dialId iParamValue="+iParamValue);
 		}
+
+		Log.d(TAG, "dialId="+dialId+" host="+hostport+" iParam="+iParamValue+" own webcalldomain="+webcalldomain);
 
 		/////////////////////////////////////////////////////////////
 		// STEP 1: if parameter "i" is NOT set -> open dial-id-dialog with callerId=select
 		if(iParamValue==null || iParamValue.equals("") || iParamValue.equals("null")) {
+			/*
 			// rebuild the Uri with callerHost = webcalldomain
 			Uri.Builder builder = new Uri.Builder();
 			builder.scheme(uri.getScheme())
@@ -2154,10 +2166,37 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			}
 			uri = builder.build();
 			Log.d(TAG, "dialId remote "+uri.toString());
-
-			// open dial-id-dialog only if we are on the main page
-			if(webCallServiceBinder==null || webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
-				Log.d(TAG, "# dialId not on the main page");
+			*/
+			if(webCallServiceBinder==null) {
+				// open dial-id-dialog only if service is running
+				if(counter>=15) {
+					// after 15s give up
+					Log.d(TAG, "# dialId no webCallServiceBinder give up");
+				} else {
+					final Handler handler = new Handler(Looper.getMainLooper());
+					handler.postDelayed(new Runnable() {
+						@Override
+						public void run() {
+							dialId(uri,counter+1);
+						}
+					}, 1000);
+				}
+				return;
+			}
+			if(webCallServiceBinder.getCurrentUrl().indexOf("/callee/")<0) {
+				// open dial-id-dialog only if we are on the main page
+				if(counter>=15) {
+					// after 15s give up
+					Log.d(TAG, "# dialId not on the main page give up "+webCallServiceBinder.getCurrentUrl());
+				} else {
+					final Handler handler = new Handler(Looper.getMainLooper());
+					handler.postDelayed(new Runnable() {
+						@Override
+						public void run() {
+							dialId(uri,counter+1);
+						}
+					}, 1000);
+				}
 				return;
 			}
 			// dial-id-dialog does NOT require callerID=...
@@ -2166,7 +2205,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 				"&callerName="+(String)params.get("callerName") +
 				"&ds="+(String)params.get("ds") +
 				"&callerId=select";
-			Log.d(TAG, "dialId dial-id-dialog "+newUrl);
+			Log.d(TAG, "dialId iframeWindowOpen "+newUrl);
 			webCallServiceBinder.runJScode("iframeWindowOpen('"+newUrl+"',false,'',false)");
 			// when uri comes back (sanitized) it will have &i= set
 			return;

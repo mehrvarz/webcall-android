@@ -1834,7 +1834,7 @@ public class WebCallService extends Service {
 		}
 
 		public String getCurrentUrl() {
-			Log.d(TAG, "getCurrentUrl currentUrl="+currentUrl);
+			//Log.d(TAG, "getCurrentUrl currentUrl="+currentUrl);
 			return currentUrl;
 		}
 
