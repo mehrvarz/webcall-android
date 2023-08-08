@@ -1566,17 +1566,21 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 			int idxCallee = path.indexOf("/callee/");
 			if(idxCallee>=0) {
-				if(path.endsWith("/callee/") || path.substring(idxCallee+8).indexOf("/")<0) {
-					// do NOT waitForBrowser (only bring activity to front)
-					Log.d(TAG, "newIntent no render path="+path);
-				} else {
-					Log.d(TAG, "newIntent render path="+path);
-					waitForBrowser(uri,0);
-					return;
-				}
-			} else {
-				Log.d(TAG, "# newIntent uri="+uri+" not processed ("+comment+")");
+				//if(path.endsWith("/callee/") || path.substring(idxCallee+8).indexOf("/")<0) {
+				//	// do NOT waitForBrowser (only bring activity to front)
+				//	Log.d(TAG, "newIntent no render path="+path);
+				//} else {
+				//	Log.d(TAG, "newIntent render path="+path);
+				//	waitForBrowser(uri,0);
+				//	return;
+				//}
+
+				// /callee links only start the app, are not rendered
+				Log.d(TAG, "# newIntent ignore /callee/ path="+path);
+				return;
 			}
+
+			Log.d(TAG, "# newIntent uri="+uri+" not processed ("+comment+")");
 			return;
 		}
 
@@ -1591,13 +1595,16 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 					if(sharedText.startsWith("https://")) {
 						uri = Uri.parse(sharedText);
 						if(uri.getPath().startsWith("/callee/")) {
-							Log.d(TAG, "newIntent ACTION_SEND browse path="+uri);
-							waitForBrowser(uri,0);
+							//Log.d(TAG, "newIntent ACTION_SEND browse path="+uri);
+							//waitForBrowser(uri,0);
+
+							// /callee links only start the app, are not rendered
+							Log.d(TAG, "# newIntent ACTION_SEND ignore /callee path="+uri);
 						} else if(uri.getPath().startsWith("/user/")) {
 							Log.d(TAG, "newIntent ACTION_SEND dialId path="+uri);
 							dialId(uri,0);
 						} else {
-							Log.d(TAG, "newIntent ACTION_SEND ignore path="+uri.getPath());
+							Log.d(TAG, "# newIntent ACTION_SEND ignore path="+uri.getPath());
 						}
 					}
 				}
@@ -2444,7 +2451,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 
 			// first, load local busy.html with running spinner (loads fast)
 			String urlString = uri.toString();
-			Log.d(TAG, "dialId load busy.html disp="+urlString);
+			Log.d(TAG, "render load busy.html disp="+urlString);
 			// display urlString with args cut off
 			int idxArgs = urlString.indexOf("?");
 			if(idxArgs>=0) {
@@ -2460,7 +2467,7 @@ public class WebCallCalleeActivity extends Activity implements CreateNdefMessage
 			handler.postDelayed(new Runnable() {
 				@Override
 				public void run() {
-					Log.d(TAG, "dialId load "+finalUrl.toString());
+					Log.d(TAG, "render load "+finalUrl.toString());
 					myNewWebView.loadUrl(finalUrl.toString());
 
 					handler.postDelayed(new Runnable() {
