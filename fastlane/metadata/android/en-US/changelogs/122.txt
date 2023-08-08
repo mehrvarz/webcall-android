@@ -1,8 +1,7 @@
 WebCall for Android
-
 Release notes v1.3.2:
 - Reliable Wifi/Mobile handover
-- several bugfixes (webview version check, no network, etc.)
-- UI improvements
-- improved 'Allow insecure TLS' with custom HostnameVerifier
+- several bugfixes: no network, webview version check, more
+- several interface improvements
+- improved 'Allow insecure TLS' via HostnameVerifier
 
